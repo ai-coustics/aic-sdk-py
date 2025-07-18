@@ -1,10 +1,14 @@
 import argparse
+import os
 
 import librosa
 import numpy as np
 import soundfile as sf
 from aicoustics import RealTimeL
+from dotenv import load_dotenv
 from tqdm import tqdm
+
+load_dotenv(override=True)
 
 
 def process_wav(input_wav: str, output_wav: str, strength: int):
@@ -13,7 +17,11 @@ def process_wav(input_wav: str, output_wav: str, strength: int):
     num_channels = 1
     input = input.reshape(1, -1)
 
-    enhancer = RealTimeL(num_channels=num_channels, sample_rate=48000, num_frames=512)
+    enhancer = RealTimeL(
+        license_key=os.getenv("AICOUSTICS_LICENSE_KEY"),
+        num_channels=num_channels,
+        sample_rate=48000,
+        num_frames=512)
 
     # print out model information
     print(f"Optimal input buffer size: {enhancer.get_optimal_num_frames()} samples")

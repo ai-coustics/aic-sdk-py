@@ -21,6 +21,19 @@ All wheels are for version `0.5.0a1`:
   - cp310 (win32, amd64)
   - cp311 (win32, amd64)
 
+## 📥 Install on MacOS
+Using `uv`:
+```
+ uv venv --python 3.10
+ uv pip install -r requirements.txt
+```
+
+## 🔑 License Key
+
+The ai|coustics SDK requires a valid license key to function. You'll need to obtain a license key from ai|coustics and set it up in your application before using the SDK.
+
+Contact ai|coustics to obtain your license key for accessing the real-time audio enhancement features.
+
 ## 🎧 Optimal Configuration & Latency
 
 The library supports **arbitrary sample rates and input buffer sizes**, but to achieve **lowest algorithmic latency**, it is strongly recommended to use:
@@ -38,3 +51,5 @@ This repository includes a script to process WAV files using the SDK.
 
 ```bash
 python enhance.py input.wav output.wav --strength 80
+
+```
