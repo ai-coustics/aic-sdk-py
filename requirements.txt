@@ -1,0 +1,5 @@
+numpy
+tqdm
+librosa
+soundfile
+# https://github.com/aicoustics/aic-sdk-py/releases/download/v0.5.0a1/aicoustics-0.5.0a1-cp310-cp310-macosx_11_0_arm64.whl
