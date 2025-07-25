@@ -193,11 +193,12 @@ jobs:
 
     - name: Build wheel (Linux ARM64)
       if: matrix.os == 'linux' && matrix.arch == 'aarch64'
-      uses: docker://quay.io/pypa/manylinux2014_aarch64
-      with:
-        args: |
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/workspace \
+          --platform linux/arm64 \
+          quay.io/pypa/manylinux2014_aarch64 \
           bash -c "
-            cd /github/workspace &&
+            cd /workspace &&
             /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
             auditwheel repair dist/*.whl --plat manylinux2014_aarch64 -w wheelhouse/
