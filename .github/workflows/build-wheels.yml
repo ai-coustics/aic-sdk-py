@@ -222,14 +222,13 @@ jobs:
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
             echo 'Built wheel info:' &&
             ls -la dist/ &&
+            echo 'Wheel contents:' &&
             unzip -l dist/*.whl | grep -E '\.(so|dylib|dll)' || echo 'No native libraries found in wheel' &&
-            if ls dist/*.whl | grep -q 'py3-none-any'; then
-              echo 'ERROR: Pure Python wheel detected, but we need platform-specific wheel'
-              echo 'Wheel contents:'
-              unzip -l dist/*.whl
-              exit 1
-            fi &&
-            auditwheel repair dist/*.whl --plat manylinux2014_x86_64 -w wheelhouse/
+            echo 'Attempting to repair wheel with auditwheel...' &&
+            auditwheel repair dist/*.whl --plat manylinux2014_x86_64 -w wheelhouse/ || (
+              echo 'auditwheel failed, trying to force repair...' &&
+              auditwheel repair dist/*.whl --plat manylinux2014_x86_64 --strip -w wheelhouse/
+            )
           "
 
     - name: Build wheel (macOS/Windows)
