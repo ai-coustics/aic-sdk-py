@@ -1,0 +1,232 @@
+name: Build Wheels
+
+on:
+  push:
+    branches: [ main, corvin/c-bindings ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-wheels:
+    name: Build wheel for ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          # Linux builds
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-latest
+            artifact_name: aic-sdk-x86_64-unknown-linux-gnu
+            lib_dir: linux
+            lib_name: libaic.so
+          - os: linux
+            arch: aarch64
+            runner: ubuntu-latest
+            artifact_name: aic-sdk-aarch64-unknown-linux-gnu
+            lib_dir: linux
+            lib_name: libaic.so
+          
+          # macOS builds
+          - os: macos
+            arch: universal
+            runner: macos-latest
+            artifact_name: aic-sdk-macos-universal
+            lib_dir: mac
+            lib_name: libaic.dylib
+          - os: macos
+            arch: arm64
+            runner: macos-latest
+            artifact_name: aic-sdk-aarch64-apple-darwin
+            lib_dir: mac
+            lib_name: libaic.dylib
+          
+          # Windows builds
+          - os: windows
+            arch: x64
+            runner: windows-latest
+            artifact_name: aic-sdk-x86_64-pc-windows-msvc
+            lib_dir: windows
+            lib_name: aic.dll
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build hatchling
+
+    - name: Extract version from pyproject.toml
+      id: version
+      shell: bash
+      run: |
+        VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])" 2>/dev/null || python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    - name: Install tomli for older Python versions
+      if: matrix.os == 'linux' && matrix.arch == 'aarch64'
+      run: pip install tomli
+
+    - name: Download C library artifact
+      env:
+        GITHUB_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+      shell: bash
+      run: |
+        # Create the target directory
+        mkdir -p aic/libs/${{ matrix.lib_dir }}
+        
+        # Download the artifact
+        ARTIFACT_URL="https://github.com/ai-coustics/aic-sdk/releases/download/${{ steps.version.outputs.version }}/${{ matrix.artifact_name }}-${{ steps.version.outputs.version }}.tar.gz"
+        if [[ "${{ matrix.os }}" == "windows" ]]; then
+          ARTIFACT_URL="https://github.com/ai-coustics/aic-sdk/releases/download/${{ steps.version.outputs.version }}/${{ matrix.artifact_name }}-${{ steps.version.outputs.version }}.zip"
+        fi
+        
+        echo "Downloading from: $ARTIFACT_URL"
+        
+        # Download with authentication
+        if [[ "${{ matrix.os }}" == "windows" ]]; then
+          curl -L -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/octet-stream" \
+               "$ARTIFACT_URL" -o artifact.zip
+          unzip artifact.zip
+          # Find the library file and copy it
+          find . -name "${{ matrix.lib_name }}" -exec cp {} aic/libs/${{ matrix.lib_dir }}/ \;
+        else
+          curl -L -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/octet-stream" \
+               "$ARTIFACT_URL" -o artifact.tar.gz
+          tar -xzf artifact.tar.gz
+          # Find the library file and copy it
+          find . -name "${{ matrix.lib_name }}" -exec cp {} aic/libs/${{ matrix.lib_dir }}/ \;
+        fi
+        
+        # Verify the library was copied
+        ls -la aic/libs/${{ matrix.lib_dir }}/
+
+    - name: Set up QEMU for ARM64 builds
+      if: matrix.os == 'linux' && matrix.arch == 'aarch64'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
+
+    - name: Build wheel (Linux ARM64)
+      if: matrix.os == 'linux' && matrix.arch == 'aarch64'
+      uses: docker://quay.io/pypa/manylinux2014_aarch64
+      with:
+        args: |
+          bash -c "
+            cd /github/workspace &&
+            /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
+            /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            auditwheel repair dist/*.whl --plat-tag linux_aarch64 -w wheelhouse/
+          "
+
+    - name: Build wheel (Linux x86_64)
+      if: matrix.os == 'linux' && matrix.arch == 'x86_64'
+      uses: docker://quay.io/pypa/manylinux2014_x86_64
+      with:
+        args: |
+          bash -c "
+            cd /github/workspace &&
+            /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
+            /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            auditwheel repair dist/*.whl --plat-tag linux_x86_64 -w wheelhouse/
+          "
+
+    - name: Build wheel (macOS/Windows)
+      if: matrix.os != 'linux'
+      run: |
+        python -m build --wheel
+        mkdir -p wheelhouse
+        cp dist/*.whl wheelhouse/
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.os }}-${{ matrix.arch }}
+        path: wheelhouse/*.whl
+        retention-days: 30
+
+  test-wheels:
+    name: Test wheels
+    needs: build-wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        exclude:
+          # Skip some combinations to reduce CI time
+          - os: macos-latest
+            python-version: '3.8'
+          - os: windows-latest
+            python-version: '3.8'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: wheelhouse/
+
+    - name: Install wheel
+      shell: bash
+      run: |
+        # Find the appropriate wheel for this platform
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          WHEEL=$(find wheelhouse -name "*linux*.whl" | head -1)
+        elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          WHEEL=$(find wheelhouse -name "*macosx*.whl" -o -name "*universal*.whl" | head -1)
+        elif [[ "${{ runner.os }}" == "Windows" ]]; then
+          WHEEL=$(find wheelhouse -name "*win*.whl" | head -1)
+        fi
+        
+        if [[ -n "$WHEEL" ]]; then
+          echo "Installing wheel: $WHEEL"
+          pip install "$WHEEL"
+        else
+          echo "No suitable wheel found for this platform"
+          exit 1
+        fi
+
+    - name: Test import
+      run: |
+        python -c "import aic; print('Successfully imported aic')"
+        python -c "from aic import Model, AicModelType; print('Import successful')"
+
+  publish:
+    name: Publish to PyPI
+    needs: [build-wheels, test-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment: pypi
+    
+    steps:
+    - name: Download all wheels
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }} 

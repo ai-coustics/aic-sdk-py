@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aic-sdk-py"
+version = "0.5.3"
+description = "Python bindings for the ai|coustics speech-enhancement SDK"
+readme = "README.md"
+requires-python = ">=3.8"
+license-files = ["LICENSE", "LICENSE.AIC-SDK"]
+authors = [{ name = "ai-coustics GmbH", email = "info@ai-coustics.com" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+]
+
+[tool.hatch.build]
+packages = ["aic"]
+include = ["aic/libs/**"] # ship the pre-built native binaries

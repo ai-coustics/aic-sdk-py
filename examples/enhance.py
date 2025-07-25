@@ -4,9 +4,10 @@ import os
 import librosa
 import numpy as np
 import soundfile as sf
-from aicoustics import RealTimeL
 from dotenv import load_dotenv
 from tqdm import tqdm
+
+from aic import AicModelType, AicParameter, Model
 
 load_dotenv(override=True)
 
@@ -16,41 +17,42 @@ def process_wav(input_wav: str, output_wav: str, strength: int):
     input, sr = librosa.load(input_wav, sr=48000, mono=True)
     num_channels = 1
     input = input.reshape(1, -1)
+    buffer_size = 480
 
-    enhancer = RealTimeL(
-        license_key=os.getenv("AICOUSTICS_LICENSE_KEY"),
-        num_channels=num_channels,
-        sample_rate=48000,
-        num_frames=512)
+    enhancer = Model(
+        AicModelType.QUAIL_L, # QUAIL_L, QUAIL_S, QUAIL_XS
+        license_key=os.getenv("AICOUSTICS_API_KEY")
+    )
+    enhancer.initialize(48000, 1, buffer_size)
 
     # print out model information
-    print(f"Optimal input buffer size: {enhancer.get_optimal_num_frames()} samples")
-    print(f"Optimal sample rate: {enhancer.get_optimal_sample_rate()} Hz")
-    print(f"Current algorithmic latency: {enhancer.get_latency()/sr * 1000:.2f}ms")
+    print(f"Optimal input buffer size: {enhancer.optimal_num_frames()} samples")
+    print(f"Optimal sample rate: {enhancer.optimal_sample_rate()} Hz")
+    print(f"Current algorithmic latency: {enhancer.processing_latency()/sr * 1000:.2f}ms")
 
     enhancement_strength = max(0, min(100, strength)) / 100
-    enhancer.set_enhancement_strength(enhancement_strength)
+    enhancer.set_parameter(AicParameter.ENHANCEMENT_STRENGTH, enhancement_strength)
 
     # Initialize output array with the same shape as input
     output = np.zeros_like(input)
 
-    print(f"Enhancing file with {int(enhancer.get_enhancement_strength() * 100)}% strength")
-    for i in tqdm(range(0, input.shape[1], 512), desc="Processing"):
+    print(f"Enhancing file with {int(enhancer.get_parameter(AicParameter.ENHANCEMENT_STRENGTH) * 100)}% strength")
+    for i in tqdm(range(0, input.shape[1], buffer_size), desc="Processing"):
         # Extract a chunk (2, 512) or smaller at the end
-        chunk = input[:, i:i + 512]
+        chunk = input[:, i:i + buffer_size]
 
         # Create padded chunk (2, 512)
-        padded_chunk = np.zeros((num_channels, 512), dtype=input.dtype)
+        padded_chunk = np.zeros((num_channels, buffer_size), dtype=input.dtype)
 
         # Ensure we handle smaller chunks at the end of the array
         # Only copy valid data into padded_chunk
         padded_chunk[:, :chunk.shape[1]] = chunk
 
         # Process the chunk
-        enhancer.process_deinterleaved(padded_chunk)
+        enhancer.process(padded_chunk)
 
         # Copy back the non-padded part to output
-        output[:, i:i + 512] = padded_chunk[:, :chunk.shape[1]]  # Store back only valid part of padded_chunk
+        output[:, i:i + buffer_size] = padded_chunk[:, :chunk.shape[1]]  # Store back only valid part of padded_chunk
 
     output = output.T
     sf.write(output_wav, output, 48000)
