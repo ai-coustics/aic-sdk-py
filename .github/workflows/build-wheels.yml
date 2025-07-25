@@ -235,10 +235,10 @@ jobs:
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
             echo 'Renaming wheel to have correct platform tag...' &&
             cd dist &&
-            OLD_WHEEL=\$(ls *.whl) &&
-            NEW_WHEEL=\$(echo \$OLD_WHEEL | sed 's/py3-none-any/py3-none-linux_aarch64/') &&
-            mv \"\$OLD_WHEEL\" \"\$NEW_WHEEL\" &&
-            echo \"Renamed \$OLD_WHEEL to \$NEW_WHEEL\" &&
+            OLD_WHEEL=$(ls *.whl) &&
+            NEW_WHEEL=$(echo $OLD_WHEEL | sed 's/py3-none-any/py3-none-linux_aarch64/') &&
+            mv \"$OLD_WHEEL\" \"$NEW_WHEEL\" &&
+            echo \"Renamed $OLD_WHEEL to $NEW_WHEEL\" &&
             cd .. &&
             echo 'Built wheel info:' &&
             ls -la dist/ &&
@@ -274,10 +274,10 @@ jobs:
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
             echo 'Renaming wheel to have correct platform tag...' &&
             cd dist &&
-            OLD_WHEEL=\$(ls *.whl) &&
-            NEW_WHEEL=\$(echo \$OLD_WHEEL | sed 's/py3-none-any/py3-none-linux_x86_64/') &&
-            mv \"\$OLD_WHEEL\" \"\$NEW_WHEEL\" &&
-            echo \"Renamed \$OLD_WHEEL to \$NEW_WHEEL\" &&
+            OLD_WHEEL=$(ls *.whl) &&
+            NEW_WHEEL=$(echo $OLD_WHEEL | sed 's/py3-none-any/py3-none-linux_x86_64/') &&
+            mv \"$OLD_WHEEL\" \"$NEW_WHEEL\" &&
+            echo \"Renamed $OLD_WHEEL to $NEW_WHEEL\" &&
             cd .. &&
             echo 'Built wheel info:' &&
             ls -la dist/ &&
