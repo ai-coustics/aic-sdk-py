@@ -195,6 +195,26 @@ jobs:
         
         echo "✅ Successfully downloaded and extracted ${{ matrix.lib_name }}"
 
+    - name: Clean up other platform libraries
+      shell: bash
+      run: |
+        echo "Cleaning up libraries from other platforms to create platform-specific wheels..."
+        echo "Current libs structure:"
+        find aic/libs -type f -name "*.so" -o -name "*.dylib" -o -name "*.dll" | sort
+        
+        # Keep only the current platform's library directory
+        cd aic/libs
+        for dir in linux mac windows; do
+          if [[ "$dir" != "${{ matrix.lib_dir }}" ]]; then
+            echo "Removing $dir directory (not needed for this platform)"
+            rm -rf "$dir"
+          fi
+        done
+        
+        echo "Final libs structure for this platform:"
+        find . -type f -name "*.so" -o -name "*.dylib" -o -name "*.dll" | sort
+        cd ../..
+
     - name: Set up QEMU for ARM64 builds
       if: matrix.os == 'linux' && matrix.arch == 'aarch64'
       uses: docker/setup-qemu-action@v3
