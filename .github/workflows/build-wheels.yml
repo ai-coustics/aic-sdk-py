@@ -233,21 +233,16 @@ jobs:
             find aic/libs -name '*.so' -o -name '*.dylib' -o -name '*.dll' &&
             /opt/python/cp311-cp311/bin/python -m pip install build hatchling wheel &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
-            echo 'Checking what was built...' &&
-            ls -la dist/ &&
             echo 'Renaming wheel to have correct platform tag...' &&
             cd dist &&
-            if ls *.whl 1> /dev/null 2>&1; then
-              OLD_WHEEL=$(ls *.whl | head -1) &&
-              echo \"Found wheel: $OLD_WHEEL\" &&
-              NEW_WHEEL=$(echo $OLD_WHEEL | sed 's/py3-none-any/py3-none-linux_aarch64/') &&
-              mv \"$OLD_WHEEL\" \"$NEW_WHEEL\" &&
-              echo \"Renamed $OLD_WHEEL to $NEW_WHEEL\"
-            else
-              echo 'No wheel files found in dist/ directory!'
-              ls -la
-              exit 1
-            fi &&
+            ls -la &&
+            for wheel in *.whl; do
+              echo \"Processing wheel: $wheel\" &&
+              new_wheel=$(echo $wheel | sed 's/py3-none-any/py3-none-linux_aarch64/') &&
+              mv \"$wheel\" \"$new_wheel\" &&
+              echo \"Renamed $wheel to $new_wheel\" &&
+              break
+            done &&
             cd .. &&
             echo 'Built wheel info:' &&
             ls -la dist/ &&
