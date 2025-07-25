@@ -23,13 +23,13 @@ jobs:
             artifact_suffix: -glibc2.31
             lib_dir: linux
             lib_name: libaic.so
-          - os: linux
-            arch: aarch64
-            runner: ubuntu-latest
-            artifact_name: aic-sdk-aarch64-unknown-linux-gnu
-            artifact_suffix: -glibc2.31
-            lib_dir: linux
-            lib_name: libaic.so
+        #   - os: linux
+        #     arch: aarch64
+        #     runner: ubuntu-latest
+        #     artifact_name: aic-sdk-aarch64-unknown-linux-gnu
+        #     artifact_suffix: -glibc2.31
+        #     lib_dir: linux
+        #     lib_name: libaic.so
           
           # macOS builds
           - os: macos
