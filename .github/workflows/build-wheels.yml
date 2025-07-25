@@ -315,9 +315,13 @@ jobs:
     - name: Install wheel
       shell: bash
       run: |
+        echo "Available wheels:"
+        ls -la wheelhouse/ || echo "No wheelhouse directory found"
+        
         # Find the appropriate wheel for this platform
         if [[ "${{ runner.os }}" == "Linux" ]]; then
-          WHEEL=$(find wheelhouse -name "*linux*.whl" | head -1)
+          # Look for manylinux or linux wheels
+          WHEEL=$(find wheelhouse -name "*manylinux*.whl" -o -name "*linux*.whl" | head -1)
         elif [[ "${{ runner.os }}" == "macOS" ]]; then
           WHEEL=$(find wheelhouse -name "*macosx*.whl" -o -name "*universal*.whl" | head -1)
         elif [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -329,6 +333,8 @@ jobs:
           pip install "$WHEEL"
         else
           echo "No suitable wheel found for this platform"
+          echo "All available wheels:"
+          find wheelhouse -name "*.whl" -ls 2>/dev/null || echo "No wheels found"
           exit 1
         fi
 
