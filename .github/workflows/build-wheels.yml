@@ -366,6 +366,10 @@ jobs:
         merge-multiple: true
         path: wheelhouse/
 
+    - name: Install dependencies
+      run: |
+        pip install numpy
+
     - name: Install wheel
       shell: bash
       run: |
