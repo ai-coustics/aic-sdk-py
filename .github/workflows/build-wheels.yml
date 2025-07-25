@@ -231,8 +231,15 @@ jobs:
             cd /workspace &&
             echo 'Verifying library files before build:' &&
             find aic/libs -name '*.so' -o -name '*.dylib' -o -name '*.dll' &&
-            /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
+            /opt/python/cp311-cp311/bin/python -m pip install build hatchling wheel &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            echo 'Renaming wheel to have correct platform tag...' &&
+            cd dist &&
+            OLD_WHEEL=\$(ls *.whl) &&
+            NEW_WHEEL=\$(echo \$OLD_WHEEL | sed 's/py3-none-any/py3-none-linux_aarch64/') &&
+            mv \"\$OLD_WHEEL\" \"\$NEW_WHEEL\" &&
+            echo \"Renamed \$OLD_WHEEL to \$NEW_WHEEL\" &&
+            cd .. &&
             echo 'Built wheel info:' &&
             ls -la dist/ &&
             echo 'Analyzing wheel with auditwheel...' &&
@@ -263,8 +270,15 @@ jobs:
             cd /github/workspace &&
             echo 'Verifying library files before build:' &&
             find aic/libs -name '*.so' -o -name '*.dylib' -o -name '*.dll' &&
-            /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
+            /opt/python/cp311-cp311/bin/python -m pip install build hatchling wheel &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            echo 'Renaming wheel to have correct platform tag...' &&
+            cd dist &&
+            OLD_WHEEL=\$(ls *.whl) &&
+            NEW_WHEEL=\$(echo \$OLD_WHEEL | sed 's/py3-none-any/py3-none-linux_x86_64/') &&
+            mv \"\$OLD_WHEEL\" \"\$NEW_WHEEL\" &&
+            echo \"Renamed \$OLD_WHEEL to \$NEW_WHEEL\" &&
+            cd .. &&
             echo 'Built wheel info:' &&
             ls -la dist/ &&
             echo 'Wheel contents:' &&
@@ -290,8 +304,27 @@ jobs:
 
     - name: Build wheel (macOS/Windows)
       if: matrix.os != 'linux'
+      shell: bash
       run: |
+        python -m pip install wheel
         python -m build --wheel
+        
+        # Rename wheel to have correct platform tag
+        cd dist
+        OLD_WHEEL=$(ls *.whl)
+        if [[ "${{ matrix.os }}" == "macos" ]]; then
+          if [[ "${{ matrix.arch }}" == "universal" ]]; then
+            NEW_WHEEL=$(echo $OLD_WHEEL | sed 's/py3-none-any/py3-none-macosx_10_9_universal2/')
+          else
+            NEW_WHEEL=$(echo $OLD_WHEEL | sed 's/py3-none-any/py3-none-macosx_11_0_arm64/')
+          fi
+        elif [[ "${{ matrix.os }}" == "windows" ]]; then
+          NEW_WHEEL=$(echo $OLD_WHEEL | sed 's/py3-none-any/py3-none-win_amd64/')
+        fi
+        mv "$OLD_WHEEL" "$NEW_WHEEL"
+        echo "Renamed $OLD_WHEEL to $NEW_WHEEL"
+        cd ..
+        
         mkdir -p wheelhouse
         cp dist/*.whl wheelhouse/
 
