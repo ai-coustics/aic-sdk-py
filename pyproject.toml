@@ -20,4 +20,5 @@ classifiers = [
 
 [tool.hatch.build]
 packages = ["aic"]
-include = ["aic/libs/**"] # ship the pre-built native binaries
+include = ["aic/libs/**"]                                                    # ship the pre-built native binaries
+artifacts = ["aic/libs/**/*.so", "aic/libs/**/*.dylib", "aic/libs/**/*.dll"]

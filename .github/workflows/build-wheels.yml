@@ -174,6 +174,11 @@ jobs:
         echo "Copying library from: $FOUND_LIB"
         cp "$FOUND_LIB" "aic/libs/${{ matrix.lib_dir }}/"
         
+        # Create __init__.py files to make directories Python packages
+        echo "Creating __init__.py files..."
+        touch "aic/libs/__init__.py"
+        touch "aic/libs/${{ matrix.lib_dir }}/__init__.py"
+        
         # Verify the library was copied
         echo "Contents of aic/libs/${{ matrix.lib_dir }}:"
         ls -la "aic/libs/${{ matrix.lib_dir }}/"
@@ -211,8 +216,19 @@ jobs:
         args: |
           bash -c "
             cd /github/workspace &&
+            echo 'Verifying library files before build:' &&
+            find aic/libs -name '*.so' -o -name '*.dylib' -o -name '*.dll' &&
             /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            echo 'Built wheel info:' &&
+            ls -la dist/ &&
+            unzip -l dist/*.whl | grep -E '\.(so|dylib|dll)' || echo 'No native libraries found in wheel' &&
+            if ls dist/*.whl | grep -q 'py3-none-any'; then
+              echo 'ERROR: Pure Python wheel detected, but we need platform-specific wheel'
+              echo 'Wheel contents:'
+              unzip -l dist/*.whl
+              exit 1
+            fi &&
             auditwheel repair dist/*.whl --plat manylinux2014_x86_64 -w wheelhouse/
           "
 
