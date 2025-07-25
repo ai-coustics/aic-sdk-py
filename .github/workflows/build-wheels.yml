@@ -147,13 +147,13 @@ jobs:
         # Extract based on file type
         if [[ "${{ matrix.os }}" == "windows" ]]; then
           echo "Extracting ZIP archive..."
-          unzip -l "$ASSET"
-          unzip "$ASSET"
+          unzip -q "$ASSET"
         else
           echo "Extracting TAR.GZ archive..."
-          tar -tzf "$ASSET" | head -10
           tar -xzf "$ASSET"
         fi
+        
+        echo "Archive extracted successfully"
         
         # Find and copy the library file
         echo "Looking for library file: ${{ matrix.lib_name }}"
