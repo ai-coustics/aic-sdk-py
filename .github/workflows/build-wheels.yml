@@ -200,7 +200,7 @@ jobs:
             cd /github/workspace &&
             /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
-            auditwheel repair dist/*.whl --plat-tag linux_aarch64 -w wheelhouse/
+            auditwheel repair dist/*.whl --plat manylinux2014_aarch64 -w wheelhouse/
           "
 
     - name: Build wheel (Linux x86_64)
@@ -212,7 +212,7 @@ jobs:
             cd /github/workspace &&
             /opt/python/cp311-cp311/bin/python -m pip install build hatchling &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
-            auditwheel repair dist/*.whl --plat-tag linux_x86_64 -w wheelhouse/
+            auditwheel repair dist/*.whl --plat manylinux2014_x86_64 -w wheelhouse/
           "
 
     - name: Build wheel (macOS/Windows)
