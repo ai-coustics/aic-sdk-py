@@ -5,12 +5,11 @@ from typing import Any
 import numpy as _np  # NumPy is the only runtime dep
 
 from . import _bindings as bindings  # low-level names live here
-from ._bindings import (AicModelType, AicParameter, arena_create,
-                        arena_destroy, get_optimal_num_frames,
-                        get_optimal_sample_rate, get_parameter,
-                        get_processing_latency, model_create, model_destroy,
-                        model_initialize, model_reset, process_interleaved,
-                        process_planar, set_parameter)
+from ._bindings import (AicModelType, AicParameter, get_library_version,
+                        get_optimal_num_frames, get_optimal_sample_rate,
+                        get_parameter, get_processing_latency, model_create,
+                        model_destroy, model_initialize, model_reset,
+                        process_interleaved, process_planar, set_parameter)
 
 # ---------------------------------------------------------------------------
 # Helper internals
@@ -45,8 +44,7 @@ class Model(AbstractContextManager):
         model_type: AicModelType = AicModelType.QUAIL_L,
         license_key: str | bytes = b"",
     ) -> None:
-        self._arena = arena_create()
-        self._handle = model_create(model_type, self._arena, _bytes(license_key))
+        self._handle = model_create(model_type, _bytes(license_key))
         self._closed = False
 
     # public ---------------------------------------------------------------- #
@@ -54,9 +52,11 @@ class Model(AbstractContextManager):
     def initialize(self, sr: int, ch: int, frames: int) -> None:
         """Allocate DSP state for *sr* Hz, *ch* channels, *frames* per block."""
         model_initialize(self._handle, sr, ch, frames)
+        # Enable noise gate by default (overriding C library default of 0.0)
+        self.set_parameter(AicParameter.NOISE_GATE_ENABLE, 1.0)
 
     def reset(self) -> None:
-        """Flush the model’s internal state (between recordings, etc.)."""
+        """Flush the model's internal state (between recordings, etc.)."""
         model_reset(self._handle)
 
     # --------------------------------------------------------------------- #
@@ -179,6 +179,11 @@ class Model(AbstractContextManager):
         """Suggested buffer length (frames) for real-time streaming."""
         return get_optimal_num_frames(self._handle)
 
+    @staticmethod
+    def library_version() -> str:
+        """Return the version of the underlying AIC SDK library."""
+        return get_library_version()
+
     # --------------------------------------------------------------------- #
     # clean-up / context-manager                                            #
     # --------------------------------------------------------------------- #
@@ -187,7 +192,6 @@ class Model(AbstractContextManager):
         """Explicitly free native resources (idempotent)."""
         if not self._closed:
             model_destroy(self._handle)
-            arena_destroy(self._arena)
             self._closed = True
 
     # context-manager protocol  ------------------------------------------- #

@@ -29,14 +29,15 @@ def process_wav(input_wav: str, output_wav: str, strength: int):
     print(f"Optimal input buffer size: {enhancer.optimal_num_frames()} samples")
     print(f"Optimal sample rate: {enhancer.optimal_sample_rate()} Hz")
     print(f"Current algorithmic latency: {enhancer.processing_latency()/sr * 1000:.2f}ms")
+    print(f"Noise gate enabled: {enhancer.get_parameter(AicParameter.NOISE_GATE_ENABLE) == 1.0}")
 
-    enhancement_strength = max(0, min(100, strength)) / 100
-    enhancer.set_parameter(AicParameter.ENHANCEMENT_STRENGTH, enhancement_strength)
+    enhancement_level = max(0, min(100, strength)) / 100
+    enhancer.set_parameter(AicParameter.ENHANCEMENT_LEVEL, enhancement_level)
 
     # Initialize output array with the same shape as input
     output = np.zeros_like(input)
 
-    print(f"Enhancing file with {int(enhancer.get_parameter(AicParameter.ENHANCEMENT_STRENGTH) * 100)}% strength")
+    print(f"Enhancing file with {int(enhancer.get_parameter(AicParameter.ENHANCEMENT_LEVEL) * 100)}% strength")
     for i in tqdm(range(0, input.shape[1], buffer_size), desc="Processing"):
         # Extract a chunk (2, 512) or smaller at the end
         chunk = input[:, i:i + buffer_size]

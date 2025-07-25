@@ -30,9 +30,16 @@ class AicModelType(IntEnum):
 
 
 class AicParameter(IntEnum):
-    ENHANCEMENT_STRENGTH              = 0
-    ENHANCEMENT_STRENGTH_SKEW_FACTOR  = 1
-    VOICE_GAIN                        = 2
+    BYPASS                                = 0
+    ENHANCEMENT_LEVEL                     = 1
+    ENHANCEMENT_LEVEL_SKEW_FACTOR         = 2
+    VOICE_GAIN                            = 3
+    NOISE_GATE_ENABLE                     = 4
+    NOISE_GATE_OPEN_THRESHOLD             = 5
+    NOISE_GATE_CLOSE_THRESHOLD            = 6
+    NOISE_GATE_ATTACK_RATE                = 7
+    NOISE_GATE_RELEASE_RATE               = 8
+    NOISE_GATE_HOLD_TIME                  = 9
 
 ################################################################################
 #                       struct forward declarations                             #
@@ -41,11 +48,7 @@ class AicParameter(IntEnum):
 class _AicModel(_ct.Structure):
     pass
 
-class _AicArena(_ct.Structure):
-    pass
-
 AicModelPtr  = _ct.POINTER(_AicModel)
-AicArenaPtr  = _ct.POINTER(_AicArena)
 
 ################################################################################
 #                       function prototypes                                     #
@@ -53,17 +56,10 @@ AicArenaPtr  = _ct.POINTER(_AicArena)
 
 _lib = load()
 
-_lib.aic_arena_create.restype = AicArenaPtr
-_lib.aic_arena_create.argtypes = []
-
-_lib.aic_arena_destroy.restype  = None
-_lib.aic_arena_destroy.argtypes = [AicArenaPtr]
-
 _lib.aic_model_create.restype  = AicErrorCode
 _lib.aic_model_create.argtypes = [
     _ct.POINTER(AicModelPtr),  # **model
-    AicArenaPtr,               # arena
-    _ct.c_int,                 # model_type (changed from AicModelType to c_int)
+    _ct.c_int,                 # model_type (AicModelType)
     _ct.c_char_p,              # license_key
 ]
 
@@ -100,14 +96,14 @@ _lib.aic_model_process_interleaved.argtypes = [
 _lib.aic_model_set_parameter.restype  = AicErrorCode
 _lib.aic_model_set_parameter.argtypes = [
     AicModelPtr,
-    _ct.c_int,                 # parameter (changed from AicParameter to c_int)
+    _ct.c_int,                 # parameter (AicParameter)
     _ct.c_float,
 ]
 
 _lib.aic_model_get_parameter.restype  = AicErrorCode
 _lib.aic_model_get_parameter.argtypes = [
     AicModelPtr,
-    _ct.c_int,                 # parameter (changed from AicParameter to c_int)
+    _ct.c_int,                 # parameter (AicParameter)
     _ct.POINTER(_ct.c_float),
 ]
 
@@ -129,21 +125,17 @@ _lib.aic_get_optimal_num_frames.argtypes = [
     _ct.POINTER(_ct.c_size_t),
 ]
 
+_lib.get_library_version.restype = _ct.c_char_p
+_lib.get_library_version.argtypes = []
+
 ################################################################################
 #                     thin pythonic convenience wrappers                        #
 ################################################################################
 
-def arena_create() -> AicArenaPtr:
-    return _lib.aic_arena_create()
-
-def arena_destroy(arena: AicArenaPtr) -> None:
-    _lib.aic_arena_destroy(arena)
-
-def model_create(model_type: AicModelType, arena: AicArenaPtr,
-                 license_key: bytes) -> AicModelPtr:  
+def model_create(model_type: AicModelType, license_key: bytes) -> AicModelPtr:  
     mdl = AicModelPtr()
     err = _lib.aic_model_create(
-        _ct.byref(mdl), arena, model_type, license_key  
+        _ct.byref(mdl), model_type, license_key  
     )
     _raise(err)
     return mdl
@@ -195,6 +187,10 @@ def get_optimal_num_frames(model: AicModelPtr) -> int:
     out = _ct.c_size_t()
     _raise(_lib.aic_get_optimal_num_frames(model, _ct.byref(out)))
     return int(out.value)
+
+def get_library_version() -> str:
+    version_ptr = _lib.get_library_version()
+    return version_ptr.decode('utf-8')
 
 # ------------------------------------------------------------------#
 def _raise(err: AicErrorCode) -> None:
