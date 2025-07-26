@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling>=1.24"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "aic-sdk-py"
@@ -17,8 +17,3 @@ classifiers = [
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
 ]
-
-[tool.hatch.build]
-packages = ["aic"]
-include = ["aic/libs/**", "LICENSE", "LICENSE.AIC-SDK"]
-artifacts = ["aic/libs/**/*.so", "aic/libs/**/*.dylib", "aic/libs/**/*.dll"]

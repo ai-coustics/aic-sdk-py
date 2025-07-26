@@ -33,6 +33,7 @@ jobs:
           GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_SKIP: "cp36-* cp37-*"
+          CIBW_BUILD_VERBOSITY: 1
           CIBW_BEFORE_ALL_MACOS: |
             set -euo pipefail
             # Extract project version from pyproject.toml
@@ -66,9 +67,14 @@ jobs:
             mkdir -p aic/libs/mac
             cp lib/libaic*.dylib aic/libs/mac/
             
-            # Verify the files were copied
+            # Verify the files were copied and show file types
             echo "Copied dylib files:"
             ls -la aic/libs/mac/
+            file aic/libs/mac/*
+            
+            # Check what hatchling would include
+            echo "Project structure before build:"
+            find aic -name "*.dylib" -o -name "*.so" -o -name "*.dll"
         run: |
           cibuildwheel --output-dir wheelhouse
 
