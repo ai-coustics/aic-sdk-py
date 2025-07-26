@@ -8,7 +8,7 @@ version = "0.5.3"
 description = "Python bindings for the ai|coustics speech-enhancement SDK"
 readme = "README.md"
 requires-python = ">=3.8"
-license-files = ["LICENSE", "LICENSE.AIC-SDK"]
+license = "Apache-2.0/Proprietary"
 authors = [{ name = "ai-coustics GmbH", email = "info@ai-coustics.com" }]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -20,5 +20,5 @@ classifiers = [
 
 [tool.hatch.build]
 packages = ["aic"]
-include = ["aic/libs/**"]
+include = ["aic/libs/**", "LICENSE", "LICENSE.AIC-SDK"]
 artifacts = ["aic/libs/**/*.so", "aic/libs/**/*.dylib", "aic/libs/**/*.dll"]
