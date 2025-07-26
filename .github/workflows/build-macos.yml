@@ -61,15 +61,14 @@ jobs:
             fi
             tar -xzf sdk.tar.gz
 
-            # Debug: show what was extracted
-            echo "Contents after extraction:"
-            find . -name "*.dylib" -o -name "libaic*" | head -20
-            echo "Directory structure:"
-            ls -la | head -10
-
             # Bundle the dylib into the package tree expected by the loader
-            mkdir -p {project}/aic/libs/mac
-            cp lib/libaic*.dylib {project}/aic/libs/mac/
+            # Note: cibuildwheel runs this from a temporary copy of the project
+            mkdir -p aic/libs/mac
+            cp lib/libaic*.dylib aic/libs/mac/
+            
+            # Verify the files were copied
+            echo "Copied dylib files:"
+            ls -la aic/libs/mac/
         run: |
           cibuildwheel --output-dir wheelhouse
 
