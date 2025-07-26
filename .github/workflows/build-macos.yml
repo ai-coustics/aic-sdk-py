@@ -61,6 +61,12 @@ jobs:
             fi
             tar -xzf sdk.tar.gz
 
+            # Debug: show what was extracted
+            echo "Contents after extraction:"
+            find . -name "*.dylib" -o -name "libaic*" | head -20
+            echo "Directory structure:"
+            ls -la | head -10
+
             # Bundle the dylib into the package tree expected by the loader
             mkdir -p {project}/aic/libs/mac
             cp libaic*.dylib {project}/aic/libs/mac/
