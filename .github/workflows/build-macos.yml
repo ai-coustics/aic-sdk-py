@@ -48,7 +48,17 @@ jobs:
             TAR="aic-sdk-${SDK_ARCH}-${VERSION}.tar.gz"
 
             echo "Downloading $TAR from private repo…"
-            gh release download --repo ai-coustics/aic-sdk "v$VERSION" --pattern "$TAR" --output sdk.tar.gz
+            echo "Looking for release: v$VERSION"
+            echo "Available releases:"
+            gh release list --repo ai-coustics/aic-sdk --limit 10 || echo "Failed to list releases"
+            
+            echo "Attempting download..."
+            if ! gh release download --repo ai-coustics/aic-sdk "v$VERSION" --pattern "$TAR" --output sdk.tar.gz; then
+                echo "Failed to download release v$VERSION with pattern $TAR"
+                echo "Checking what assets are available for this release:"
+                gh release view --repo ai-coustics/aic-sdk "v$VERSION" || echo "Release v$VERSION not found"
+                exit 1
+            fi
             tar -xzf sdk.tar.gz
 
             # Bundle the dylib into the package tree expected by the loader
