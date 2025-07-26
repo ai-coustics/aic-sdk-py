@@ -26,6 +26,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install cibuildwheel==2.18.0 tomli
           
+      - name: Set up QEMU for cross-compilation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+          
       - name: Prepare token for container access
         run: |
           # Create a token file that can be accessed by the container
