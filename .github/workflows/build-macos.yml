@@ -42,6 +42,9 @@ jobs:
             echo "Current working directory: $(pwd)"
             echo "Environment - CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
             
+            # Clean up any previous SDK downloads and extracted files
+            rm -rf sdk.tar.gz lib/ include/ aic/libs/mac/libaic.dylib || true
+            
             # Install tomli for parsing pyproject.toml
             pip install tomli
             
@@ -55,10 +58,25 @@ jobs:
             echo "Version: $VERSION"
             
             # Map cibuildwheel arch → SDK tarball arch string
+            # Debug: Show all relevant environment variables
+            echo "=== Environment Debug ==="
+            echo "CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
+            echo "ARCHFLAGS: ${ARCHFLAGS:-NOT_SET}"
+            echo "MACOSX_DEPLOYMENT_TARGET: ${MACOSX_DEPLOYMENT_TARGET:-NOT_SET}"
+            echo "Python platform.machine(): $(python -c 'import platform; print(platform.machine())')"
+            echo "Python platform.platform(): $(python -c 'import platform; print(platform.platform())')"
+            echo "========================="
+            
             # Try to determine architecture from multiple sources
             if [[ -n "${CIBW_ARCH:-}" ]]; then
                 ARCH="$CIBW_ARCH"
                 echo "Using CIBW_ARCH: $ARCH"
+            elif [[ "${ARCHFLAGS:-}" == *"arm64"* ]]; then
+                ARCH="arm64"
+                echo "Detected arm64 from ARCHFLAGS: $ARCHFLAGS"
+            elif [[ "${ARCHFLAGS:-}" == *"x86_64"* ]]; then
+                ARCH="x86_64"
+                echo "Detected x86_64 from ARCHFLAGS: $ARCHFLAGS"
             else
                 # Fallback: try to detect from Python platform
                 ARCH=$(python -c "import platform; print('arm64' if platform.machine() == 'arm64' else 'x86_64')")
