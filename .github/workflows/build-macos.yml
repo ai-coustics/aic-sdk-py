@@ -42,7 +42,9 @@ jobs:
             PY
             )
             # Map cibuildwheel arch → SDK tarball arch string
-            [[ "$CIBW_ARCH" == "arm64" ]] && SDK_ARCH="aarch64-apple-darwin" || SDK_ARCH="x86_64-apple-darwin"
+            # Default to arm64 if CIBW_ARCH is not set
+            ARCH=${CIBW_ARCH:-arm64}
+            [[ "$ARCH" == "arm64" ]] && SDK_ARCH="aarch64-apple-darwin" || SDK_ARCH="x86_64-apple-darwin"
             TAR="aic-sdk-${SDK_ARCH}-${VERSION}.tar.gz"
 
             echo "Downloading $TAR from private repo…"
