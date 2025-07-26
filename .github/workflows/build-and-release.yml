@@ -13,7 +13,6 @@ env:
 
 jobs:
   build:
-    name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -23,102 +22,74 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # GH CLI is pre-installed on all GitHub-hosted runners
-      - name: Verify gh login
-        run: gh auth status || gh auth login --with-token <<<"${GH_TOKEN}"
-
-      - name: Set up Python (just for helper scripts)
+      - name: Set up Python (helper scripts only)
         uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: { python-version: '3.12' }
 
       - name: Install build tooling
-        run: pip install --upgrade cibuildwheel==2.19 hatchling tomli
+        run: pip install --upgrade cibuildwheel==2.19 hatchling tomli jq
 
-      # ------------------------------------------------------------------ #
-      # Download & unpack the matching native SDK archive for this runner  #
-      # ------------------------------------------------------------------ #
+      # ---------- figure out which manylinux_2_31 tag really exists ----------
+      - name: Resolve manylinux tags (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        id: ml
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_tag() {
+            curl -s "https://quay.io/api/v1/repository/pypa/$1/tag/?onlyActive=true&limit=1" \
+              | jq -r '.tags[0].name'
+          }
+          echo "x86=$(latest_tag manylinux_2_31_x86_64)"   >>"$GITHUB_OUTPUT"
+          echo "arm=$(latest_tag manylinux_2_31_aarch64)"  >>"$GITHUB_OUTPUT"
+
+      # ---------- fetch & unpack the platform SDK archive --------------------
       - name: Fetch platform SDK
         shell: bash
         run: |
           set -euo pipefail
-          # ----------------------------------------------------------------------------
-          # Derive version (same as pyproject.project.version) so the workflow is
-          # *self-contained* – no manual edits per release.
-          # ----------------------------------------------------------------------------
-          SDK_VER=$(python - <<'PY'
-          import tomllib, pathlib, sys, re
-          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
-          print(data["project"]["version"])
-          PY)
-
-          # Decide which asset filename we need for the current OS/arch
+          VER=$(python -c 'import tomllib, pathlib, sys; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
           case "${{ runner.os }}" in
             Linux)
-              # cibuildwheel builds x86_64 & aarch64 wheels in one job;
-              # we'll retrieve *both* native libs and place them side-by-side
               for TGT in x86_64 aarch64; do
-                ASSET="aic-sdk-${TGT}-unknown-linux-gnu-${SDK_VER}-glibc2.31.tar.gz"
-                echo "Downloading $ASSET"
+                ASSET="aic-sdk-${TGT}-unknown-linux-gnu-${VER}-glibc2.31.tar.gz"
                 gh release download --repo $SDK_REPO --pattern "$ASSET"
-                mkdir -p aic/libs/linux
-                tar -xzf "$ASSET" -C aic/libs/linux --strip-components=1
-              done
-              ;;
+                mkdir -p aic/libs/linux/$TGT
+                tar -xzf "$ASSET" -C aic/libs/linux/$TGT --strip-components=1
+              done ;;
             macOS)
-              ASSET="aic-sdk-macos-universal-${SDK_VER}.tar.gz"
-              echo "Downloading $ASSET"
-              gh release download --repo $SDK_REPO --pattern "$ASSET"
+              gh release download --repo $SDK_REPO --pattern "aic-sdk-macos-universal-${VER}.tar.gz"
               mkdir -p aic/libs/mac
-              tar -xzf "$ASSET" -C aic/libs/mac --strip-components=1
-              ;;
+              tar -xzf aic-sdk-macos-universal-${VER}.tar.gz -C aic/libs/mac --strip-components=1 ;;
             Windows)
-              ASSET="aic-sdk-x86_64-pc-windows-msvc-${SDK_VER}.zip"
-              echo "Downloading $ASSET"
-              gh release download --repo $SDK_REPO --pattern "$ASSET"
-              mkdir -p aic\\libs\\windows
-              unzip -q "$ASSET" -d aic\\libs\\windows
-              ;;
-            *)
-              echo "Unsupported runner.os ${RUNNER_OS}" ; exit 1 ;;
+              gh release download --repo $SDK_REPO --pattern "aic-sdk-x86_64-pc-windows-msvc-${VER}.zip"
+              mkdir -p aic/libs/windows
+              tar -xf aic-sdk-x86_64-pc-windows-msvc-${VER}.zip -C aic/libs/windows ;;
           esac
 
-      # ------------------------------------------------------------------ #
-      # Build wheels (both CPython & (if desired) PyPy for all versions)   #
-      # ------------------------------------------------------------------ #
+      # ---------- build wheels ----------------------------------------------
       - name: Build wheels with cibuildwheel
-        run: |
-          cibuildwheel --output-dir wheelhouse
-        env:   # customise once; cibuildwheel handles the per-arch loops
-          CIBW_SKIP: "pp* *_musllinux*"          # skip PyPy & musl
+        run: cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_SKIP: "pp* *_musllinux*"
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_ARCHS_MACOS: "universal2"
           CIBW_ARCHS_WINDOWS: "AMD64"
-          # Use manylinux_2_31 because the native libs are built against glibc 2.31
-          CIBW_MANYLINUX_X86_64_IMAGE: "quay.io/pypa/manylinux_2_31_x86_64"
-          CIBW_MANYLINUX_AARCH64_IMAGE: "quay.io/pypa/manylinux_2_31_aarch64"
+          # use the freshly-resolved tags
+          CIBW_MANYLINUX_X86_64_IMAGE: ${{ steps.ml.outputs.x86 }}
+          CIBW_MANYLINUX_AARCH64_IMAGE: ${{ steps.ml.outputs.arm }}
 
-      - name: Upload wheels artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
 
-  # ---------------------------------------------------------------------- #
-  # Collect wheels from all OS jobs and attach them to a GitHub Release    #
-  # ---------------------------------------------------------------------- #
   release:
-    name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v4
-        with:
-          path: dist
-      - name: Create GitHub Release & upload wheels
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: false
-          prerelease: false
-          files: dist/**/*.whl
+        with: { path: dist }
+      - uses: softprops/action-gh-release@v2
+        with: { files: dist/**/*.whl }
