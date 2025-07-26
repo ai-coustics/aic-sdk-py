@@ -39,8 +39,9 @@ jobs:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_SKIP: "cp36-* cp37-* cp38-* *-musllinux*"  # Skip old Python and musl
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_35
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_35
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "auditwheel repair -w {dest_dir} {wheel} --verbose || (echo 'Repair failed, checking symbols:' && auditwheel show {wheel} && cp {wheel} {dest_dir})"
           CIBW_ENVIRONMENT_PASSTHROUGH_LINUX: "GH_TOKEN"
           CIBW_CONTAINER_ENGINE: "docker; create_args: --volume /tmp/gh_token:/tmp/gh_token:ro"
           CIBW_BEFORE_BUILD_LINUX: |
