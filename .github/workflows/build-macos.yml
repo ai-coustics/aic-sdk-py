@@ -36,17 +36,29 @@ jobs:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BEFORE_ALL_MACOS: |
             set -euo pipefail
+            
+            echo "Starting before_all script..."
+            echo "Current working directory: $(pwd)"
+            echo "Environment - CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
+            
             # Extract project version from pyproject.toml
+            echo "Extracting version from pyproject.toml..."
             VERSION=$(python - <<'PY'
             import tomli, pathlib, sys
             print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])
             PY
             )
+            echo "Version: $VERSION"
+            
             # Map cibuildwheel arch → SDK tarball arch string
             # Default to arm64 if CIBW_ARCH is not set
             ARCH=${CIBW_ARCH:-arm64}
             echo "CIBW_ARCH=$CIBW_ARCH, ARCH=$ARCH"
-            [[ "$ARCH" == "arm64" ]] && SDK_ARCH="aarch64-apple-darwin" || SDK_ARCH="x86_64-apple-darwin"
+            if [[ "$ARCH" == "arm64" ]]; then
+                SDK_ARCH="aarch64-apple-darwin"
+            else
+                SDK_ARCH="x86_64-apple-darwin"
+            fi
             echo "Selected SDK_ARCH=$SDK_ARCH"
             TAR="aic-sdk-${SDK_ARCH}-${VERSION}.tar.gz"
 
