@@ -3,7 +3,6 @@ name: Build & publish Python wheels
 
 on:
   push:
-    branches: [ corvin/c-bindings ]
     tags: [ 'v*.*.*' ]        # e.g. v0.5.3
   workflow_dispatch:          # manual trigger
 

@@ -1,0 +1,78 @@
+name: Build & publish macOS wheels
+
+on:
+  push:
+    branches: [ corvin/c-bindings ]
+    tags: ["v*.*.*"]        # build + publish when you tag a release
+  workflow_dispatch:        # allow manual runs
+
+jobs:
+  build-macos:
+    runs-on: macos-14       # Apple-Silicon runners can also cross-build x86-64
+    strategy:
+      matrix:
+        # cibuildwheel itself installs all needed CPythons, but we keep one
+        # host Python for scripting (tomllib is stdlib ≥3.11).
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel==2.18.0 tomli
+
+      # cibuildwheel will call this script once _per architecture_.
+      - name: Build wheels with bundled SDK
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_SKIP: "cp36-* cp37-*"
+          CIBW_BEFORE_ALL_MACOS: |
+            set -euo pipefail
+            # Extract project version from pyproject.toml
+            VERSION=$(python - <<'PY'
+            import tomli, pathlib, sys
+            print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])
+            PY
+            )
+            # Map cibuildwheel arch → SDK tarball arch string
+            [[ "$CIBW_ARCH" == "arm64" ]] && SDK_ARCH="aarch64-apple-darwin" || SDK_ARCH="x86_64-apple-darwin"
+            TAR="aic-sdk-${SDK_ARCH}-${VERSION}.tar.gz"
+
+            echo "Downloading $TAR from private repo…"
+            gh release download --repo ai-coustics/aic-sdk "v$VERSION" --pattern "$TAR" --output sdk.tar.gz
+            tar -xzf sdk.tar.gz
+
+            # Bundle the dylib into the package tree expected by the loader
+            mkdir -p {project}/aic/libs/mac
+            cp libaic*.dylib {project}/aic/libs/mac/
+        run: |
+          cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-wheels
+          path: wheelhouse/*.whl
+
+#   publish-to-pypi:
+#     needs: build-macos
+#     if: startsWith(github.ref, 'refs/tags/')
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: mac-wheels
+#           path: dist
+
+#       - name: Publish wheels to PyPI
+#         uses: pypa/gh-action-pypi-publish@v1.8.6
+#         with:
+#           user: __token__
+#           password: ${{ secrets.PYPI_API_TOKEN }}
