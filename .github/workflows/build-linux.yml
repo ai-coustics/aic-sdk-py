@@ -25,20 +25,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install cibuildwheel==2.18.0 tomli
-          
-      - name: Install GitHub CLI
-        run: |
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt update
-          sudo apt install gh
 
       # cibuildwheel will call this script once _per architecture_.
       - name: Build wheels with bundled SDK
         env:
           GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
-          CIBW_SKIP: "cp36-* cp37-* *-musllinux*"  # Skip old Python and musl
+          CIBW_SKIP: "cp36-* cp37-* cp38-* *-musllinux*"  # Skip old Python and musl
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BEFORE_BUILD_LINUX: |
             set -euo pipefail
@@ -50,8 +43,15 @@ jobs:
             # Clean up any previous SDK downloads and extracted files
             rm -rf sdk.tar.gz lib/ include/ aic/libs/linux/*.so || true
             
-            # Install tomli for parsing pyproject.toml
+            # Install required tools
             pip install tomli
+            
+            # Install GitHub CLI in the container
+            echo "Installing GitHub CLI..."
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | gpg --dearmor -o /tmp/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/tmp/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            apt update
+            apt install -y gh
             
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."

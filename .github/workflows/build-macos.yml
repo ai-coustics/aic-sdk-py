@@ -31,7 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
           CIBW_ARCHS_MACOS: "x86_64 arm64"
-          CIBW_SKIP: "cp36-* cp37-*"
+          CIBW_SKIP: "cp36-* cp37-* cp38-*"
           CIBW_BUILD_VERBOSITY: 1
           MACOSX_DEPLOYMENT_TARGET: "10.12"
           CIBW_BEFORE_BUILD_MACOS: |
