@@ -33,6 +33,7 @@ jobs:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_SKIP: "cp36-* cp37-* cp38-* *-musllinux*"  # Skip old Python and musl
           CIBW_BUILD_VERBOSITY: 1
+          CIBW_ENVIRONMENT_LINUX: GH_TOKEN
           CIBW_BEFORE_BUILD_LINUX: |
             set -euo pipefail
             
