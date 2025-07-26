@@ -33,7 +33,7 @@ jobs:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_SKIP: "cp36-* cp37-* cp38-* *-musllinux*"  # Skip old Python and musl
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_ENVIRONMENT_LINUX: "GH_TOKEN=$GH_TOKEN"
+          CIBW_ENVIRONMENT_PASSTHROUGH_LINUX: "GH_TOKEN"
           CIBW_BEFORE_BUILD_LINUX: |
             set -euo pipefail
             
@@ -73,6 +73,17 @@ jobs:
             
             echo "GitHub CLI installed successfully:"
             gh --version
+            
+            # Debug: Check if GH_TOKEN is available
+            echo "=== Token Debug ==="
+            if [[ -n "${GH_TOKEN:-}" ]]; then
+                echo "GH_TOKEN is available (length: ${#GH_TOKEN})"
+            else
+                echo "GH_TOKEN is NOT available"
+                echo "Available environment variables containing 'GH' or 'TOKEN':"
+                env | grep -i -E "(gh|token)" || echo "None found"
+            fi
+            echo "==================="
             
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."
