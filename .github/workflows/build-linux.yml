@@ -46,12 +46,32 @@ jobs:
             # Install required tools
             pip install tomli
             
-            # Install GitHub CLI in the container
+            # Install GitHub CLI in the container using binary download
             echo "Installing GitHub CLI..."
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | gpg --dearmor -o /tmp/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/tmp/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            apt update
-            apt install -y gh
+            ARCH_NAME=$(uname -m)
+            if [[ "$ARCH_NAME" == "x86_64" ]]; then
+                GH_ARCH="linux_amd64"
+            elif [[ "$ARCH_NAME" == "aarch64" ]]; then
+                GH_ARCH="linux_arm64"
+            else
+                echo "Unsupported architecture for GitHub CLI: $ARCH_NAME"
+                exit 1
+            fi
+            
+            echo "Downloading GitHub CLI for $GH_ARCH..."
+            # Get the latest release version and download the specific file
+            GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+            GH_FILE="gh_${GH_VERSION#v}_${GH_ARCH}.tar.gz"
+            echo "Downloading $GH_FILE..."
+            curl -fsSL "https://github.com/cli/cli/releases/download/${GH_VERSION}/${GH_FILE}" \
+                -o gh.tar.gz
+            tar -xzf gh.tar.gz
+            cp gh_${GH_VERSION#v}_${GH_ARCH}/bin/gh /usr/local/bin/
+            chmod +x /usr/local/bin/gh
+            rm -rf gh.tar.gz gh_${GH_VERSION#v}_${GH_ARCH}
+            
+            echo "GitHub CLI installed successfully:"
+            gh --version
             
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."
