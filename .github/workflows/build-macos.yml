@@ -37,9 +37,12 @@ jobs:
           CIBW_BEFORE_BUILD_MACOS: |
             set -euo pipefail
             
-            echo "Starting before_all script..."
+            echo "Starting before_build script..."
             echo "Current working directory: $(pwd)"
             echo "Environment - CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
+            
+            # Install tomli for parsing pyproject.toml
+            pip install tomli
             
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."
@@ -51,9 +54,16 @@ jobs:
             echo "Version: $VERSION"
             
             # Map cibuildwheel arch → SDK tarball arch string
-            # Default to arm64 if CIBW_ARCH is not set
-            ARCH=${CIBW_ARCH:-arm64}
-            echo "CIBW_ARCH=${CIBW_ARCH:-NOT_SET}, ARCH=$ARCH"
+            # Try to determine architecture from multiple sources
+            if [[ -n "${CIBW_ARCH:-}" ]]; then
+                ARCH="$CIBW_ARCH"
+                echo "Using CIBW_ARCH: $ARCH"
+            else
+                # Fallback: try to detect from Python platform
+                ARCH=$(python -c "import platform; print('arm64' if platform.machine() == 'arm64' else 'x86_64')")
+                echo "CIBW_ARCH not set, detected from Python: $ARCH"
+            fi
+            echo "Final ARCH=$ARCH"
             if [[ "$ARCH" == "arm64" ]]; then
                 SDK_ARCH="aarch64-apple-darwin"
             else
