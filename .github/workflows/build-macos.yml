@@ -69,7 +69,7 @@ jobs:
 
             # Bundle the dylib into the package tree expected by the loader
             mkdir -p {project}/aic/libs/mac
-            cp libaic*.dylib {project}/aic/libs/mac/
+            cp lib/libaic*.dylib {project}/aic/libs/mac/
         run: |
           cibuildwheel --output-dir wheelhouse
 
