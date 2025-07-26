@@ -1,17 +1,17 @@
-name: Build & publish macOS wheels
+name: Build & publish Linux wheels
 
 on:
   push:
+    branches: [ corvin/c-bindings ]
     tags: ["*.*.*"]        # build + publish when you tag a release
   workflow_dispatch:        # allow manual runs
 
 jobs:
-  build-macos:
-    runs-on: macos-14       # Apple-Silicon runners can also cross-build x86-64
+  build-linux:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        # cibuildwheel itself installs all needed CPythons, but we keep one
-        # host Python for scripting (tomllib is stdlib ≥3.11).
+        # Use one Python version for the host, cibuildwheel installs all needed CPythons
         python-version: ["3.12"]
     steps:
       - uses: actions/checkout@v4
@@ -30,11 +30,10 @@ jobs:
       - name: Build wheels with bundled SDK
         env:
           GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
-          CIBW_ARCHS_MACOS: "x86_64 arm64"
-          CIBW_SKIP: "cp36-* cp37-*"
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_SKIP: "cp36-* cp37-* *-musllinux*"  # Skip old Python and musl
           CIBW_BUILD_VERBOSITY: 1
-          MACOSX_DEPLOYMENT_TARGET: "10.12"
-          CIBW_BEFORE_BUILD_MACOS: |
+          CIBW_BEFORE_BUILD_LINUX: |
             set -euo pipefail
             
             echo "Starting before_build script..."
@@ -42,7 +41,7 @@ jobs:
             echo "Environment - CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
             
             # Clean up any previous SDK downloads and extracted files
-            rm -rf sdk.tar.gz lib/ include/ aic/libs/mac/libaic.dylib || true
+            rm -rf sdk.tar.gz lib/ include/ aic/libs/linux/*.so || true
             
             # Install tomli for parsing pyproject.toml
             pip install tomli
@@ -60,35 +59,37 @@ jobs:
             # Debug: Show all relevant environment variables
             echo "=== Environment Debug ==="
             echo "CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
-            echo "ARCHFLAGS: ${ARCHFLAGS:-NOT_SET}"
-            echo "MACOSX_DEPLOYMENT_TARGET: ${MACOSX_DEPLOYMENT_TARGET:-NOT_SET}"
+            echo "AUDITWHEEL_ARCH: ${AUDITWHEEL_ARCH:-NOT_SET}"
             echo "Python platform.machine(): $(python -c 'import platform; print(platform.machine())')"
             echo "Python platform.platform(): $(python -c 'import platform; print(platform.platform())')"
+            echo "uname -m: $(uname -m)"
             echo "========================="
             
             # Try to determine architecture from multiple sources
             if [[ -n "${CIBW_ARCH:-}" ]]; then
                 ARCH="$CIBW_ARCH"
                 echo "Using CIBW_ARCH: $ARCH"
-            elif [[ "${ARCHFLAGS:-}" == *"arm64"* ]]; then
-                ARCH="arm64"
-                echo "Detected arm64 from ARCHFLAGS: $ARCHFLAGS"
-            elif [[ "${ARCHFLAGS:-}" == *"x86_64"* ]]; then
-                ARCH="x86_64"
-                echo "Detected x86_64 from ARCHFLAGS: $ARCHFLAGS"
+            elif [[ -n "${AUDITWHEEL_ARCH:-}" ]]; then
+                ARCH="$AUDITWHEEL_ARCH"
+                echo "Using AUDITWHEEL_ARCH: $ARCH"
             else
-                # Fallback: try to detect from Python platform
-                ARCH=$(python -c "import platform; print('arm64' if platform.machine() == 'arm64' else 'x86_64')")
-                echo "CIBW_ARCH not set, detected from Python: $ARCH"
+                # Fallback: try to detect from system
+                ARCH=$(uname -m)
+                echo "CIBW_ARCH not set, detected from uname: $ARCH"
             fi
             echo "Final ARCH=$ARCH"
-            if [[ "$ARCH" == "arm64" ]]; then
-                SDK_ARCH="aarch64-apple-darwin"
+            
+            # Map architecture to SDK naming convention
+            if [[ "$ARCH" == "aarch64" ]]; then
+                SDK_ARCH="aarch64-unknown-linux-gnu"
+            elif [[ "$ARCH" == "x86_64" ]]; then
+                SDK_ARCH="x86_64-unknown-linux-gnu"
             else
-                SDK_ARCH="x86_64-apple-darwin"
+                echo "Unsupported architecture: $ARCH"
+                exit 1
             fi
             echo "Selected SDK_ARCH=$SDK_ARCH"
-            TAR="aic-sdk-${SDK_ARCH}-${VERSION}.tar.gz"
+            TAR="aic-sdk-${SDK_ARCH}-${VERSION}-glibc2.31.tar.gz"
 
             echo "Downloading $TAR from private repo…"
             echo "Looking for release: $VERSION"
@@ -104,43 +105,43 @@ jobs:
             fi
             tar -xzf sdk.tar.gz
 
-            # Bundle the dylib into the package tree expected by the loader
+            # Bundle the shared library into the package tree expected by the loader
             # Note: cibuildwheel runs this from a temporary copy of the project
-            mkdir -p aic/libs/mac
-            cp lib/libaic*.dylib aic/libs/mac/
+            mkdir -p aic/libs/linux
+            cp lib/libaic*.so aic/libs/linux/
             
             # Verify the files were copied and show file types
-            echo "Copied dylib files:"
-            ls -la aic/libs/mac/
+            echo "Copied shared library files:"
+            ls -la aic/libs/linux/
             echo "File type and architecture:"
-            file aic/libs/mac/*
-            echo "Architecture details:"
-            lipo -info aic/libs/mac/*.dylib || echo "lipo failed"
+            file aic/libs/linux/*
+            echo "ELF details:"
+            readelf -h aic/libs/linux/*.so || echo "readelf failed"
             
-            # Check what hatchling would include
+            # Check what setuptools would include
             echo "Project structure before build:"
-            find aic -name "*.dylib" -o -name "*.so" -o -name "*.dll"
+            find aic -name "*.so" -o -name "*.dylib" -o -name "*.dll"
         run: |
           cibuildwheel --output-dir wheelhouse
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mac-wheels
+          name: linux-wheels
           path: wheelhouse/*.whl
 
 #   publish-to-pypi:
-#     needs: build-macos
+#     needs: build-linux
 #     if: startsWith(github.ref, 'refs/tags/')
 #     runs-on: ubuntu-latest
 #     steps:
 #       - uses: actions/download-artifact@v4
 #         with:
-#           name: mac-wheels
+#           name: linux-wheels
 #           path: dist
 
 #       - name: Publish wheels to PyPI
 #         uses: pypa/gh-action-pypi-publish@v1.8.6
 #         with:
 #           user: __token__
-#           password: ${{ secrets.PYPI_API_TOKEN }}
+#           password: ${{ secrets.PYPI_API_TOKEN }} 
