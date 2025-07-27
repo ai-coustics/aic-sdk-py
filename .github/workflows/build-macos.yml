@@ -1,0 +1,134 @@
+name: Build macOS wheels
+
+on:
+  push:
+    branches: [ development ]
+  workflow_dispatch:        # allow manual runs
+
+jobs:
+  build-macos:
+    environment: publish
+    runs-on: macos-14       # Apple-Silicon runners can also cross-build x86-64
+    strategy:
+      matrix:
+        # cibuildwheel itself installs all needed CPythons, but we keep one
+        # host Python for scripting (tomllib is stdlib ≥3.11).
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel==2.18.0 tomli
+
+      # cibuildwheel will call this script once _per architecture_.
+      - name: Build wheels with bundled SDK
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-*"
+          CIBW_BUILD_VERBOSITY: 1
+          MACOSX_DEPLOYMENT_TARGET: "10.12"
+          CIBW_BEFORE_BUILD_MACOS: |
+            set -euo pipefail
+            
+            echo "Starting before_build script..."
+            echo "Current working directory: $(pwd)"
+            echo "Environment - CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
+            
+            # Clean up any previous SDK downloads and extracted files
+            rm -rf sdk.tar.gz lib/ include/ aic/libs/mac/libaic.dylib || true
+            
+            # Install tomli for parsing pyproject.toml
+            pip install tomli
+            
+            # Extract project version from pyproject.toml
+            echo "Extracting version from pyproject.toml..."
+            VERSION=$(python - <<'PY'
+            import tomli, pathlib, sys
+            print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])
+            PY
+            )
+            echo "Version: $VERSION"
+            
+            # Map cibuildwheel arch → SDK tarball arch string
+            # Debug: Show all relevant environment variables
+            echo "=== Environment Debug ==="
+            echo "CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
+            echo "ARCHFLAGS: ${ARCHFLAGS:-NOT_SET}"
+            echo "MACOSX_DEPLOYMENT_TARGET: ${MACOSX_DEPLOYMENT_TARGET:-NOT_SET}"
+            echo "Python platform.machine(): $(python -c 'import platform; print(platform.machine())')"
+            echo "Python platform.platform(): $(python -c 'import platform; print(platform.platform())')"
+            echo "========================="
+            
+            # Try to determine architecture from multiple sources
+            if [[ -n "${CIBW_ARCH:-}" ]]; then
+                ARCH="$CIBW_ARCH"
+                echo "Using CIBW_ARCH: $ARCH"
+            elif [[ "${ARCHFLAGS:-}" == *"arm64"* ]]; then
+                ARCH="arm64"
+                echo "Detected arm64 from ARCHFLAGS: $ARCHFLAGS"
+            elif [[ "${ARCHFLAGS:-}" == *"x86_64"* ]]; then
+                ARCH="x86_64"
+                echo "Detected x86_64 from ARCHFLAGS: $ARCHFLAGS"
+            else
+                # Fallback: try to detect from Python platform
+                ARCH=$(python -c "import platform; print('arm64' if platform.machine() == 'arm64' else 'x86_64')")
+                echo "CIBW_ARCH not set, detected from Python: $ARCH"
+            fi
+            echo "Final ARCH=$ARCH"
+            if [[ "$ARCH" == "arm64" ]]; then
+                SDK_ARCH="aarch64-apple-darwin"
+            else
+                SDK_ARCH="x86_64-apple-darwin"
+            fi
+            echo "Selected SDK_ARCH=$SDK_ARCH"
+            TAR="aic-sdk-${SDK_ARCH}-${VERSION}.tar.gz"
+
+            echo "Downloading $TAR from private repo…"
+            echo "Looking for release: $VERSION"
+            echo "Available releases:"
+            gh release list --repo ai-coustics/aic-sdk --limit 10 || echo "Failed to list releases"
+            
+            echo "Attempting download..."
+            if ! gh release download --repo ai-coustics/aic-sdk "$VERSION" --pattern "$TAR" --output sdk.tar.gz --clobber; then
+                echo "Failed to download release $VERSION with pattern $TAR"
+                echo "Checking what assets are available for this release:"
+                gh release view --repo ai-coustics/aic-sdk "$VERSION" || echo "Release $VERSION not found"
+                exit 1
+            fi
+            tar -xzf sdk.tar.gz
+
+            # Bundle the dylib into the package tree expected by the loader
+            # Note: cibuildwheel runs this from a temporary copy of the project
+            mkdir -p aic/libs/mac
+            cp lib/libaic*.dylib aic/libs/mac/
+            
+            # Verify the files were copied and show file types
+            echo "Copied dylib files:"
+            ls -la aic/libs/mac/
+            echo "File type and architecture:"
+            file aic/libs/mac/*
+            echo "Architecture details:"
+            lipo -info aic/libs/mac/*.dylib || echo "lipo failed"
+            
+            # Check what hatchling would include
+            echo "Project structure before build:"
+            find aic -name "*.dylib" -o -name "*.so" -o -name "*.dll"
+        run: |
+          cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-wheels
+          path: wheelhouse/*.whl
+
+  # Publishing now handled by build-and-publish.yml workflow
+

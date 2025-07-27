@@ -1,0 +1,74 @@
+AIC-SDK BINARY LICENSE AGREEMENT
+Version 1.0 — 25 July 2025
+Copyright © 2025 ai-coustics GmbH. All rights reserved.
+
+0.  Definitions
+    “SDK” means the object-code files distributed inside the directory
+           aic/libs/* (e.g. libaic.so, libaic.dylib, aic.dll) together with
+           the public C headers aic.h and aic_c.h.
+    “Wrapper” means the Python source code in this repository that links to
+               the SDK.  The Wrapper is licensed separately under the MIT
+               license found in LICENSE.
+    “You”     means the individual or legal entity exercising rights under
+               this Agreement.
+
+1.  License Grant  
+    Subject to the terms below, ai|coustics GmbH (“Licensor”) grants You a
+    non-exclusive, non-transferable, worldwide, royalty-free right to  
+    (a) install and use the SDK **in object-code form only** together with
+        the Wrapper, in products and services that You develop or operate;  
+    (b) reproduce and redistribute the unmodified SDK solely when it is
+        embedded in an application that **depends on the Wrapper**, provided
+        that You  
+        • include this license file with your distribution, and  
+        • do not charge a fee specifically for the SDK.
+
+2.  Restrictions  
+    You shall not, and shall not allow any third party to:  
+    • modify, translate, reverse-engineer, decompile, disassemble or
+      otherwise attempt to derive the source code of the SDK (except to the
+      limited extent such actions are expressly permitted by mandatory law);  
+    • remove or obscure any proprietary notices;  
+    • use the SDK to create or train competing speech-enhancement models;  
+    • redistribute the SDK as a stand-alone product, via package registries
+      (PyPI, npm, crates.io, etc.), or in any manner that allows third
+      parties to access the SDK separate from Your application.
+
+3.  Proprietary Rights  
+    Title to, and all intellectual-property rights in, the SDK remain with
+    Licensor and its licensors.  No rights are granted to You except as
+    expressly set out herein.
+
+4.  Warranty Disclaimer  
+    THE SDK IS PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+
+5.  Limitation of Liability  
+    TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL
+    LICENSOR BE LIABLE FOR ANY INDIRECT, SPECIAL, INCIDENTAL OR
+    CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE THE
+    SDK, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.  LICENSOR’S
+    TOTAL CUMULATIVE LIABILITY SHALL NOT EXCEED EUR 500.
+
+6.  Termination  
+    This Agreement terminates automatically if You breach any term hereof.
+    Upon termination, You must cease all use and destroy all copies of the
+    SDK in your possession.  Sections 3–7 survive termination.
+
+7.  Governing Law and Venue  
+    This Agreement is governed by the laws of Germany.  Exclusive venue for
+    any dispute shall be the courts of Berlin, Germany.
+
+8.  Third-Party Code  
+    The SDK may contain or link to third-party components that are subject
+    to separate open-source licenses. Such components remain governed by
+    their respective terms.
+
+9.  Entire Agreement  
+    This document constitutes the entire agreement between Licensor and You
+    regarding the SDK and supersedes all prior oral or written agreements.
+
+By installing, copying or otherwise using the SDK You acknowledge that
+You have read this Agreement, understand it, and agree to be bound by its
+terms.

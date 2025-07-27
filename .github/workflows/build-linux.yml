@@ -1,0 +1,197 @@
+name: Build Linux wheels
+
+on:
+  push:
+    branches: [ development ]
+  workflow_dispatch:        # allow manual runs
+
+jobs:
+  build-linux:
+    environment: publish
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Use one Python version for the host, cibuildwheel installs all needed CPythons
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel==2.18.0 tomli
+          
+      - name: Set up QEMU for cross-compilation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+          
+      - name: Prepare token for container access
+        run: |
+          # Create a token file that can be accessed by the container
+          echo "${{ secrets.AIC_SDK_ACCESS_TOKEN }}" > /tmp/gh_token
+          chmod 600 /tmp/gh_token
+
+      # cibuildwheel will call this script once _per architecture_.
+      - name: Build wheels with bundled SDK
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* *-musllinux*"  # Skip old Python and musl
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64
+          CIBW_MANYLINUX_AARCH64_IMAGE: quay.io/pypa/manylinux_2_28_aarch64
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "cp {wheel} {dest_dir}"
+          CIBW_ENVIRONMENT_PASSTHROUGH_LINUX: "GH_TOKEN"
+          CIBW_CONTAINER_ENGINE: "docker; create_args: --volume /tmp/gh_token:/tmp/gh_token:ro"
+          CIBW_BEFORE_BUILD_LINUX: |
+            set -euo pipefail
+            
+            echo "Starting before_build script..."
+            echo "Current working directory: $(pwd)"
+            echo "Environment - CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
+            
+            # Manually set GH_TOKEN if not available (fallback)
+            if [[ -z "${GH_TOKEN:-}" ]]; then
+                echo "GH_TOKEN not available via passthrough, checking alternative methods..."
+                # Try to get from file if mounted
+                if [[ -f "/tmp/gh_token" ]]; then
+                    export GH_TOKEN=$(cat /tmp/gh_token)
+                    echo "GH_TOKEN loaded from file"
+                else
+                    echo "WARNING: No GH_TOKEN available - this build will fail"
+                fi
+            fi
+            
+            # Clean up any previous SDK downloads and extracted files
+            rm -rf sdk.tar.gz lib/ include/ aic/libs/linux/*.so || true
+            
+            # Install required tools
+            pip install tomli
+            
+            # Install GitHub CLI in the container using binary download
+            echo "Installing GitHub CLI..."
+            ARCH_NAME=$(uname -m)
+            if [[ "$ARCH_NAME" == "x86_64" ]]; then
+                GH_ARCH="linux_amd64"
+            elif [[ "$ARCH_NAME" == "aarch64" ]]; then
+                GH_ARCH="linux_arm64"
+            else
+                echo "Unsupported architecture for GitHub CLI: $ARCH_NAME"
+                exit 1
+            fi
+            
+            echo "Downloading GitHub CLI for $GH_ARCH..."
+            # Get the latest release version and download the specific file
+            GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+            GH_FILE="gh_${GH_VERSION#v}_${GH_ARCH}.tar.gz"
+            echo "Downloading $GH_FILE..."
+            curl -fsSL "https://github.com/cli/cli/releases/download/${GH_VERSION}/${GH_FILE}" \
+                -o gh.tar.gz
+            tar -xzf gh.tar.gz
+            cp gh_${GH_VERSION#v}_${GH_ARCH}/bin/gh /usr/local/bin/
+            chmod +x /usr/local/bin/gh
+            rm -rf gh.tar.gz gh_${GH_VERSION#v}_${GH_ARCH}
+            
+            echo "GitHub CLI installed successfully:"
+            gh --version
+            
+            # Debug: Check if GH_TOKEN is available
+            echo "=== Token Debug ==="
+            if [[ -n "${GH_TOKEN:-}" ]]; then
+                echo "GH_TOKEN is available (length: ${#GH_TOKEN})"
+            else
+                echo "GH_TOKEN is NOT available"
+                echo "Available environment variables containing 'GH' or 'TOKEN':"
+                env | grep -i -E "(gh|token)" || echo "None found"
+            fi
+            echo "==================="
+            
+            # Extract project version from pyproject.toml
+            echo "Extracting version from pyproject.toml..."
+            VERSION=$(python - <<'PY'
+            import tomli, pathlib, sys
+            print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])
+            PY
+            )
+            echo "Version: $VERSION"
+            
+            # Map cibuildwheel arch → SDK tarball arch string
+            # Debug: Show all relevant environment variables
+            echo "=== Environment Debug ==="
+            echo "CIBW_ARCH: ${CIBW_ARCH:-NOT_SET}"
+            echo "AUDITWHEEL_ARCH: ${AUDITWHEEL_ARCH:-NOT_SET}"
+            echo "Python platform.machine(): $(python -c 'import platform; print(platform.machine())')"
+            echo "Python platform.platform(): $(python -c 'import platform; print(platform.platform())')"
+            echo "uname -m: $(uname -m)"
+            echo "========================="
+            
+            # Try to determine architecture from multiple sources
+            if [[ -n "${CIBW_ARCH:-}" ]]; then
+                ARCH="$CIBW_ARCH"
+                echo "Using CIBW_ARCH: $ARCH"
+            elif [[ -n "${AUDITWHEEL_ARCH:-}" ]]; then
+                ARCH="$AUDITWHEEL_ARCH"
+                echo "Using AUDITWHEEL_ARCH: $ARCH"
+            else
+                # Fallback: try to detect from system
+                ARCH=$(uname -m)
+                echo "CIBW_ARCH not set, detected from uname: $ARCH"
+            fi
+            echo "Final ARCH=$ARCH"
+            
+            # Map architecture to SDK naming convention
+            if [[ "$ARCH" == "aarch64" ]]; then
+                SDK_ARCH="aarch64-unknown-linux-gnu"
+            elif [[ "$ARCH" == "x86_64" ]]; then
+                SDK_ARCH="x86_64-unknown-linux-gnu"
+            else
+                echo "Unsupported architecture: $ARCH"
+                exit 1
+            fi
+            echo "Selected SDK_ARCH=$SDK_ARCH"
+            TAR="aic-sdk-${SDK_ARCH}-${VERSION}-glibc2.31.tar.gz"
+
+            echo "Downloading $TAR from private repo…"
+            echo "Looking for release: $VERSION"
+            echo "Available releases:"
+            gh release list --repo ai-coustics/aic-sdk --limit 10 || echo "Failed to list releases"
+            
+            echo "Attempting download..."
+            if ! gh release download --repo ai-coustics/aic-sdk "$VERSION" --pattern "$TAR" --output sdk.tar.gz --clobber; then
+                echo "Failed to download release $VERSION with pattern $TAR"
+                echo "Checking what assets are available for this release:"
+                gh release view --repo ai-coustics/aic-sdk "$VERSION" || echo "Release $VERSION not found"
+                exit 1
+            fi
+            tar -xzf sdk.tar.gz
+
+            # Bundle the shared library into the package tree expected by the loader
+            # Note: cibuildwheel runs this from a temporary copy of the project
+            mkdir -p aic/libs/linux
+            cp lib/libaic*.so aic/libs/linux/
+            
+            # Verify the files were copied and show file types
+            echo "Copied shared library files:"
+            ls -la aic/libs/linux/
+            echo "File type and architecture:"
+            file aic/libs/linux/*
+            echo "ELF details:"
+            readelf -h aic/libs/linux/*.so || echo "readelf failed"
+            
+            # Check what setuptools would include
+            echo "Project structure before build:"
+            find aic -name "*.so" -o -name "*.dylib" -o -name "*.dll"
+        run: |
+          cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-wheels
+          path: wheelhouse/*.whl
