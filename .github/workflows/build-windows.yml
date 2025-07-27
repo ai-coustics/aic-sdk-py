@@ -1,9 +1,8 @@
-name: Build & publish Windows wheels
+name: Build Windows wheels
 
 on:
   push:
-    branches: [ corvin/c-bindings ]
-    tags: ["*.*.*"]        # build + publish when you tag a release
+    branches: [ development ]
   workflow_dispatch:        # allow manual runs
 
 jobs:
@@ -53,19 +52,3 @@ jobs:
         with:
           name: windows-wheels
           path: wheelhouse/*.whl
-
-#   publish-to-pypi:
-#     needs: build-windows
-#     if: startsWith(github.ref, 'refs/tags/')
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/download-artifact@v4
-#         with:
-#           name: windows-wheels
-#           path: dist
-
-#       - name: Publish wheels to PyPI
-#         uses: pypa/gh-action-pypi-publish@v1.8.6
-#         with:
-#           user: __token__
-#           password: ${{ secrets.PYPI_API_TOKEN }} 

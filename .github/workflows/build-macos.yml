@@ -1,8 +1,8 @@
-name: Build & publish macOS wheels
+name: Build macOS wheels
 
 on:
   push:
-    tags: ["*.*.*"]        # build + publish when you tag a release
+    branches: [ development ]
   workflow_dispatch:        # allow manual runs
 
 jobs:
@@ -130,18 +130,5 @@ jobs:
           name: mac-wheels
           path: wheelhouse/*.whl
 
-#   publish-to-pypi:
-#     needs: build-macos
-#     if: startsWith(github.ref, 'refs/tags/')
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/download-artifact@v4
-#         with:
-#           name: mac-wheels
-#           path: dist
+  # Publishing now handled by build-and-publish.yml workflow
 
-#       - name: Publish wheels to PyPI
-#         uses: pypa/gh-action-pypi-publish@v1.8.6
-#         with:
-#           user: __token__
-#           password: ${{ secrets.PYPI_API_TOKEN }}
