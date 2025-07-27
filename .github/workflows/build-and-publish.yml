@@ -41,7 +41,8 @@ jobs:
             
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."
-            VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+            # VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+            VERSION="0.5.3"
             echo "Version: $VERSION"
             
             # Try to determine architecture from multiple sources
@@ -233,7 +234,8 @@ jobs:
             
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."
-            VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+            # VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+            VERSION="0.5.3"
             echo "Version: $VERSION"
             
             # Try to determine architecture from multiple sources
