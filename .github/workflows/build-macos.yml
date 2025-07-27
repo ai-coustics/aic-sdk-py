@@ -7,6 +7,7 @@ on:
 
 jobs:
   build-macos:
+    environment: publish
     runs-on: macos-14       # Apple-Silicon runners can also cross-build x86-64
     strategy:
       matrix:
