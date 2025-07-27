@@ -1,0 +1,160 @@
+name: Build & publish Windows wheels
+
+on:
+  push:
+    branches: [ corvin/c-bindings ]
+    tags: ["*.*.*"]        # build + publish when you tag a release
+  workflow_dispatch:        # allow manual runs
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        # Use one Python version for the host, cibuildwheel installs all needed CPythons
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel==2.18.0 tomli
+
+      # cibuildwheel will call this script once _per architecture_.
+      - name: Build wheels with bundled SDK
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+          CIBW_ARCHS_WINDOWS: "AMD64"  # x86_64 only for now
+          CIBW_SKIP: "cp36-* cp37-* cp38-*"  # Skip old Python versions
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ENVIRONMENT_PASSTHROUGH_WINDOWS: "GH_TOKEN"
+          CIBW_BEFORE_BUILD_WINDOWS: |
+            echo "Starting before_build script..."
+            echo "Current working directory: %cd%"
+            echo "Environment - CIBW_ARCH: %CIBW_ARCH%"
+            
+            REM Clean up any previous SDK downloads and extracted files
+            if exist sdk.zip del /f /q sdk.zip
+            if exist lib rmdir /s /q lib
+            if exist include rmdir /s /q include
+            if exist aic\libs\windows\*.dll del /f /q aic\libs\windows\*.dll
+            
+            REM Install required tools
+            pip install tomli
+            
+            REM GitHub CLI is pre-installed on GitHub Actions runners
+            echo "GitHub CLI version:"
+            gh --version
+            
+            REM Debug: Check if GH_TOKEN is available
+            echo "=== Token Debug ==="
+            if defined GH_TOKEN (
+                echo "GH_TOKEN is available"
+            ) else (
+                echo "GH_TOKEN is NOT available"
+                echo "Available environment variables containing 'GH' or 'TOKEN':"
+                set | findstr /i "GH TOKEN" || echo "None found"
+            )
+            echo "==================="
+            
+            REM Extract project version from pyproject.toml
+            echo "Extracting version from pyproject.toml..."
+            for /f "delims=" %%i in ('python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])"') do set VERSION=%%i
+            echo "Version: %VERSION%"
+            
+            REM Map cibuildwheel arch to SDK tarball arch string
+            echo "=== Environment Debug ==="
+            echo "CIBW_ARCH: %CIBW_ARCH%"
+            echo "PROCESSOR_ARCHITECTURE: %PROCESSOR_ARCHITECTURE%"
+            for /f "delims=" %%i in ('python -c "import platform; print(platform.machine())"') do set PYTHON_ARCH=%%i
+            echo "Python platform.machine(): %PYTHON_ARCH%"
+            for /f "delims=" %%i in ('python -c "import platform; print(platform.platform())"') do set PYTHON_PLATFORM=%%i
+            echo "Python platform.platform(): %PYTHON_PLATFORM%"
+            echo "========================="
+            
+            REM Try to determine architecture from multiple sources
+            if defined CIBW_ARCH (
+                set "ARCH=%CIBW_ARCH%"
+                echo "Using CIBW_ARCH: %ARCH%"
+            ) else (
+                REM Fallback: assume x86_64/AMD64 for Windows
+                set "ARCH=AMD64"
+                echo "CIBW_ARCH not set, defaulting to: %ARCH%"
+            )
+            echo "Final ARCH=%ARCH%"
+            
+            REM Map architecture to SDK naming convention
+            if "%ARCH%"=="AMD64" (
+                set "SDK_ARCH=x86_64-pc-windows-msvc"
+            ) else (
+                echo "Unsupported architecture: %ARCH%"
+                exit /b 1
+            )
+            echo "Selected SDK_ARCH=%SDK_ARCH%"
+            set "ZIP_FILE=aic-sdk-%SDK_ARCH%-%VERSION%.zip"
+
+            echo "Downloading %ZIP_FILE% from private repo..."
+            echo "Looking for release: %VERSION%"
+            echo "Available releases:"
+            gh release list --repo ai-coustics/aic-sdk --limit 10 || echo "Failed to list releases"
+            
+            echo "Attempting download..."
+            gh release download --repo ai-coustics/aic-sdk "%VERSION%" --pattern "%ZIP_FILE%" --output sdk.zip --clobber
+            if %errorlevel% neq 0 (
+                echo "Failed to download release %VERSION% with pattern %ZIP_FILE%"
+                echo "Checking what assets are available for this release:"
+                gh release view --repo ai-coustics/aic-sdk "%VERSION%" || echo "Release %VERSION% not found"
+                exit /b 1
+            )
+            
+            REM Extract the ZIP file
+            echo "Extracting SDK..."
+            powershell -Command "Expand-Archive -Path 'sdk.zip' -DestinationPath '.' -Force"
+
+            REM Bundle the DLL into the package tree expected by the loader
+            echo "Bundling DLL into package tree..."
+            if not exist aic\libs\windows mkdir aic\libs\windows
+            copy lib\*.dll aic\libs\windows\
+            
+            REM Verify the files were copied and show file types
+            echo "Copied DLL files:"
+            dir /b aic\libs\windows\
+            echo "File details:"
+            for %%f in (aic\libs\windows\*.dll) do (
+                echo "File: %%f"
+                powershell -Command "Get-ItemProperty '%%f' | Select-Object Name, Length, VersionInfo"
+            )
+            
+            REM Check what setuptools would include
+            echo "Project structure before build:"
+            dir /s /b aic\libs\windows\*.dll aic\libs\mac\*.dylib aic\libs\linux\*.so 2>nul || echo "Some library directories not found (expected)"
+        run: |
+          cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-wheels
+          path: wheelhouse/*.whl
+
+#   publish-to-pypi:
+#     needs: build-windows
+#     if: startsWith(github.ref, 'refs/tags/')
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/download-artifact@v4
+#         with:
+#           name: windows-wheels
+#           path: dist
+
+#       - name: Publish wheels to PyPI
+#         uses: pypa/gh-action-pypi-publish@v1.8.6
+#         with:
+#           user: __token__
+#           password: ${{ secrets.PYPI_API_TOKEN }} 

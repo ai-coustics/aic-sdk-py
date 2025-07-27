@@ -2,7 +2,6 @@ name: Build & publish Linux wheels
 
 on:
   push:
-    branches: [ corvin/c-bindings ]
     tags: ["*.*.*"]        # build + publish when you tag a release
   workflow_dispatch:        # allow manual runs
 
