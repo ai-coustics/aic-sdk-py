@@ -55,7 +55,7 @@ jobs:
             REM Debug: Check if GH_TOKEN is available
             echo "=== Token Debug ==="
             if defined GH_TOKEN (
-                echo "GH_TOKEN is available"
+                echo "GH_TOKEN is available (length: %GH_TOKEN:~0,10%...)"
             ) else (
                 echo "GH_TOKEN is NOT available"
                 echo "Available environment variables containing 'GH' or 'TOKEN':"
@@ -113,18 +113,56 @@ jobs:
                 exit /b 1
             )
             
+            REM Verify download succeeded
+            if exist sdk.zip (
+                echo "Download successful. File size:"
+                for %%A in (sdk.zip) do echo "sdk.zip: %%~zA bytes"
+            ) else (
+                echo "ERROR: sdk.zip not found after download!"
+                exit /b 1
+            )
+            
             REM Extract the ZIP file
             echo "Extracting SDK..."
             powershell -Command "Expand-Archive -Path 'sdk.zip' -DestinationPath '.' -Force"
+            
+            REM Verify extraction
+            echo "Contents after extraction:"
+            if exist lib (
+                echo "lib directory found:"
+                dir lib
+            ) else (
+                echo "ERROR: lib directory not found after extraction!"
+                echo "Current directory contents:"
+                dir
+                exit /b 1
+            )
 
             REM Bundle the DLL into the package tree expected by the loader
             echo "Bundling DLL into package tree..."
             if not exist aic\libs\windows mkdir aic\libs\windows
-            copy lib\*.dll aic\libs\windows\
+            
+            REM Check what DLL files are available to copy
+            echo "Available DLL files in lib directory:"
+            if exist lib\*.dll (
+                dir lib\*.dll
+                copy lib\*.dll aic\libs\windows\
+                if %errorlevel% neq 0 (
+                    echo "ERROR: Failed to copy DLL files!"
+                    exit /b 1
+                )
+            ) else (
+                echo "ERROR: No DLL files found in lib directory!"
+                echo "Contents of lib directory:"
+                dir lib
+                exit /b 1
+            )
             
             REM Verify the files were copied and show file types
-            echo "Copied DLL files:"
+            echo "Successfully copied DLL files:"
             dir /b aic\libs\windows\
+            echo "File sizes:"
+            for %%A in (aic\libs\windows\*.dll) do echo "%%A: %%~zA bytes"
             echo "File details:"
             for %%f in (aic\libs\windows\*.dll) do (
                 echo "File: %%f"
