@@ -174,12 +174,29 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64
           CIBW_MANYLINUX_AARCH64_IMAGE: quay.io/pypa/manylinux_2_28_aarch64
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: >
-            auditwheel repair -w {dest_dir} {wheel} --lib-dir={project}/aic/libs/linux/ ||
-            (echo "Auditwheel repair failed, manually retagging wheel..." &&
-            pip install wheel &&
-            python -m wheel tags --platform-tag manylinux_2_28_x86_64 --platform-tag manylinux_2_28_aarch64 {wheel} &&
-            cp {wheel} {dest_dir}/ &&
-            ls -la {dest_dir})
+            bash -c '
+            echo "Attempting auditwheel repair...";
+            if auditwheel repair -w {dest_dir} {wheel} --lib-dir={project}/aic/libs/linux/; then
+                echo "Auditwheel repair succeeded";
+            else
+                echo "Auditwheel repair failed, manually retagging wheel...";
+                pip install wheel;
+                WHEEL_NAME=$(basename {wheel});
+                ARCH_PART=$(echo $WHEEL_NAME | grep -o "linux_[^.]*");
+                if [[ "$ARCH_PART" == "linux_x86_64" ]]; then
+                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_x86_64/manylinux_2_28_x86_64/");
+                elif [[ "$ARCH_PART" == "linux_aarch64" ]]; then
+                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_aarch64/manylinux_2_28_aarch64/");
+                else
+                    echo "Unknown architecture: $ARCH_PART";
+                    exit 1;
+                fi;
+                echo "Copying {wheel} to {dest_dir}/$NEW_WHEEL_NAME";
+                cp {wheel} {dest_dir}/$NEW_WHEEL_NAME;
+                echo "Manual retag complete. Final wheel:";
+                ls -la {dest_dir};
+            fi
+            '
           CIBW_ENVIRONMENT_PASSTHROUGH_LINUX: "GH_TOKEN"
           CIBW_CONTAINER_ENGINE: "docker; create_args: --volume /tmp/gh_token:/tmp/gh_token:ro"
           CIBW_BEFORE_BUILD_LINUX: |
