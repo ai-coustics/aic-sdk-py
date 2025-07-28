@@ -10,7 +10,6 @@ This repository provides prebuilt Python wheels for the **ai|coustics real-time 
 - **Multiple model variants**: QUAIL_L, QUAIL_S, QUAIL_XS for different performance/quality trade-offs
 - **Low latency processing** optimized for streaming applications
 - **Cross-platform support**: Linux, macOS, Windows
-- **Simple Python API** with NumPy integration
 - **Context manager support** for automatic resource management
 
 ## 📦 Installation
@@ -18,7 +17,7 @@ This repository provides prebuilt Python wheels for the **ai|coustics real-time 
 ### Prerequisites
 
 - Python 3.9 or higher
-- NumPy (automatically installed as dependency)
+- GLIBC >= 2.28 on Linux
 
 ### Install the SDK
 
@@ -38,9 +37,8 @@ pip install -r examples/requirements.txt
 
 The SDK requires a license key for full functionality. You can:
 
-1. **Use trial mode** (limited functionality) by not providing a license key
-2. **Get a license key** from [ai-coustics](https://ai-coustics.com)
-3. **Set environment variable**:
+1. **Get a license key** from [ai-coustics](https://ai-coustics.com)
+2. **Set environment variable**:
    ```bash
    export AICOUSTICS_API_KEY="your_license_key_here"
    ```
@@ -256,7 +254,7 @@ with Model(AICModelType.QUAIL_L) as model:
 
 ### Common Issues
 
-1. **"GLIBC"**: On Linux you need to have GLIBC >= 2.31
+1. **"GLIBC"**: On Linux you need to have GLIBC >= 2.28
 2. **"Array shape error"**: Ensure audio is in correct format (planar or interleaved)
 3. **"Sample rate mismatch"**: Use 48kHz for optimal performance
 

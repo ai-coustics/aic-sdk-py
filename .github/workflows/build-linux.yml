@@ -44,8 +44,8 @@ jobs:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_SKIP: "cp36-* cp37-* cp38-* *-musllinux*"  # Skip old Python and musl
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_34_x86_64
-          CIBW_MANYLINUX_AARCH64_IMAGE: quay.io/pypa/manylinux_2_34_aarch64
+          CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64
+          CIBW_MANYLINUX_AARCH64_IMAGE: quay.io/pypa/manylinux_2_28_aarch64
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: >
             bash -c '
             echo "Attempting auditwheel repair...";
@@ -57,9 +57,9 @@ jobs:
                 WHEEL_NAME=$(basename {wheel});
                 ARCH_PART=$(echo $WHEEL_NAME | grep -o "linux_[^.]*");
                 if [[ "$ARCH_PART" == "linux_x86_64" ]]; then
-                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_x86_64/manylinux_2_34_x86_64/");
+                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_x86_64/manylinux_2_28_x86_64/");
                 elif [[ "$ARCH_PART" == "linux_aarch64" ]]; then
-                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_aarch64/manylinux_2_34_aarch64/");
+                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_aarch64/manylinux_2_28_aarch64/");
                 else
                     echo "Unknown architecture: $ARCH_PART";
                     exit 1;
@@ -178,7 +178,7 @@ jobs:
                 exit 1
             fi
             echo "Selected SDK_ARCH=$SDK_ARCH"
-            TAR="aic-sdk-${SDK_ARCH}-${VERSION}-glibc2.31.tar.gz"
+            TAR="aic-sdk-${SDK_ARCH}-${VERSION}-glibc2.27.tar.gz"
 
             echo "Downloading $TAR from private repo…"
             echo "Looking for release: $VERSION"
