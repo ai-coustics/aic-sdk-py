@@ -5,7 +5,7 @@ from typing import Any
 import numpy as _np  # NumPy is the only runtime dep
 
 from . import _bindings as bindings  # low-level names live here
-from ._bindings import (AicModelType, AicParameter, get_library_version,
+from ._bindings import (AICModelType, AICParameter, get_library_version,
                         get_optimal_num_frames, get_optimal_sample_rate,
                         get_parameter, get_processing_latency, model_create,
                         model_destroy, model_initialize, model_reset,
@@ -41,7 +41,7 @@ class Model(AbstractContextManager):
 
     def __init__(
         self,
-        model_type: AicModelType = AicModelType.QUAIL_L,
+        model_type: AICModelType = AICModelType.QUAIL_L,
         license_key: str | bytes = b"",
     ) -> None:
         self._handle = model_create(model_type, _bytes(license_key))
@@ -53,7 +53,7 @@ class Model(AbstractContextManager):
         """Allocate DSP state for *sr* Hz, *ch* channels, *frames* per block."""
         model_initialize(self._handle, sr, ch, frames)
         # Enable noise gate by default (overriding C library default of 0.0)
-        self.set_parameter(AicParameter.NOISE_GATE_ENABLE, 1.0)
+        self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
 
     def reset(self) -> None:
         """Flush the model's internal state (between recordings, etc.)."""
@@ -155,11 +155,11 @@ class Model(AbstractContextManager):
     # parameter helpers                                                     #
     # --------------------------------------------------------------------- #
 
-    def set_parameter(self, param: AicParameter, value: float) -> None:
+    def set_parameter(self, param: AICParameter, value: float) -> None:
         """Update an algorithm knob (see :pydata:`AicParameter`)."""
         set_parameter(self._handle, param, float(value))
 
-    def get_parameter(self, param: AicParameter) -> float:
+    def get_parameter(self, param: AICParameter) -> float:
         """Return the current value of *param*."""
         return get_parameter(self._handle, param)
 
@@ -224,8 +224,8 @@ all = [
     # high-level OO API
     "Model",
     # C enum mirrors
-    "AicModelType",
-    "AicParameter",
+    "AICModelType",
+    "AICParameter",
     # expert-level full bindings
     "bindings",
 ]

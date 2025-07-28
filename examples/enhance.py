@@ -7,7 +7,7 @@ import soundfile as sf
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-from aic import AicModelType, AicParameter, Model
+from aic import AICModelType, AICParameter, Model
 
 load_dotenv(override=True)
 
@@ -20,7 +20,7 @@ def process_wav(input_wav: str, output_wav: str, strength: int):
     buffer_size = 480
 
     enhancer = Model(
-        AicModelType.QUAIL_L, # QUAIL_L, QUAIL_S, QUAIL_XS
+        AICModelType.QUAIL_L, # QUAIL_L, QUAIL_S, QUAIL_XS
         license_key=os.getenv("AICOUSTICS_API_KEY")
     )
     enhancer.initialize(48000, 1, buffer_size)
@@ -29,15 +29,15 @@ def process_wav(input_wav: str, output_wav: str, strength: int):
     print(f"Optimal input buffer size: {enhancer.optimal_num_frames()} samples")
     print(f"Optimal sample rate: {enhancer.optimal_sample_rate()} Hz")
     print(f"Current algorithmic latency: {enhancer.processing_latency()/sr * 1000:.2f}ms")
-    print(f"Noise gate enabled: {enhancer.get_parameter(AicParameter.NOISE_GATE_ENABLE) == 1.0}")
+    print(f"Noise gate enabled: {enhancer.get_parameter(AICParameter.NOISE_GATE_ENABLE) == 1.0}")
 
     enhancement_level = max(0, min(100, strength)) / 100
-    enhancer.set_parameter(AicParameter.ENHANCEMENT_LEVEL, enhancement_level)
+    enhancer.set_parameter(AICParameter.ENHANCEMENT_LEVEL, enhancement_level)
 
     # Initialize output array with the same shape as input
     output = np.zeros_like(input)
 
-    print(f"Enhancing file with {int(enhancer.get_parameter(AicParameter.ENHANCEMENT_LEVEL) * 100)}% strength")
+    print(f"Enhancing file with {int(enhancer.get_parameter(AICParameter.ENHANCEMENT_LEVEL) * 100)}% strength")
     for i in tqdm(range(0, input.shape[1], buffer_size), desc="Processing"):
         # Extract a chunk (2, 512) or smaller at the end
         chunk = input[:, i:i + buffer_size]
