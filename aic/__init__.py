@@ -30,7 +30,7 @@ class Model(AbstractContextManager):
     Parameters
     ----------
     model_type
-        The neural model variant to load; defaults to :pydata:`AicModelType.QUAIL_L`.
+        The neural model variant to load; defaults to :pydata:`AICModelType.QUAIL_L`.
     license_key
         Optional signed license string.  Empty string means *trial* mode.
     """
@@ -156,7 +156,7 @@ class Model(AbstractContextManager):
     # --------------------------------------------------------------------- #
 
     def set_parameter(self, param: AICParameter, value: float) -> None:
-        """Update an algorithm knob (see :pydata:`AicParameter`)."""
+        """Update an algorithm knob (see :pydata:`AICParameter`)."""
         set_parameter(self._handle, param, float(value))
 
     def get_parameter(self, param: AICParameter) -> float:
