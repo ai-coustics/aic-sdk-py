@@ -59,12 +59,12 @@ _lib = load()
 _lib.aic_model_create.restype  = AICErrorCode
 _lib.aic_model_create.argtypes = [
     _ct.POINTER(AICModelPtr),  # **model
-    _ct.c_int,                 # model_type (AicModelType)
+    _ct.c_int,                 # model_type (AICModelType)
     _ct.c_char_p,              # license_key
 ]
 
 _lib.aic_model_destroy.restype  = None
-_lib.aic_model_destroy.argtypes = [AicModelPtr]
+_lib.aic_model_destroy.argtypes = [AICModelPtr]
 
 _lib.aic_model_initialize.restype  = AICErrorCode
 _lib.aic_model_initialize.argtypes = [
@@ -96,14 +96,14 @@ _lib.aic_model_process_interleaved.argtypes = [
 _lib.aic_model_set_parameter.restype  = AICErrorCode
 _lib.aic_model_set_parameter.argtypes = [
     AICModelPtr,
-    _ct.c_int,                 # parameter (AicParameter)
+    _ct.c_int,                 # parameter (AICParameter)
     _ct.c_float,
 ]
 
 _lib.aic_model_get_parameter.restype  = AICErrorCode
 _lib.aic_model_get_parameter.argtypes = [
     AICModelPtr,
-    _ct.c_int,                 # parameter (AicParameter)
+    _ct.c_int,                 # parameter (AICParameter)
     _ct.POINTER(_ct.c_float),
 ]
 
