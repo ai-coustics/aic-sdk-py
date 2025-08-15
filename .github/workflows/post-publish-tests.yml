@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["Build & Publish All Wheels"]
     types: [completed]
+  workflow_dispatch:
 
 jobs:
   pypi-install-and-integration-tests:
