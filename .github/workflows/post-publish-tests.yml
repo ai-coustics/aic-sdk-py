@@ -1,4 +1,4 @@
-name: Post-Publish PyPI Install & Integration Tests
+name: Integration Tests
 
 on:
   workflow_run:
@@ -11,9 +11,10 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout repository (to get integration_tests)
         uses: actions/checkout@v4

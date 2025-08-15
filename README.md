@@ -1,5 +1,8 @@
 # ai-coustics SDK for Python (`aic`)
 
+[![Integration Tests](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/post-publish-tests.yml/badge.svg)](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/post-publish-tests.yml)
+[![Deploy Docs](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/gh-pages.yml)
+
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
 This repository provides prebuilt Python wheels for the **ai-coustics real-time audio enhancement SDK**, compatible with a variety of platforms and Python versions. The SDK offers state-of-the-art neural network-based audio enhancement for speech processing applications.
