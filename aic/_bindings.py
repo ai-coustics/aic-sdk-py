@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import ctypes as _ct
 from enum import IntEnum
-from typing import Any
+from typing import Any, Optional
 
 from ._loader import load
 
@@ -95,7 +95,7 @@ AICModelPtrT = Any
 #                       function prototypes                                     #
 ################################################################################
 
-_LIB: _ct.CDLL | None = None
+_LIB: Optional[_ct.CDLL] = None
 _PROTOTYPES_CONFIGURED = False
 
 

@@ -6,7 +6,7 @@ enums and low-level bindings for advanced use-cases.
 
 import ctypes as _ct
 from contextlib import AbstractContextManager
-from typing import Any
+from typing import Any, Optional, Union
 
 import numpy as _np  # NumPy is the only runtime dep
 
@@ -48,7 +48,7 @@ class Model(AbstractContextManager):
     def __init__(
         self,
         model_type: AICModelType = AICModelType.QUAIL_L,
-        license_key: str | bytes = None,
+        license_key: Union[str, bytes] = None,
     ) -> None:
         """Create a model wrapper.
 
@@ -104,7 +104,7 @@ class Model(AbstractContextManager):
         self,
         pcm: _np.ndarray,
         *,
-        channels: int | None = None,
+        channels: Optional[int] = None,
     ) -> _np.ndarray:
         """
         Enhance *pcm* **in-place** using planar processing (convenience pass-through).
@@ -298,7 +298,7 @@ class Model(AbstractContextManager):
 # ---------------------------------------------------------------------------
 # Convenience conversion helpers
 # ---------------------------------------------------------------------------
-def _bytes(s: str | bytes) -> bytes: # noqa: D401 – helper
+def _bytes(s: Union[str, bytes]) -> bytes: # noqa: D401 – helper
     """Return s as bytes w/ utf-8 encoding if it is a str."""
     return s.encode() if isinstance(s, str) else s
 
