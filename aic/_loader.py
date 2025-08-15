@@ -1,5 +1,7 @@
-"""
-Locate and dlopen the SDK shared library that ships inside the wheel.
+"""Locate and load the platform-specific SDK shared library.
+
+This module resolves the correct shared object packaged within the wheel and
+returns a loaded :class:`ctypes.CDLL` for use by the low-level bindings.
 """
 from __future__ import annotations
 
@@ -15,6 +17,18 @@ _PLAT = {
 }
 
 def _path() -> Path:
+    """Return the filesystem path to the packaged SDK shared library.
+
+    Returns
+    -------
+    pathlib.Path
+        Absolute path to the platform-specific shared library within the package.
+
+    Raises
+    ------
+    RuntimeError
+        If the current operating system is not supported.
+    """
     sysname = platform.system()
     try:
         libname, sub = _PLAT[sysname]
@@ -26,4 +40,11 @@ def _path() -> Path:
         return p
 
 def load() -> ctypes.CDLL:
+    """Load and return the SDK shared library as a :class:`ctypes.CDLL`.
+
+    Returns
+    -------
+    ctypes.CDLL
+        Ready-to-use handle for calling C functions.
+    """
     return ctypes.CDLL(str(_path()))
