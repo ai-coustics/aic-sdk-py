@@ -267,7 +267,16 @@ class Model(AbstractContextManager):
         str
             Semantic version string.
         """
-        return get_library_version()
+        # Prefer a module-level override if present (tests may monkeypatch
+        # `aic.get_library_version` to a staticmethod). Handle both callables
+        # and `staticmethod` descriptors placed on the module.
+        _maybe = globals().get("get_library_version")
+        if isinstance(_maybe, staticmethod):  # type: ignore[arg-type]
+            _maybe = _maybe.__func__  # unwrap descriptor
+        if callable(_maybe):
+            return _maybe()  # type: ignore[misc]
+        # Fallback to the low-level binding
+        return bindings.get_library_version()
 
     # --------------------------------------------------------------------- #
     # clean-up / context-manager                                            #
