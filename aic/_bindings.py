@@ -45,13 +45,22 @@ class AICErrorCode(IntEnum):
 class AICModelType(IntEnum):
     """Available neural model variants."""
     QUAIL_L  = 0
-    """Large model – highest quality, higher compute usage."""
+    """Large model - highest quality, higher compute usage."""
 
     QUAIL_S  = 1
-    """Small model – balanced quality and speed."""
+    """Small model - balanced quality and speed."""
 
     QUAIL_XS = 2
-    """Extra small model – fastest, lower quality."""
+    """Extra small model - fastest, lower quality."""
+
+    QUAIL_XXS = 3
+    """Ultra small model - lowest latency, minimal compute."""
+
+    LEGACY_L = 4
+    """Legacy large model - 512-frame, ~10.67ms latency."""
+
+    LEGACY_S = 5
+    """Legacy small model - 256-frame, ~5.33ms latency."""
 
 
 class AICParameter(IntEnum):
@@ -70,21 +79,6 @@ class AICParameter(IntEnum):
 
     NOISE_GATE_ENABLE                     = 4
     """Enable/disable noise gate (0.0 off → 1.0 on)."""
-
-    NOISE_GATE_OPEN_THRESHOLD             = 5
-    """Level at which the noise gate opens (linear)."""
-
-    NOISE_GATE_CLOSE_THRESHOLD            = 6
-    """Level at which the noise gate closes (linear)."""
-
-    NOISE_GATE_ATTACK_RATE                = 7
-    """Noise gate attack rate (per-frame)."""
-
-    NOISE_GATE_RELEASE_RATE               = 8
-    """Noise gate release rate (per-frame)."""
-
-    NOISE_GATE_HOLD_TIME                  = 9
-    """Noise gate hold time in frames."""
 
 ################################################################################
 #                       struct forward declarations                             #
