@@ -1,0 +1,86 @@
+import os
+
+import numpy as np
+import pytest
+
+# Try to load .env if key is not present, otherwise skip the module
+_key = os.getenv("AICOUSTICS_API_KEY")
+if not _key:
+    try:
+        from dotenv import load_dotenv  # type: ignore
+    except Exception:
+        load_dotenv = None  # type: ignore[assignment]
+    if load_dotenv:
+        load_dotenv()
+        _key = os.getenv("AICOUSTICS_API_KEY")
+
+if not _key:
+    pytest.skip(
+        "Missing AICOUSTICS_API_KEY (even after loading .env) – skipping real SDK integration tests",
+        allow_module_level=True,
+    )
+
+
+def _make_sine_noise_planar(channels: int, frames: int, sr: int = 48000) -> np.ndarray:
+    t = np.arange(frames, dtype=np.float32) / float(sr)
+    sig = 0.2 * np.sin(2 * np.pi * 440.0 * t)  # 440 Hz tone
+    noise = 0.05 * np.random.randn(frames).astype(np.float32)
+    mono = np.clip(sig + noise, -1.0, 1.0)
+    if channels == 1:
+        return mono.reshape(1, -1)
+    # duplicate to N channels
+    return np.vstack([mono for _ in range(channels)])
+
+
+def _chunks(total: int, size: int):
+    start = 0
+    while start < total:
+        yield start, min(start + size, total)
+        start += size
+
+
+def test_real_sdk_planar_processing_changes_signal():
+    from aic import AICModelType, AICParameter, Model
+
+    key = os.environ["AICOUSTICS_API_KEY"]
+    with Model(AICModelType.QUAIL_XS, license_key=key) as m:
+        m.initialize(sample_rate=48000, channels=1, frames=480)
+        m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 1.0)
+
+        audio = _make_sine_noise_planar(1, 4800)
+        original = audio.copy()
+
+        # process in chunks
+        for s, e in _chunks(audio.shape[1], 480):
+            chunk = audio[:, s:e]
+            if chunk.shape[1] < 480:
+                padded = np.zeros((1, 480), dtype=audio.dtype)
+                padded[:, : chunk.shape[1]] = chunk
+                m.process(padded)
+                audio[:, s:e] = padded[:, : chunk.shape[1]]
+            else:
+                m.process(chunk)
+
+        assert audio.shape == original.shape
+        # Ensure the model altered the signal (not identical to input)
+        assert not np.allclose(audio, original)
+        # Ensure finite values within a reasonable bound
+        assert np.isfinite(audio).all()
+        assert np.max(np.abs(audio)) <= 5.0
+
+
+def test_real_sdk_interleaved_processing_runs():
+    from aic import AICModelType, Model
+
+    key = os.environ["AICOUSTICS_API_KEY"]
+    with Model(AICModelType.QUAIL_XS, license_key=key) as m:
+        m.initialize(sample_rate=48000, channels=2, frames=480)
+
+        frames = 960
+        planar = _make_sine_noise_planar(2, frames)
+        interleaved = planar.T.reshape(-1).astype(np.float32, copy=False)
+
+        out = m.process_interleaved(interleaved, channels=2)
+        assert out is interleaved
+        assert np.isfinite(out).all()
+

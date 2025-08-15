@@ -6,6 +6,30 @@ on:
   workflow_dispatch:        # allow manual runs
 
 jobs:
+  tests:
+    name: Run unit tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+
+      - name: Run pytest
+        run: |
+          pytest -q
+
   build-macos:
     environment: publish
     runs-on: macos-latest
@@ -393,7 +417,7 @@ jobs:
           path: wheelhouse/*.whl
 
   publish-to-pypi:
-    needs: [build-macos, build-linux, build-windows]
+    needs: [tests, build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     environment: publish
     if: startsWith(github.ref, 'refs/tags/')
