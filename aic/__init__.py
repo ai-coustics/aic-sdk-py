@@ -1,3 +1,9 @@
+"""High-level, Pythonic wrapper around the ai-coustics SDK.
+
+This module exposes the object-oriented `Model` API and re-exports selected
+enums and low-level bindings for advanced use-cases.
+"""
+
 import ctypes as _ct
 from contextlib import AbstractContextManager
 from typing import Any
@@ -42,16 +48,47 @@ class Model(AbstractContextManager):
     def __init__(
         self,
         model_type: AICModelType = AICModelType.QUAIL_L,
-        license_key: str | bytes = b"",
+        license_key: str | bytes = None,
     ) -> None:
-        self._handle = model_create(model_type, _bytes(license_key))
+        """Create a model wrapper.
+
+        Parameters
+        ----------
+        model_type
+            The neural model variant to load; defaults to :pydata:`AICModelType.QUAIL_L`.
+        license_key
+            Signed license string. Required. Obtain a key at
+            https://developers.ai-coustics.io.
+        """
+        key_bytes = _bytes(license_key) if license_key is not None else b""
+        if not key_bytes:
+            raise ValueError(
+                "A valid license_key is required. Get one at https://developers.ai-coustics.io"
+            )
+        self._handle = model_create(model_type, key_bytes)
         self._closed = False
 
     # public ---------------------------------------------------------------- #
 
-    def initialize(self, sr: int, ch: int, frames: int) -> None:
-        """Allocate DSP state for *sr* Hz, *ch* channels, *frames* per block."""
-        model_initialize(self._handle, sr, ch, frames)
+    def initialize(self, sample_rate: int, channels: int, frames: int) -> None:
+        """Allocate internal DSP state.
+
+        Parameters
+        ----------
+        sample_rate
+            Input/output sample rate in Hz.
+        channels
+            Number of channels in the processed audio (e.g., 1 for mono, 2 for stereo).
+        frames
+            Block length in frames for streaming. Use :py:meth:`optimal_num_frames` for a
+            recommended value.
+
+        Raises
+        ------
+        RuntimeError
+            If the underlying SDK rejects the configuration.
+        """
+        model_initialize(self._handle, sample_rate, channels, frames)
         # Enable noise gate by default (overriding C library default of 0.0)
         self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
 
@@ -92,20 +129,20 @@ class Model(AbstractContextManager):
             raise ValueError("pcm must be a 2-D array (channels, frames)")
 
         pcm = _as_contiguous_f32(pcm)
-        nch, nframes = pcm.shape
-        nch = channels or nch
-        if nch <= 0:
+        num_channels, num_frames = pcm.shape
+        num_channels = channels or num_channels
+        if num_channels <= 0:
             raise ValueError("channel count must be positive")
 
-        if pcm.shape[0] != nch:
+        if pcm.shape[0] != num_channels:
             raise ValueError("planar array should be (channels, frames)")
         
         # Build **float* const* so the C side sees [ch0_ptr, ch1_ptr, …]
-        arr_type = _ct.POINTER(_ct.c_float) * nch
-        channel_ptrs = arr_type(
-            *[pcm[i].ctypes.data_as(_ct.POINTER(_ct.c_float)) for i in range(nch)]
+        channel_pointer_array_type = _ct.POINTER(_ct.c_float) * num_channels
+        channel_ptrs = channel_pointer_array_type(
+            *[pcm[i].ctypes.data_as(_ct.POINTER(_ct.c_float)) for i in range(num_channels)]
         )
-        process_planar(self._handle, channel_ptrs, nch, nframes)
+        process_planar(self._handle, channel_ptrs, num_channels, num_frames)
 
         return pcm
 
@@ -141,13 +178,13 @@ class Model(AbstractContextManager):
 
         pcm = _as_contiguous_f32(pcm)
         total_samples = pcm.shape[0]
-        nframes = total_samples // channels
+        num_frames = total_samples // channels
         
         if total_samples % channels != 0:
             raise ValueError(f"array length {total_samples} not divisible by {channels} channels")
 
-        buf_ptr = pcm.ctypes.data_as(_ct.POINTER(_ct.c_float))
-        process_interleaved(self._handle, buf_ptr, channels, nframes)
+        buffer_ptr = pcm.ctypes.data_as(_ct.POINTER(_ct.c_float))
+        process_interleaved(self._handle, buffer_ptr, channels, num_frames)
 
         return pcm
 
@@ -156,11 +193,35 @@ class Model(AbstractContextManager):
     # --------------------------------------------------------------------- #
 
     def set_parameter(self, param: AICParameter, value: float) -> None:
-        """Update an algorithm knob (see :pydata:`AICParameter`)."""
+        """Update an algorithm parameter.
+
+        Parameters
+        ----------
+        param
+            Parameter enum value. See :py:class:`aic._bindings.AICParameter`.
+        value
+            New value for the parameter (float).
+
+        Raises
+        ------
+        RuntimeError
+            If the parameter is out of range or the SDK call fails.
+        """
         set_parameter(self._handle, param, float(value))
 
     def get_parameter(self, param: AICParameter) -> float:
-        """Return the current value of *param*."""
+        """Get the current value of a parameter.
+
+        Parameters
+        ----------
+        param
+            Parameter enum value. See :py:class:`aic._bindings.AICParameter`.
+
+        Returns
+        -------
+        float
+            The current value of the parameter.
+        """
         return get_parameter(self._handle, param)
 
     # --------------------------------------------------------------------- #
@@ -168,20 +229,44 @@ class Model(AbstractContextManager):
     # --------------------------------------------------------------------- #
 
     def processing_latency(self) -> int:
-        """Internal group delay in frames."""
+        """Return the current internal group delay.
+
+        Returns
+        -------
+        int
+            Algorithmic latency in frames.
+        """
         return get_processing_latency(self._handle)
 
     def optimal_sample_rate(self) -> int:
-        """Suggested I/O sample rate for the loaded model."""
+        """Return the suggested I/O sample rate for the loaded model.
+
+        Returns
+        -------
+        int
+            Sample rate in Hz.
+        """
         return get_optimal_sample_rate(self._handle)
 
     def optimal_num_frames(self) -> int:
-        """Suggested buffer length (frames) for real-time streaming."""
+        """Return the suggested buffer length for streaming.
+
+        Returns
+        -------
+        int
+            Recommended block size in frames.
+        """
         return get_optimal_num_frames(self._handle)
 
     @staticmethod
     def library_version() -> str:
-        """Return the version of the underlying AIC SDK library."""
+        """Return the version string of the underlying AIC SDK library.
+
+        Returns
+        -------
+        str
+            Semantic version string.
+        """
         return get_library_version()
 
     # --------------------------------------------------------------------- #
@@ -220,7 +305,7 @@ def _bytes(s: str | bytes) -> bytes: # noqa: D401 – helper
 # ---------------------------------------------------------------------------
 # Public re-exports
 # ---------------------------------------------------------------------------
-all = [
+__all__ = [
     # high-level OO API
     "Model",
     # C enum mirrors
