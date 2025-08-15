@@ -16,7 +16,7 @@ if not _key:
 
 if not _key:
     pytest.skip(
-        "Missing AICOUSTICS_API_KEY (even after loading .env) – skipping real SDK integration tests",
+        "Missing AICOUSTICS_API_KEY (even after loading .env) - skipping real SDK integration tests",
         allow_module_level=True,
     )
 
@@ -78,6 +78,82 @@ def test_real_sdk_interleaved_processing_runs():
 
         frames = 480
         planar = _make_sine_noise_planar(2, frames)
+        interleaved = planar.T.reshape(-1).astype(np.float32, copy=False)
+
+        out = m.process_interleaved(interleaved, channels=2)
+        assert out is interleaved
+        assert np.isfinite(out).all()
+
+
+@pytest.mark.parametrize(
+    "model_type",
+    [
+        0,  # AICModelType.QUAIL_L48
+        3,  # AICModelType.QUAIL_S48
+        1,  # AICModelType.QUAIL_L16
+        6,  # AICModelType.QUAIL_XS
+    ],
+)
+def test_real_sdk_models_optimal_planar_processing_changes_signal(model_type):
+    from aic import AICModelType, AICParameter, Model
+
+    key = os.environ["AICOUSTICS_API_KEY"]
+    model_enum = AICModelType(model_type)
+
+    with Model(model_enum, license_key=key) as m:
+        sr = m.optimal_sample_rate()
+        frames = m.optimal_num_frames()
+        m.initialize(sample_rate=sr, channels=1, frames=frames)
+
+        m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
+        m.set_parameter(AICParameter.VOICE_GAIN, 1.2)
+        m.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
+
+        assert np.isclose(m.get_parameter(AICParameter.ENHANCEMENT_LEVEL), 0.8, atol=1e-6)
+        assert np.isclose(m.get_parameter(AICParameter.VOICE_GAIN), 1.2, atol=1e-6)
+        assert np.isclose(m.get_parameter(AICParameter.NOISE_GATE_ENABLE), 1.0, atol=1e-6)
+
+        audio = _make_sine_noise_planar(1, frames * 10, sr=sr)
+        original = audio.copy()
+
+        for s, e in _chunks(audio.shape[1], frames):
+            chunk = audio[:, s:e]
+            if chunk.shape[1] < frames:
+                padded = np.zeros((1, frames), dtype=audio.dtype)
+                padded[:, : chunk.shape[1]] = chunk
+                m.process(padded)
+                audio[:, s:e] = padded[:, : chunk.shape[1]]
+            else:
+                m.process(chunk)
+
+        assert audio.shape == original.shape
+        assert not np.allclose(audio, original)
+
+        delay = m.processing_latency()
+        assert isinstance(delay, int)
+        assert delay >= 0
+        assert delay < max(sr, 192000)
+
+
+@pytest.mark.parametrize(
+    "model_type",
+    [
+        6,  # AICModelType.QUAIL_XS
+        3,  # AICModelType.QUAIL_S48
+    ],
+)
+def test_real_sdk_models_interleaved_processing_runs(model_type):
+    from aic import AICModelType, Model
+
+    key = os.environ["AICOUSTICS_API_KEY"]
+    model_enum = AICModelType(model_type)
+
+    with Model(model_enum, license_key=key) as m:
+        sr = m.optimal_sample_rate()
+        frames = m.optimal_num_frames()
+        m.initialize(sample_rate=sr, channels=2, frames=frames)
+
+        planar = _make_sine_noise_planar(2, frames, sr=sr)
         interleaved = planar.T.reshape(-1).astype(np.float32, copy=False)
 
         out = m.process_interleaved(interleaved, channels=2)

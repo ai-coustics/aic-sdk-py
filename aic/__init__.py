@@ -65,7 +65,33 @@ class Model(AbstractContextManager):
             raise ValueError(
                 "A valid license_key is required. Get one at https://developers.ai-coustics.io"
             )
-        self._handle = model_create(model_type, key_bytes)
+        # Only allow selecting the model family (L or S). Concrete variant is
+        # chosen automatically based on sample rate at initialize().
+        if model_type not in (AICModelType.QUAIL_L, AICModelType.QUAIL_S):
+            # Normalize to family aliases if a concrete variant was passed.
+            # QUAIL_L48/16/8 -> QUAIL_L, QUAIL_S48/16/8 -> QUAIL_S, others keep as-is
+            if model_type in (
+                AICModelType.QUAIL_L48,
+                AICModelType.QUAIL_L16,
+                AICModelType.QUAIL_L8,
+            ):
+                model_type = AICModelType.QUAIL_L
+            elif model_type in (
+                AICModelType.QUAIL_S48,
+                AICModelType.QUAIL_S16,
+                AICModelType.QUAIL_S8,
+            ):
+                model_type = AICModelType.QUAIL_S
+            else:
+                # For XS/XXS we keep behavior unchanged and create immediately
+                self._handle = model_create(model_type, key_bytes)
+                self._closed = False
+                self._family = None
+                self._license_key = key_bytes
+                return
+        self._family = model_type
+        self._license_key = key_bytes
+        self._handle = None
         self._closed = False
 
     # public ---------------------------------------------------------------- #
@@ -88,6 +114,13 @@ class Model(AbstractContextManager):
         RuntimeError
             If the underlying SDK rejects the configuration.
         """
+        # Lazily create the native model if needed, selecting the concrete
+        # variant based on the requested sample rate and chosen family.
+        if self._handle is None:
+            self._handle = model_create(
+                self._select_variant_for_sample_rate(sample_rate),
+                self._license_key,
+            )
         model_initialize(self._handle, sample_rate, channels, frames)
         # Enable noise gate by default (overriding C library default of 0.0)
         self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
@@ -229,12 +262,12 @@ class Model(AbstractContextManager):
     # --------------------------------------------------------------------- #
 
     def processing_latency(self) -> int:
-        """Return the current internal group delay.
+        """Return the current output delay (in samples).
 
         Returns
         -------
         int
-            Algorithmic latency in frames.
+            End-to-end delay in samples at the configured sample rate.
         """
         return get_processing_latency(self._handle)
 
@@ -246,6 +279,9 @@ class Model(AbstractContextManager):
         int
             Sample rate in Hz.
         """
+        if self._handle is None:
+            # Default suggestion before creation/initialization: 48 kHz
+            return 48000
         return get_optimal_sample_rate(self._handle)
 
     def optimal_num_frames(self) -> int:
@@ -256,6 +292,9 @@ class Model(AbstractContextManager):
         int
             Recommended block size in frames.
         """
+        if self._handle is None:
+            # Default suggestion before creation/initialization: 480 @ 48 kHz
+            return 480
         return get_optimal_num_frames(self._handle)
 
     @staticmethod
@@ -285,7 +324,8 @@ class Model(AbstractContextManager):
     def close(self) -> None:
         """Explicitly free native resources (idempotent)."""
         if not self._closed:
-            model_destroy(self._handle)
+            if self._handle is not None:
+                model_destroy(self._handle)
             self._closed = True
 
     # context-manager protocol  ------------------------------------------- #
@@ -303,6 +343,29 @@ class Model(AbstractContextManager):
             self.close()
         except Exception:
             pass
+
+    # --------------------------------------------------------------------- #
+    # internal helpers                                                      #
+    # --------------------------------------------------------------------- #
+
+    def _select_variant_for_sample_rate(self, sample_rate: int) -> AICModelType:
+        """Return concrete model type for the chosen family and sample rate."""
+        # No family set (XS/XXS) – return the existing type via a harmless call
+        if getattr(self, "_family", None) is None:
+            # Should not happen when called from initialize(), but keep safe default
+            return AICModelType.QUAIL_XS
+        if self._family == AICModelType.QUAIL_L:
+            if sample_rate > 16000:
+                return AICModelType.QUAIL_L48
+            if sample_rate > 8000:
+                return AICModelType.QUAIL_L16
+            return AICModelType.QUAIL_L8
+        else:  # QUAIL_S
+            if sample_rate > 16000:
+                return AICModelType.QUAIL_S48
+            if sample_rate > 8000:
+                return AICModelType.QUAIL_S16
+            return AICModelType.QUAIL_S8
 
 # ---------------------------------------------------------------------------
 # Convenience conversion helpers

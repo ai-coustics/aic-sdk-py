@@ -19,7 +19,7 @@ class FakeFunction:
             # args: model, param, float* out
             out_ptr = args[2]
             out_ptr._obj.value = 0.42
-        elif self.name == "aic_get_processing_latency":
+        elif self.name == "aic_get_output_delay":
             out_ptr = args[1]
             out_ptr._obj.value = 480
         elif self.name == "aic_get_optimal_sample_rate":
@@ -44,14 +44,14 @@ class FakeLib:
         self.aic_model_process_interleaved = FakeFunction("aic_model_process_interleaved")
         self.aic_model_set_parameter = FakeFunction("aic_model_set_parameter")
         self.aic_model_get_parameter = FakeFunction("aic_model_get_parameter")
-        self.aic_get_processing_latency = FakeFunction("aic_get_processing_latency")
+        self.aic_get_output_delay = FakeFunction("aic_get_output_delay")
         self.aic_get_optimal_sample_rate = FakeFunction("aic_get_optimal_sample_rate")
         self.aic_get_optimal_num_frames = FakeFunction("aic_get_optimal_num_frames")
 
         def _get_library_version():
             return b"9.9.9"
 
-        self.get_library_version = _get_library_version
+        self.aic_get_sdk_version = _get_library_version
 
 
 def _install_fake_lib(monkeypatch) -> FakeLib:
@@ -111,7 +111,7 @@ def test_successful_wrappers(monkeypatch):
     assert fake.aic_model_process_interleaved.calls
     assert fake.aic_model_set_parameter.calls
     assert fake.aic_model_get_parameter.calls
-    assert fake.aic_get_processing_latency.calls
+    assert fake.aic_get_output_delay.calls
     assert fake.aic_get_optimal_sample_rate.calls
     assert fake.aic_get_optimal_num_frames.calls
 

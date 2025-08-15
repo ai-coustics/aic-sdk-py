@@ -41,43 +41,36 @@ class AICErrorCode(IntEnum):
     PARAMETER_OUT_OF_RANGE    = 7
     """A parameter value was outside its valid range."""
 
+    SDK_ACTIVATION_ERROR      = 8
+    """SDK activation failed."""
+
 
 class AICModelType(IntEnum):
     """Available neural model variants."""
-    QUAIL_L  = 0
-    """Large model - highest quality, higher compute usage."""
+    # Detailed variants with native rates and frame sizes
+    QUAIL_L48  = 0
+    QUAIL_L16  = 1
+    QUAIL_L8   = 2
+    QUAIL_S48  = 3
+    QUAIL_S16  = 4
+    QUAIL_S8   = 5
+    QUAIL_XS   = 6
+    QUAIL_XXS  = 7
 
-    QUAIL_S  = 1
-    """Small model - balanced quality and speed."""
-
-    QUAIL_XS = 2
-    """Extra small model - fastest, lower quality."""
-
-    QUAIL_XXS = 3
-    """Ultra small model - lowest latency, minimal compute."""
-
-    LEGACY_L = 4
-    """Legacy large model - 512-frame, ~10.67ms latency."""
-
-    LEGACY_S = 5
-    """Legacy small model - 256-frame, ~5.33ms latency."""
+    # Backwards-compatible aliases
+    QUAIL_L = 0
+    QUAIL_S = 3
 
 
 class AICParameter(IntEnum):
     """Algorithm parameters adjustable at runtime."""
-    BYPASS                                = 0
-    """Bypass processing (0.0 off → 1.0 on)."""
-
-    ENHANCEMENT_LEVEL                     = 1
+    ENHANCEMENT_LEVEL                     = 0
     """Overall enhancement strength (0.0 … 1.0)."""
 
-    ENHANCEMENT_LEVEL_SKEW_FACTOR         = 2
-    """Skew factor for non-linear enhancement mapping."""
-
-    VOICE_GAIN                            = 3
+    VOICE_GAIN                            = 1
     """Additional gain applied to detected speech (linear)."""
 
-    NOISE_GATE_ENABLE                     = 4
+    NOISE_GATE_ENABLE                     = 2
     """Enable/disable noise gate (0.0 off → 1.0 on)."""
 
 ################################################################################
@@ -158,11 +151,20 @@ def _get_lib() -> _ct.CDLL:
             _ct.POINTER(_ct.c_float),
         ]
 
-        lib.aic_get_processing_latency.restype  = AICErrorCode
-        lib.aic_get_processing_latency.argtypes = [
-            AICModelPtr,
-            _ct.POINTER(_ct.c_size_t),
-        ]
+        # delay API (new in >=0.6.0, fallback to old symbol when running older libs)
+        if hasattr(lib, "aic_get_output_delay"):
+            lib.aic_get_output_delay.restype  = AICErrorCode
+            lib.aic_get_output_delay.argtypes = [
+                AICModelPtr,
+                _ct.POINTER(_ct.c_size_t),
+            ]
+        else:
+            lib.aic_get_processing_latency = getattr(lib, "aic_get_processing_latency")  # type: ignore[attr-defined]
+            lib.aic_get_processing_latency.restype  = AICErrorCode
+            lib.aic_get_processing_latency.argtypes = [
+                AICModelPtr,
+                _ct.POINTER(_ct.c_size_t),
+            ]
 
         lib.aic_get_optimal_sample_rate.restype  = AICErrorCode
         lib.aic_get_optimal_sample_rate.argtypes = [
@@ -176,8 +178,13 @@ def _get_lib() -> _ct.CDLL:
             _ct.POINTER(_ct.c_size_t),
         ]
 
-        lib.get_library_version.restype = _ct.c_char_p
-        lib.get_library_version.argtypes = []
+        # version API (new in >=0.6.0, fallback to old symbol when running older libs)
+        if hasattr(lib, "aic_get_sdk_version"):
+            lib.aic_get_sdk_version.restype = _ct.c_char_p
+            lib.aic_get_sdk_version.argtypes = []
+        else:
+            lib.get_library_version.restype = _ct.c_char_p
+            lib.get_library_version.argtypes = []
         _PROTOTYPES_CONFIGURED = True
     return _LIB
 
@@ -248,11 +255,18 @@ def get_parameter(model: AICModelPtrT, param: AICParameter) -> float:
     return float(out.value)
 
 def get_processing_latency(model: AICModelPtrT) -> int:
-    """Return internal group delay in frames."""
+    """Return output delay in samples (back-compat wrapper)."""
     lib = _get_lib()
     out = _ct.c_size_t()
-    _raise(lib.aic_get_processing_latency(model, _ct.byref(out)))
+    if hasattr(lib, "aic_get_output_delay"):
+        _raise(lib.aic_get_output_delay(model, _ct.byref(out)))  # type: ignore[attr-defined]
+    else:
+        _raise(lib.aic_get_processing_latency(model, _ct.byref(out)))  # type: ignore[attr-defined]
     return int(out.value)
+
+def get_output_delay(model: AICModelPtrT) -> int:
+    """Return output delay in samples."""
+    return get_processing_latency(model)
 
 def get_optimal_sample_rate(model: AICModelPtrT) -> int:
     """Return suggested sample rate in Hz."""
@@ -271,7 +285,10 @@ def get_optimal_num_frames(model: AICModelPtrT) -> int:
 def get_library_version() -> str:
     """Return SDK version string."""
     lib = _get_lib()
-    version_ptr = lib.get_library_version()
+    if hasattr(lib, "aic_get_sdk_version"):
+        version_ptr = lib.aic_get_sdk_version()  # type: ignore[attr-defined]
+    else:
+        version_ptr = lib.get_library_version()  # type: ignore[attr-defined]
     return version_ptr.decode('utf-8')
 
 # ------------------------------------------------------------------#
