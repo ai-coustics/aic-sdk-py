@@ -76,7 +76,7 @@ def test_real_sdk_interleaved_processing_runs():
     with Model(AICModelType.QUAIL_XS, license_key=key) as m:
         m.initialize(sample_rate=48000, channels=2, frames=480)
 
-        frames = 960
+        frames = 480
         planar = _make_sine_noise_planar(2, frames)
         interleaved = planar.T.reshape(-1).astype(np.float32, copy=False)
 
