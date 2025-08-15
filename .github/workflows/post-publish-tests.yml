@@ -29,14 +29,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --no-cache-dir --upgrade pytest numpy aic-sdk
-          python - << 'PY'
-          import importlib.metadata as md
-          import importlib.util as iu
-          import sys
-          print('Installed aic-sdk version:', md.version('aic-sdk'))
-          import aic
-          print('aic imported from:', aic.__file__)
-          PY
+          python -c "import importlib.metadata as md; print('Installed aic-sdk version:', md.version('aic-sdk'))"
+          python -c "import aic; print('aic imported from:', aic.__file__)"
 
       - name: Run integration tests against real SDK
         env:
