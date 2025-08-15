@@ -72,10 +72,6 @@ from aic import Model, AICModelType, AICParameter
 
 load_dotenv()
 license_key = os.getenv("AICOUSTICS_API_KEY")
-if not license_key:
-    raise RuntimeError(
-        "Missing AICOUSTICS_API_KEY. Get a license key at https://developers.ai-coustics.io"
-    )
 
 # Create model instance
 model = Model(
@@ -229,7 +225,7 @@ with Model(AICModelType.QUAIL_L) as model:
 
 ## 🤝 Support
 
-- **Documentation**: [ai-coustics.com](https://ai-coustics.com)
+- **Documentation**: [ai-coustics.com](https://ai-coustics.github.io/aic-sdk-py/)
 - **Issues**: Report bugs and feature requests via GitHub issues
 
 ## 🔗 Related

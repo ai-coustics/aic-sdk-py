@@ -19,3 +19,9 @@ classifiers = [
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ai-coustics/aic-sdk-py"
+Documentation = "https://ai-coustics.github.io/aic-sdk-py/"
+Source = "https://github.com/ai-coustics/aic-sdk-py"
+Issues = "https://github.com/ai-coustics/aic-sdk-py/issues"
