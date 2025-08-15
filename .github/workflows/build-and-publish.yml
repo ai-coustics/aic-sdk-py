@@ -291,7 +291,7 @@ jobs:
                 exit 1
             fi
             echo "Selected SDK_ARCH: $SDK_ARCH"
-            TAR_FILE="aic-sdk-$SDK_ARCH-$VERSION-glibc2.27.tar.gz"
+            TAR_FILE="aic-sdk-$SDK_ARCH-$VERSION.tar.gz"
             
             echo "Downloading $TAR_FILE from private repo..."
             echo "Looking for release: $VERSION"
