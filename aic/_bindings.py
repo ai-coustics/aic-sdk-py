@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import ctypes as _ct
 from enum import IntEnum
-from typing import Any, TypeAlias
+from typing import Any
 
 from ._loader import load
 
@@ -88,8 +88,8 @@ class _AICModel(_ct.Structure):
     pass
 
 AICModelPtr  = _ct.POINTER(_AICModel)
-# Type alias for annotations to satisfy static type checkers
-AICModelPtrT: TypeAlias = Any
+# Alias for annotations to satisfy static type checkers (no TypeAlias to support py3.9)
+AICModelPtrT = Any
 
 ################################################################################
 #                       function prototypes                                     #

@@ -31,6 +31,7 @@ jobs:
           pytest -q
 
   build-macos:
+    needs: [tests]
     environment: publish
     runs-on: macos-latest
     strategy:
@@ -169,6 +170,7 @@ jobs:
           path: wheelhouse/*.whl
 
   build-linux:
+    needs: [tests]
     environment: publish
     runs-on: ubuntu-latest
     strategy:
@@ -372,6 +374,7 @@ jobs:
           path: wheelhouse/*.whl
 
   build-windows:
+    needs: [tests]
     environment: publish
     runs-on: windows-latest
     strategy:
