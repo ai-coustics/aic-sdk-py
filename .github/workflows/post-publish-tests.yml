@@ -1,0 +1,49 @@
+name: Post-Publish PyPI Install & Integration Tests
+
+on:
+  workflow_run:
+    workflows: ["Build & Publish All Wheels"]
+    types: [completed]
+
+jobs:
+  pypi-install-and-integration-tests:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout repository (to get integration_tests)
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install from PyPI (latest)
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir --upgrade pytest numpy aic-sdk
+          python - << 'PY'
+          import importlib.metadata as md
+          import importlib.util as iu
+          import sys
+          print('Installed aic-sdk version:', md.version('aic-sdk'))
+          import aic
+          print('aic imported from:', aic.__file__)
+          PY
+
+      - name: Run integration tests against real SDK
+        env:
+          AICOUSTICS_API_KEY: ${{ secrets.AICOUSTICS_API_KEY }}
+        working-directory: integration_tests
+        run: |
+          # Ensure we import the PyPI-installed package, not the repo copy
+          python -c "import aic, sys; print('Using aic at', aic.__file__)"
+          pytest -q
+
+
