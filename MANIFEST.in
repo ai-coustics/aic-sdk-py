@@ -1,0 +1,4 @@
+# Exclude any prebundled native libraries from source distributions
+prune aic/libs
+recursive-exclude aic/libs *
+
