@@ -1,0 +1,493 @@
+name: Build wheels (manual only)
+
+on:
+  workflow_dispatch:        # manual runs only to test wheel builds
+
+jobs:
+  tests:
+    name: Run unit tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+
+      - name: Run pytest
+        run: |
+          pytest -q
+
+  build-macos:
+    needs: [tests]
+    environment: publish
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel==2.18.0 tomli
+
+      - name: Build wheels with bundled SDK
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-*"
+          CIBW_BUILD_VERBOSITY: 1
+          MACOSX_DEPLOYMENT_TARGET: "10.12"
+          CIBW_BEFORE_BUILD_MACOS: |
+            # Clean up any previous SDK downloads and extracted files
+            rm -rf sdk.tar.gz lib/ include/ aic/libs/mac/libaic.dylib || true
+            
+            # Install tomli for parsing pyproject.toml
+            pip install tomli
+            
+            # Extract project version from pyproject.toml
+            echo "Extracting version from pyproject.toml..."
+            # VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+            VERSION="0.6.0"
+            echo "Version: $VERSION"
+            
+            # Try to determine architecture from multiple sources
+            if [[ -n "${CIBW_ARCH:-}" ]]; then
+                ARCH="$CIBW_ARCH"
+                echo "Using CIBW_ARCH: $ARCH"
+            elif [[ "${ARCHFLAGS:-}" == *"arm64"* ]]; then
+                ARCH="arm64"
+                echo "Detected arm64 from ARCHFLAGS: $ARCHFLAGS"
+            elif [[ "${ARCHFLAGS:-}" == *"x86_64"* ]]; then
+                ARCH="x86_64"
+                echo "Detected x86_64 from ARCHFLAGS: $ARCHFLAGS"
+            else
+                # Fallback: try to detect from Python platform
+                ARCH=$(python -c "import platform; print('arm64' if platform.machine() == 'arm64' else 'x86_64')")
+                echo "CIBW_ARCH not set, detected from Python: $ARCH"
+            fi
+            
+            # Map cibuildwheel arch → SDK tarball arch string
+            [[ "$ARCH" == "arm64" ]] && SDK_ARCH="aarch64-apple-darwin" || SDK_ARCH="x86_64-apple-darwin"
+            echo "Selected SDK_ARCH: $SDK_ARCH"
+            TAR="aic-sdk-$SDK_ARCH-$VERSION.tar.gz"
+            
+            echo "Downloading $TAR from private repo…"
+            echo "Looking for release: $VERSION"
+            echo "Available releases:"
+            gh release list --repo ai-coustics/aic-sdk --limit 10
+            
+            echo "Attempting download..."
+            if ! gh release download --repo ai-coustics/aic-sdk "$VERSION" --pattern "$TAR" --output sdk.tar.gz --clobber; then
+                echo "Failed to download release $VERSION with pattern $TAR"
+                echo "Checking what assets are available for this release:"
+                gh release view --repo ai-coustics/aic-sdk "$VERSION"
+                exit 1
+            fi
+            
+            # Verify download succeeded
+            if [[ -f sdk.tar.gz ]]; then
+                echo "Download successful. File size: $(stat -f%z sdk.tar.gz) bytes"
+            else
+                echo "ERROR: sdk.tar.gz not found after download!"
+                exit 1
+            fi
+            
+            # Extract the tarball
+            echo "Extracting SDK..."
+            tar -xzf sdk.tar.gz
+            
+            # Verify extraction
+            echo "Contents after extraction:"
+            if [[ -d lib ]]; then
+                echo "lib directory found:"
+                ls -la lib/
+            else
+                echo "ERROR: lib directory not found after extraction!"
+                echo "Current directory contents:"
+                ls -la
+                exit 1
+            fi
+            
+            # Bundle the dylib into the package tree expected by the loader
+            echo "Bundling dylib into package tree..."
+            # Note: cibuildwheel runs this from a temporary copy of the project
+            mkdir -p aic/libs/mac
+            
+            # Check what dylib files are available to copy
+            echo "Available dylib files in lib directory:"
+            find lib/ -name "*.dylib" -exec ls -la {} \; || echo "No dylib files found"
+            
+            if ls lib/libaic*.dylib 1> /dev/null 2>&1; then
+                cp lib/libaic*.dylib aic/libs/mac/
+                echo "Dylib files copied successfully"
+            else
+                echo "ERROR: No libaic*.dylib files found in lib directory!"
+                echo "Contents of lib directory:"
+                ls -la lib/
+                exit 1
+            fi
+            
+            # Verify the files were copied and show architectures
+            echo "Successfully copied dylib files:"
+            ls -la aic/libs/mac/
+            echo "Architecture information:"
+            for dylib in aic/libs/mac/*.dylib; do
+                echo "=== $dylib ==="
+                file "$dylib"
+                lipo -info "$dylib" 2>/dev/null || echo "Single architecture binary"
+            done
+            
+            echo "Project structure before build:"
+            find aic/libs -name "*.dylib" -o -name "*.so" -o -name "*.dll" | head -20
+          CIBW_ENVIRONMENT_PASSTHROUGH_MACOS: "GH_TOKEN"
+        run: |
+          cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-wheels
+          path: wheelhouse/*.whl
+
+  build-linux:
+    needs: [tests]
+    environment: publish
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU for cross-compilation
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel==2.18.0 tomli
+
+      - name: Build wheels with bundled SDK
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* *-musllinux*"
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64
+          CIBW_MANYLINUX_AARCH64_IMAGE: quay.io/pypa/manylinux_2_28_aarch64
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: >
+            bash -c '
+            echo "Attempting auditwheel repair...";
+            if auditwheel repair -w {dest_dir} {wheel} --lib-dir={project}/aic/libs/linux/; then
+                echo "Auditwheel repair succeeded";
+            else
+                echo "Auditwheel repair failed, manually retagging wheel...";
+                pip install wheel;
+                WHEEL_NAME=$(basename {wheel});
+                ARCH_PART=$(echo $WHEEL_NAME | grep -o "linux_[^.]*");
+                if [[ "$ARCH_PART" == "linux_x86_64" ]]; then
+                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_x86_64/manylinux_2_28_x86_64/");
+                elif [[ "$ARCH_PART" == "linux_aarch64" ]]; then
+                    NEW_WHEEL_NAME=$(echo $WHEEL_NAME | sed "s/linux_aarch64/manylinux_2_28_aarch64/");
+                else
+                    echo "Unknown architecture: $ARCH_PART";
+                    exit 1;
+                fi;
+                echo "Copying {wheel} to {dest_dir}/$NEW_WHEEL_NAME";
+                cp {wheel} {dest_dir}/$NEW_WHEEL_NAME;
+                echo "Manual retag complete. Final wheel:";
+                ls -la {dest_dir};
+            fi
+            '
+          CIBW_ENVIRONMENT_PASSTHROUGH_LINUX: "GH_TOKEN"
+          CIBW_CONTAINER_ENGINE: "docker; create_args: --volume /tmp/gh_token:/tmp/gh_token:ro"
+          CIBW_BEFORE_BUILD_LINUX: |
+            # Clean up any previous SDK downloads and extracted files
+            rm -rf sdk.tar.gz lib/ include/ aic/libs/linux/*.so || true
+            
+            # Install required tools
+            pip install tomli
+            
+            # Install GitHub CLI inside the container
+            echo "Installing GitHub CLI..."
+            curl -fsSL https://github.com/cli/cli/releases/download/v2.40.1/gh_2.40.1_linux_amd64.tar.gz -o gh.tar.gz
+            tar -xzf gh.tar.gz
+            cp gh_*/bin/gh /usr/local/bin/
+            chmod +x /usr/local/bin/gh
+            rm -rf gh.tar.gz gh_*
+            echo "GitHub CLI installed:"
+            gh --version
+            
+            # Debug: Check if GH_TOKEN is available
+            echo "=== Token Debug ==="
+            if [[ -n "${GH_TOKEN:-}" ]]; then
+                echo "GH_TOKEN is available (length: ${#GH_TOKEN})"
+            elif [[ -f /tmp/gh_token ]]; then
+                echo "GH_TOKEN found in file, setting environment variable"
+                export GH_TOKEN=$(cat /tmp/gh_token)
+                echo "GH_TOKEN loaded from file (length: ${#GH_TOKEN})"
+            else
+                echo "GH_TOKEN is NOT available"
+                echo "Available environment variables containing GH or TOKEN:"
+                env | grep -i -E "(gh|token)" || echo "None found"
+            fi
+            echo "==================="
+            
+            # Extract project version from pyproject.toml
+            echo "Extracting version from pyproject.toml..."
+            # VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+            VERSION="0.6.0"
+            echo "Version: $VERSION"
+            
+            # Try to determine architecture from multiple sources
+            echo "=== Environment Debug ==="
+            echo "CIBW_ARCH: ${CIBW_ARCH:-}"
+            echo "AUDITWHEEL_ARCH: ${AUDITWHEEL_ARCH:-}"
+            echo "uname -m: $(uname -m)"
+            echo "=========================="
+            
+            if [[ -n "${CIBW_ARCH:-}" ]]; then
+                ARCH="$CIBW_ARCH"
+                echo "Using CIBW_ARCH: $ARCH"
+            elif [[ -n "${AUDITWHEEL_ARCH:-}" ]]; then
+                ARCH="$AUDITWHEEL_ARCH"
+                echo "Using AUDITWHEEL_ARCH: $ARCH"
+            else
+                ARCH=$(uname -m)
+                echo "CIBW_ARCH/AUDITWHEEL_ARCH not set, detected from uname: $ARCH"
+            fi
+            echo "Final ARCH: $ARCH"
+            
+            # Map architecture to SDK naming convention
+            if [[ "$ARCH" == "aarch64" ]]; then
+                SDK_ARCH="aarch64-unknown-linux-gnu"
+            elif [[ "$ARCH" == "x86_64" ]]; then
+                SDK_ARCH="x86_64-unknown-linux-gnu"
+            else
+                echo "Unsupported architecture: $ARCH"
+                exit 1
+            fi
+            echo "Selected SDK_ARCH: $SDK_ARCH"
+            TAR_FILE="aic-sdk-$SDK_ARCH-$VERSION.tar.gz"
+            
+            echo "Downloading $TAR_FILE from private repo..."
+            echo "Looking for release: $VERSION"
+            echo "Available releases:"
+            gh release list --repo ai-coustics/aic-sdk --limit 10
+            
+            echo "Attempting download..."
+            if ! gh release download --repo ai-coustics/aic-sdk "$VERSION" --pattern "$TAR_FILE" --output sdk.tar.gz --clobber; then
+                echo "Failed to download release $VERSION with pattern $TAR_FILE"
+                echo "Checking what assets are available for this release:"
+                gh release view --repo ai-coustics/aic-sdk "$VERSION"
+                exit 1
+            fi
+            
+            # Verify download succeeded
+            if [[ -f sdk.tar.gz ]]; then
+                echo "Download successful. File size: $(stat -c%s sdk.tar.gz) bytes"
+            else
+                echo "ERROR: sdk.tar.gz not found after download!"
+                exit 1
+            fi
+            
+            # Extract the tarball
+            echo "Extracting SDK..."
+            tar -xzf sdk.tar.gz
+            
+            # Verify extraction
+            echo "Contents after extraction:"
+            if [[ -d lib ]]; then
+                echo "lib directory found:"
+                ls -la lib/
+            else
+                echo "ERROR: lib directory not found after extraction!"
+                echo "Current directory contents:"
+                ls -la
+                exit 1
+            fi
+            
+            # Bundle the shared library into the package tree expected by the loader
+            echo "Bundling shared library into package tree..."
+            mkdir -p aic/libs/linux
+            
+            # Check what .so files are available to copy
+            echo "Available .so files in lib directory:"
+            find lib/ -name "*.so*" -exec ls -la {} \; || echo "No .so files found"
+            
+            if ls lib/libaic*.so* 1> /dev/null 2>&1; then
+                cp lib/libaic*.so* aic/libs/linux/
+                echo "Shared library files copied successfully"
+            else
+                echo "ERROR: No libaic*.so files found in lib directory!"
+                echo "Contents of lib directory:"
+                ls -la lib/
+                exit 1
+            fi
+            
+            # Verify the files were copied and show file types
+            echo "Successfully copied shared library files:"
+            ls -la aic/libs/linux/
+            echo "File information:"
+            for so in aic/libs/linux/*.so*; do
+                echo "=== $so ==="
+                file "$so"
+                readelf -h "$so" | grep -E "(Class|Machine)" || echo "Could not read ELF header"
+            done
+            
+            echo "Project structure before build:"
+            find aic/libs -name "*.dylib" -o -name "*.so*" -o -name "*.dll" | head -20
+        run: |
+          # Create token file for container access
+          echo "$GH_TOKEN" > /tmp/gh_token
+          cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-wheels
+          path: wheelhouse/*.whl
+
+  build-windows:
+    needs: [tests]
+    environment: publish
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel==2.18.0 tomli
+
+      - name: Build wheels with bundled SDK
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+          CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_SKIP: "cp36-* cp37-* cp38-*"
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ENVIRONMENT_PASSTHROUGH_WINDOWS: "GH_TOKEN"
+          CIBW_BEFORE_BUILD_WINDOWS: >
+            pip install tomli &&
+            gh --version &&
+            python -c "import tomli, pathlib; version = tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version']; print(f'Version: {version}')" &&
+            gh release list --repo ai-coustics/aic-sdk --limit 5 &&
+            gh release download --repo ai-coustics/aic-sdk "0.6.0" --pattern "aic-sdk-x86_64-pc-windows-msvc-0.6.0.zip" --output sdk.zip --clobber &&
+            powershell -Command "Expand-Archive -Path 'sdk.zip' -DestinationPath '.' -Force" &&
+            powershell -Command "if (Test-Path 'lib') { Write-Host 'lib directory found:'; Get-ChildItem 'lib' } else { Write-Host 'ERROR: lib directory not found!'; Get-ChildItem '.' }" &&
+            powershell -Command "New-Item -ItemType Directory -Path 'aic/libs/windows' -Force | Out-Null" &&
+            powershell -Command "if (Test-Path 'lib/*.dll') { Copy-Item 'lib/*.dll' 'aic/libs/windows/' -Force; Write-Host 'DLL files copied'; Get-ChildItem 'aic/libs/windows/' } else { Write-Host 'No DLL files found'; Get-ChildItem 'lib' }"
+        run: |
+          cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-wheels
+          path: wheelhouse/*.whl
+
+  publish-to-pypi:
+    needs: [tests, build-macos, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    environment: publish
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      id-token: write
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded wheel files:"
+          find dist/ -name "*.whl" -exec ls -lh {} \;
+          echo "Total wheels: $(find dist/ -name "*.whl" | wc -l)"
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/ 
+
+  create-release:
+    needs: [publish-to-pypi]
+    runs-on: ubuntu-latest
+    environment: publish
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Creating release for version: $VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## ai-coustics SDK for Python ${{ steps.version.outputs.version }}
+            
+            This release includes prebuilt Python wheels for the ai-coustics real-time audio enhancement SDK.
+            
+            ### Supported Platforms
+            - macOS (x86_64, arm64)
+            - Linux (x86_64, aarch64)
+            - Windows (x86_64)
+            
+            ### Python Versions
+            - Python 3.9+
+            
+            ### Installation
+            ```bash
+            pip install aic-sdk
+            ```
+            
+            ### Documentation
+            See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for usage examples and API documentation.
+          files: dist/*.whl
+          draft: false
+          prerelease: false 
