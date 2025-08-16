@@ -1,9 +1,7 @@
-name: Build & Publish All Wheels
+name: Build wheels (manual only)
 
 on:
-  push:
-    tags: ["*.*.*"]        # build + publish when you tag a release
-  workflow_dispatch:        # allow manual runs
+  workflow_dispatch:        # manual runs only to test wheel builds
 
 jobs:
   tests:
