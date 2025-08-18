@@ -96,7 +96,7 @@ class Model(AbstractContextManager):
 
     # public ---------------------------------------------------------------- #
 
-    def initialize(self, sample_rate: int, channels: int, frames: int) -> None:
+    def initialize(self, sample_rate: int, channels: int, frames: Optional[int] = None) -> None:
         """Allocate internal DSP state.
 
         Parameters
@@ -106,8 +106,9 @@ class Model(AbstractContextManager):
         channels
             Number of channels in the processed audio (e.g., 1 for mono, 2 for stereo).
         frames
-            Block length in frames for streaming. Use :py:meth:`optimal_num_frames` for a
-            recommended value.
+            Optional block length in frames for streaming. If omitted, the model's
+            :py:meth:`optimal_num_frames` will be used. You can still query
+            :py:meth:`optimal_num_frames` explicitly for manual control.
 
         Raises
         ------
@@ -121,7 +122,11 @@ class Model(AbstractContextManager):
                 self._select_variant_for_sample_rate(sample_rate),
                 self._license_key,
             )
-        model_initialize(self._handle, sample_rate, channels, frames)
+
+        # Determine buffer size if not explicitly provided
+        frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle)
+
+        model_initialize(self._handle, sample_rate, channels, frames_to_use)
         # Enable noise gate by default (overriding C library default of 0.0)
         self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
 
