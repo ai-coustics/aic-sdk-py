@@ -851,7 +851,7 @@ https://developers.ai-coustics.io.</p>
 
 
 <h2 id="aic.Model.initialize" class="doc doc-heading">
-            <code class=" language-python"><span class="n">initialize</span><span class="p">(</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">frames</span><span class="p">)</span></code>
+            <code class=" language-python"><span class="n">initialize</span><span class="p">(</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#aic.Model.initialize" class="headerlink" title="Permanent link">&para;</a></h2>
 
@@ -881,11 +881,14 @@ https://developers.ai-coustics.io.</p>
         </li>
         <li class="doc-section-item field-body">
             <b><code>frames</code></b>
-              (<code><span title="int">int</span></code>)
+              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
+                  <code>None</code>
+)
           –
           <div class="doc-md-description">
-            <p>Block length in frames for streaming. Use :py:meth:<code>optimal_num_frames</code> for a
-recommended value.</p>
+            <p>Optional block length in frames for streaming. If omitted, the model's
+:py:meth:<code>optimal_num_frames</code> will be used. You can still query
+:py:meth:<code>optimal_num_frames</code> explicitly for manual control.</p>
           </div>
         </li>
     </ul>
