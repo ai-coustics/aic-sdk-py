@@ -160,3 +160,37 @@ def test_real_sdk_models_interleaved_processing_runs(model_type):
         assert out is interleaved
         assert np.isfinite(out).all()
 
+
+def test_real_sdk_initialize_without_frames_uses_optimal_frames():
+    from aic import AICModelType, AICParameter, Model
+
+    key = os.environ["AICOUSTICS_API_KEY"]
+
+    # Use a representative model where optimal sizes are defined by the SDK
+    with Model(AICModelType.QUAIL_XS, license_key=key) as m:
+        sr = m.optimal_sample_rate()
+
+        # Initialize without explicitly passing frames -> should use optimal frames
+        m.initialize(sample_rate=sr, channels=1)
+
+        # Query what the model believes is optimal and use it for chunking
+        frames = m.optimal_num_frames()
+
+        # Sanity check processing end-to-end
+        m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.9)
+        audio = _make_sine_noise_planar(1, frames * 8, sr=sr)
+        original = audio.copy()
+
+        for s, e in _chunks(audio.shape[1], frames):
+            chunk = audio[:, s:e]
+            if chunk.shape[1] < frames:
+                padded = np.zeros((1, frames), dtype=audio.dtype)
+                padded[:, : chunk.shape[1]] = chunk
+                m.process(padded)
+                audio[:, s:e] = padded[:, : chunk.shape[1]]
+            else:
+                m.process(chunk)
+
+        assert audio.shape == original.shape
+        assert not np.allclose(audio, original)
+        assert np.isfinite(audio).all()
