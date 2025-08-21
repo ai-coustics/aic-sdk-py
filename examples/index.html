@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://ai-coustics.github.io/aic-sdk-py/examples/">
       
       
-        <link rel="prev" href="../api/">
+        <link rel="prev" href="../low-level-bindings/">
       
       
       
@@ -283,6 +283,28 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../low-level-bindings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Low-level C Bindings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -437,8 +459,7 @@
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">aic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">AICModelType</span>
 
-<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_S</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
-    <span class="n">model</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_S</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
 
     <span class="n">audio_stream</span> <span class="o">=</span> <span class="o">...</span>  <span class="c1"># your audio input</span>
     <span class="k">while</span> <span class="n">audio_stream</span><span class="o">.</span><span class="n">has_data</span><span class="p">():</span>

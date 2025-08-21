@@ -289,6 +289,28 @@
   
   
     <li class="md-nav__item">
+      <a href="low-level-bindings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Low-level C Bindings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="examples/" class="md-nav__link">
         
   
@@ -363,8 +385,7 @@
 <span class="n">load_dotenv</span><span class="p">()</span>
 <span class="n">license_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AICOUSTICS_API_KEY&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
 
-<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_L</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
-    <span class="n">model</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_L</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
     <span class="n">model</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICParameter</span><span class="o">.</span><span class="n">ENHANCEMENT_LEVEL</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">)</span>
 
     <span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">480</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
