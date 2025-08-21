@@ -43,8 +43,13 @@ def test_real_sdk_planar_processing_changes_signal():
     from aic import AICModelType, AICParameter, Model
 
     key = os.environ["AICOUSTICS_API_KEY"]
-    with Model(AICModelType.QUAIL_XS, license_key=key) as m:
-        m.initialize(sample_rate=48000, channels=1, frames=480)
+    with Model(
+        AICModelType.QUAIL_XS,
+        license_key=key,
+        sample_rate=48000,
+        channels=1,
+        frames=480,
+    ) as m:
         m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 1.0)
 
         audio = _make_sine_noise_planar(1, 4800)
@@ -73,9 +78,13 @@ def test_real_sdk_interleaved_processing_runs():
     from aic import AICModelType, Model
 
     key = os.environ["AICOUSTICS_API_KEY"]
-    with Model(AICModelType.QUAIL_XS, license_key=key) as m:
-        m.initialize(sample_rate=48000, channels=2, frames=480)
-
+    with Model(
+        AICModelType.QUAIL_XS,
+        license_key=key,
+        sample_rate=48000,
+        channels=2,
+        frames=480,
+    ) as m:
         frames = 480
         planar = _make_sine_noise_planar(2, frames)
         interleaved = planar.T.reshape(-1).astype(np.float32, copy=False)
@@ -100,11 +109,12 @@ def test_real_sdk_models_optimal_planar_processing_changes_signal(model_type):
     key = os.environ["AICOUSTICS_API_KEY"]
     model_enum = AICModelType(model_type)
 
-    with Model(model_enum, license_key=key) as m:
+    with Model(model_enum, license_key=key, sample_rate=48000) as m:
         sr = m.optimal_sample_rate()
         frames = m.optimal_num_frames()
-        m.initialize(sample_rate=sr, channels=1, frames=frames)
-
+        # Recreate with optimal parameters (constructor-only API)
+        m.close()
+    with Model(model_enum, license_key=key, sample_rate=sr, channels=1, frames=frames) as m:
         m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
         m.set_parameter(AICParameter.VOICE_GAIN, 1.2)
         m.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
@@ -148,11 +158,11 @@ def test_real_sdk_models_interleaved_processing_runs(model_type):
     key = os.environ["AICOUSTICS_API_KEY"]
     model_enum = AICModelType(model_type)
 
-    with Model(model_enum, license_key=key) as m:
+    with Model(model_enum, license_key=key, sample_rate=48000) as m:
         sr = m.optimal_sample_rate()
         frames = m.optimal_num_frames()
-        m.initialize(sample_rate=sr, channels=2, frames=frames)
-
+        m.close()
+    with Model(model_enum, license_key=key, sample_rate=sr, channels=2, frames=frames) as m:
         planar = _make_sine_noise_planar(2, frames, sr=sr)
         interleaved = planar.T.reshape(-1).astype(np.float32, copy=False)
 
@@ -167,12 +177,10 @@ def test_real_sdk_initialize_without_frames_uses_optimal_frames():
     key = os.environ["AICOUSTICS_API_KEY"]
 
     # Use a representative model where optimal sizes are defined by the SDK
-    with Model(AICModelType.QUAIL_XS, license_key=key) as m:
-        sr = m.optimal_sample_rate()
-
-        # Initialize without explicitly passing frames -> should use optimal frames
-        m.initialize(sample_rate=sr, channels=1)
-
+    with Model(AICModelType.QUAIL_XS, license_key=key, sample_rate=48000) as probe:
+        sr = probe.optimal_sample_rate()
+    # Create with only sr+channels (frames omitted => uses optimal frames)
+    with Model(AICModelType.QUAIL_XS, license_key=key, sample_rate=sr, channels=1) as m:
         # Query what the model believes is optimal and use it for chunking
         frames = m.optimal_num_frames()
 
@@ -194,3 +202,12 @@ def test_real_sdk_initialize_without_frames_uses_optimal_frames():
         assert audio.shape == original.shape
         assert not np.allclose(audio, original)
         assert np.isfinite(audio).all()
+
+
+def test_family_selection_quail_l_8k_optimal_sr_is_8k():
+    from aic import AICModelType, Model
+
+    key = os.environ["AICOUSTICS_API_KEY"]
+
+    with Model(AICModelType.QUAIL_L, license_key=key, sample_rate=8000, channels=1) as m:
+        assert m.optimal_sample_rate() == 8000

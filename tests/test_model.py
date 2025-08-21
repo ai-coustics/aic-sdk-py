@@ -1,5 +1,3 @@
-import types
-
 import numpy as np
 import pytest
 
@@ -63,9 +61,6 @@ def _install_high_level_stubs(monkeypatch):
         assert handle is state["handle"]
         return int(state["frames"])
 
-    def get_library_version():
-        return "1.2.3"
-
     monkeypatch.setattr(aic_mod, "model_create", model_create)
     monkeypatch.setattr(aic_mod, "model_destroy", model_destroy)
     monkeypatch.setattr(aic_mod, "model_initialize", model_initialize)
@@ -77,7 +72,6 @@ def _install_high_level_stubs(monkeypatch):
     monkeypatch.setattr(aic_mod, "get_processing_latency", get_processing_latency)
     monkeypatch.setattr(aic_mod, "get_optimal_sample_rate", get_optimal_sample_rate)
     monkeypatch.setattr(aic_mod, "get_optimal_num_frames", get_optimal_num_frames)
-    monkeypatch.setattr(aic_mod, "get_library_version", staticmethod(get_library_version))
 
     return state
 
@@ -86,10 +80,10 @@ def test_model_requires_license_key():
     from aic import AICModelType, Model
 
     with pytest.raises(ValueError):
-        Model(AICModelType.QUAIL_L, license_key=None)
+        Model(AICModelType.QUAIL_L, license_key=None, sample_rate=48000)
 
     with pytest.raises(ValueError):
-        Model(AICModelType.QUAIL_L, license_key="")
+        Model(AICModelType.QUAIL_L, license_key="", sample_rate=48000)
 
 
 def test_model_lifecycle_and_initialize_sets_noise_gate(monkeypatch):
@@ -97,10 +91,15 @@ def test_model_lifecycle_and_initialize_sets_noise_gate(monkeypatch):
 
     state = _install_high_level_stubs(monkeypatch)
 
-    m = Model(AICModelType.QUAIL_L, license_key="abc")
+    # Auto-initialize via constructor (single instantiation)
+    m = Model(
+        AICModelType.QUAIL_L,
+        license_key="abc",
+        sample_rate=48000,
+        channels=1,
+        frames=480,
+    )
     assert state["destroyed"] is False
-
-    m.initialize(sample_rate=48000, channels=1, frames=480)
     # initialization called once
     assert state["initialized"] == [(48000, 1, 480)]
     # noise gate enabled by default
@@ -120,8 +119,13 @@ def test_process_planar_validations_and_copy_behavior(monkeypatch):
     from aic import AICModelType, Model
 
     _install_high_level_stubs(monkeypatch)
-    model = Model(AICModelType.QUAIL_L, license_key="key")
-    model.initialize(sample_rate=48000, channels=2, frames=480)
+    model = Model(
+        AICModelType.QUAIL_L,
+        license_key="key",
+        sample_rate=48000,
+        channels=2,
+        frames=480,
+    )
 
     # Wrong ndim
     with pytest.raises(ValueError):
@@ -151,8 +155,13 @@ def test_process_interleaved_validations_and_copy_behavior(monkeypatch):
     from aic import AICModelType, Model
 
     _install_high_level_stubs(monkeypatch)
-    model = Model(AICModelType.QUAIL_L, license_key="key")
-    model.initialize(sample_rate=48000, channels=1, frames=480)
+    model = Model(
+        AICModelType.QUAIL_L,
+        license_key="key",
+        sample_rate=48000,
+        channels=1,
+        frames=480,
+    )
 
     # Wrong ndim
     with pytest.raises(ValueError):
@@ -181,8 +190,13 @@ def test_parameter_and_info_helpers(monkeypatch):
     from aic import AICModelType, AICParameter, Model
 
     state = _install_high_level_stubs(monkeypatch)
-    model = Model(AICModelType.QUAIL_L, license_key="key")
-    model.initialize(48000, 1, 480)
+    model = Model(
+        AICModelType.QUAIL_L,
+        license_key="key",
+        sample_rate=48000,
+        channels=1,
+        frames=480,
+    )
 
     model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.75)
     assert pytest.approx(model.get_parameter(AICParameter.ENHANCEMENT_LEVEL), 1e-9) == 0.75
@@ -191,24 +205,24 @@ def test_parameter_and_info_helpers(monkeypatch):
     assert model.optimal_sample_rate() == state["sr"]
     assert model.optimal_num_frames() == state["frames"]
 
-    # static method
-    from aic import Model as ModelClass
-    assert ModelClass.library_version() == "1.2.3"
-
 
 def test_context_manager_calls_destroy(monkeypatch):
     from aic import AICModelType, Model
 
     state = _install_high_level_stubs(monkeypatch)
-    with Model(AICModelType.QUAIL_L, license_key="key") as m:
-        m.initialize(48000, 1, 480)
+    with Model(
+        AICModelType.QUAIL_L,
+        license_key="key",
+        sample_rate=48000,
+        channels=1,
+        frames=480,
+    ) as _:
         assert state["destroyed"] is False
     assert state["destroyed"] is True
 
 
 def test_bytes_helper():
     from aic import _bytes
+
     assert _bytes(b"x") == b"x"
     assert _bytes("y") == b"y"
-
-

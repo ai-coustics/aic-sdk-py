@@ -3,6 +3,7 @@
 This module resolves the correct shared object packaged within the wheel and
 returns a loaded :class:`ctypes.CDLL` for use by the low-level bindings.
 """
+
 from __future__ import annotations
 
 import ctypes
@@ -11,10 +12,11 @@ import platform
 from pathlib import Path
 
 _PLAT = {
-    "Linux":   ("libaic.so",   "linux"),
-    "Darwin":  ("libaic.dylib","mac"),
-    "Windows": ("aic.dll",     "windows"),
+    "Linux": ("libaic.so", "linux"),
+    "Darwin": ("libaic.dylib", "mac"),
+    "Windows": ("aic.dll", "windows"),
 }
+
 
 def _path() -> Path:
     """Return the filesystem path to the packaged SDK shared library.
@@ -28,6 +30,7 @@ def _path() -> Path:
     ------
     RuntimeError
         If the current operating system is not supported.
+
     """
     sysname = platform.system()
     try:
@@ -39,6 +42,7 @@ def _path() -> Path:
     with res.path(pkg, libname) as p:
         return p
 
+
 def load() -> ctypes.CDLL:
     """Load and return the SDK shared library as a :class:`ctypes.CDLL`.
 
@@ -46,5 +50,6 @@ def load() -> ctypes.CDLL:
     -------
     ctypes.CDLL
         Ready-to-use handle for calling C functions.
+
     """
     return ctypes.CDLL(str(_path()))

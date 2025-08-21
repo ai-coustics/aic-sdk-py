@@ -54,12 +54,23 @@ jobs:
             echo "WARNING: pyproject.toml version ($FILE_VERSION) does not match tag (${{ steps.version.outputs.version }})" >&2
           fi
 
+      - name: Read SDK version from pyproject
+        id: sdk
+        run: |
+          SDK_VERSION=$(python - <<'PY'
+          import tomllib, pathlib
+          d = tomllib.loads(pathlib.Path('pyproject.toml').read_text('utf-8'))
+          print(d['tool']['aic-sdk']['sdk-version'])
+          PY
+          )
+          echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
+
       - name: Download platform SDK assets from private repo
         env:
           GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          VERSION='${{ steps.version.outputs.base_version }}'
+          VERSION='${{ steps.sdk.outputs.sdk_version }}'
           mkdir -p release-assets
           echo "Available releases in private repo (top 10):"
           gh release list --repo ai-coustics/aic-sdk --limit 10 || true

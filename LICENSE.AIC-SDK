@@ -7,7 +7,7 @@ Copyright © 2025 ai-coustics GmbH. All rights reserved.
            aic/libs/* (e.g. libaic.so, libaic.dylib, aic.dll) together with
            the public C headers aic.h and aic_c.h.
     “Wrapper” means the Python source code in this repository that links to
-               the SDK.  The Wrapper is licensed separately under the MIT
+               the SDK.  The Wrapper is licensed separately under the Apache 2.0
                license found in LICENSE.
     “You”     means the individual or legal entity exercising rights under
                this Agreement.

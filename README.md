@@ -58,8 +58,7 @@ The SDK requires a license key for full functionality.
    load_dotenv()  # loads .env if present
    license_key = os.getenv("AICOUSTICS_API_KEY")
 
-   with Model(AICModelType.QUAIL_L, license_key=license_key) as model:
-       model.initialize(sample_rate=48000, channels=1, frames=480)
+   with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
        # ...
    ```
 
@@ -80,10 +79,10 @@ license_key = os.getenv("AICOUSTICS_API_KEY")
 model = Model(
     model_type=AICModelType.QUAIL_L,
     license_key=license_key,   # pass the key from env (empty = trial)
+    sample_rate=48000,
+    channels=1,
+    frames=480,
 )
-
-# Initialize for 48kHz mono audio with 480-frame buffers
-model.initialize(sample_rate=48000, channels=1, frames=480)
 
 # Set enhancement strength (0.0 to 1.0)
 model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
@@ -107,8 +106,7 @@ from aic import Model, AICModelType
 load_dotenv()
 license_key = os.getenv("AICOUSTICS_API_KEY", "")
 
-with Model(AICModelType.QUAIL_L, license_key=license_key) as model:
-    model.initialize(sample_rate=48000, channels=1, frames=480)
+with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
     # Process audio in chunks
     audio_chunk = np.random.randn(1, 480).astype(np.float32)
     enhanced = model.process(audio_chunk)
@@ -142,8 +140,7 @@ def enhance_wav_file(input_path, output_path, strength=80):
     load_dotenv()
     license_key = os.getenv("AICOUSTICS_API_KEY")
 
-    with Model(AICModelType.QUAIL_L, license_key=license_key) as model:
-        model.initialize(sample_rate=48000, channels=1, frames=480)
+    with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
         model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, strength / 100)
         
         # Process in chunks
@@ -185,8 +182,7 @@ For the complete, up-to-date API documentation (including class/method docs and 
 ### Real-time Streaming
 
 ```python
-with Model(AICModelType.QUAIL_S) as model:
-    model.initialize(sample_rate=48000, channels=1, frames=480)
+with Model(AICModelType.QUAIL_S, sample_rate=48000, channels=1, frames=480) as model:
     
     while audio_stream.has_data():
         chunk = audio_stream.get_chunk(480)  # Get 480 frames
@@ -197,14 +193,76 @@ with Model(AICModelType.QUAIL_S) as model:
 ### Batch Processing
 
 ```python
-with Model(AICModelType.QUAIL_L) as model:
-    model.initialize(sample_rate=48000, channels=1, frames=480)
+with Model(AICModelType.QUAIL_L, sample_rate=48000, channels=1, frames=480) as model:
     
     for audio_file in audio_files:
         audio = load_audio(audio_file)
         enhanced = process_in_chunks(model, audio)
         save_audio(enhanced, f"enhanced_{audio_file}")
 ```
+
+## 🧑‍💻 Development
+
+### Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+pip install -r requirements-dev.txt  # includes editable install (-e .)
+```
+
+### Pre-commit hooks (Ruff)
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
+This runs Ruff linting and formatting on commit. You can also run Ruff manually:
+
+```bash
+ruff check . --fix
+ruff format .
+```
+
+### Running tests
+
+- Unit tests (no native SDK required):
+
+```bash
+pytest -q
+```
+
+- Integration tests (real SDK + license required):
+
+```bash
+export AICOUSTICS_API_KEY="your_key"  # or use a .env file
+pytest -q integration_tests
+```
+
+Note: To run against the real native SDK locally, it is simplest to install the package non-editable so the platform binaries are bundled:
+
+```bash
+pip uninstall -y aic-sdk
+pip install .
+```
+
+Editable installs (`-e .`) do not place native binaries into the source tree. The unit test suite does not need them; the integration suite does.
+
+### Docs (MkDocs)
+
+```bash
+mkdocs serve   # live-reload docs at http://127.0.0.1:8000
+# or
+mkdocs build
+```
+
+### Versioning
+
+- Python wrapper version: `pyproject.toml` → `[project].version`
+- C SDK binary version: `pyproject.toml` → `[tool.aic-sdk].sdk-version`
+
+The Python version and the underlying C SDK version are intentionally decoupled. The build step downloads platform binaries named from `sdk-version`.
 
 ## 🐛 Troubleshooting
 

@@ -42,6 +42,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - API Reference: api.md
+  - Low-level C Bindings: low-level-bindings.md
   - Examples: examples.md
 
 extra:

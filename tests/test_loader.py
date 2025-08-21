@@ -1,4 +1,3 @@
-import importlib
 from pathlib import Path
 
 import pytest
@@ -60,5 +59,3 @@ def test_loader_unsupported_os(monkeypatch):
     monkeypatch.setattr(loader.platform, "system", lambda: "Plan9")
     with pytest.raises(RuntimeError):
         loader._path()
-
-
