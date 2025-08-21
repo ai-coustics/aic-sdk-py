@@ -23,8 +23,7 @@ from aic import Model, AICModelType, AICParameter
 load_dotenv()
 license_key = os.getenv("AICOUSTICS_API_KEY", "")
 
-with Model(AICModelType.QUAIL_L, license_key=license_key) as model:
-    model.initialize(sample_rate=48000, channels=1, frames=480)
+with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
     model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
 
     audio = np.random.randn(1, 480).astype(np.float32)

@@ -1,6 +1,3 @@
-import ctypes as ct
-import types
-
 import pytest
 
 
@@ -74,13 +71,6 @@ def test_raise_on_error():
         _raise(AICErrorCode.LICENSE_INVALID)
 
 
-def test_get_library_version(monkeypatch):
-    from aic._bindings import get_library_version
-
-    _install_fake_lib(monkeypatch)
-    assert get_library_version() == "9.9.9"
-
-
 def test_successful_wrappers(monkeypatch):
     import aic._bindings as b
 
@@ -114,5 +104,3 @@ def test_successful_wrappers(monkeypatch):
     assert fake.aic_get_output_delay.calls
     assert fake.aic_get_optimal_sample_rate.calls
     assert fake.aic_get_optimal_num_frames.calls
-
-

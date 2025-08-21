@@ -12,8 +12,7 @@ AICOUSTICS_API_KEY=your_key_here python examples/enhance.py input.wav output.wav
 import numpy as np
 from aic import Model, AICModelType
 
-with Model(AICModelType.QUAIL_S) as model:
-    model.initialize(sample_rate=48000, channels=1, frames=480)
+with Model(AICModelType.QUAIL_S, sample_rate=48000, channels=1, frames=480) as model:
 
     audio_stream = ...  # your audio input
     while audio_stream.has_data():

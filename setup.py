@@ -2,7 +2,6 @@ import os
 import platform
 import re
 import shutil
-import sys
 import tarfile
 import tempfile
 import zipfile
@@ -21,6 +20,19 @@ def _read_version_from_pyproject(project_root: Path) -> str:
     if not match:
         raise RuntimeError("Could not determine version from pyproject.toml")
     return match.group(1)
+
+
+def _read_sdk_version_from_pyproject(project_root: Path) -> str | None:
+    """Return [tool.aic-sdk].sdk-version if present, else None."""
+    pyproject = project_root / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    # Look for: [tool.aic-sdk] ... sdk-version = "X.Y.Z"
+    # Keep it simple and robust without adding a TOML parser.
+    tool_block = re.search(r"(?ms)^\[tool\.aic-sdk\]\s+(.*?)(?=^\[|\Z)", text)
+    if not tool_block:
+        return None
+    match = re.search(r'(?m)^\s*sdk-version\s*=\s*"([^"]+)"', tool_block.group(1))
+    return match.group(1) if match else None
 
 
 def _detect_platform_triplet() -> tuple[str, str, str]:
@@ -116,9 +128,7 @@ def _install_shared_libs(extracted_root: Path, os_key: str, build_lib: Path) -> 
             copied_any = True
 
     if not copied_any:
-        raise RuntimeError(
-            f"No SDK shared libraries found in {lib_dir} for platform {os_key}"
-        )
+        raise RuntimeError(f"No SDK shared libraries found in {lib_dir} for platform {os_key}")
 
     # Ensure canonical filenames expected by loader exist
     if os_key == "linux":
@@ -159,14 +169,20 @@ class build_py(_build_py):
 
         project_root = Path(__file__).parent.resolve()
         try:
-            version = _read_version_from_pyproject(project_root)
-            asset_version = re.sub(r"\.post\d+\Z", "", version)
+            pkg_version = _read_version_from_pyproject(project_root)
+            sdk_version = _read_sdk_version_from_pyproject(project_root) or pkg_version
+
+            # Use the C library version for asset filename; strip any .post suffixes
+            asset_version = re.sub(r"\.post\d+\Z", "", sdk_version)
             os_key, arch, ext = _detect_platform_triplet()
             asset_name = _compute_asset_name(asset_version, arch, ext)
-            base_url = f"https://github.com/ai-coustics/aic-sdk-py/releases/download/{version}"
+
+            # Keep release tag tied to Python package version (upload assets there)
+            base_url = f"https://github.com/ai-coustics/aic-sdk-py/releases/download/{pkg_version}"
             url = f"{base_url}/{asset_name}"
 
-            print(f"[aic-sdk] Downloading SDK asset: {asset_name} from {base_url}")
+            print(f"[aic-sdk] Using SDK version: {sdk_version} (asset {asset_name})")
+            print(f"[aic-sdk] Downloading SDK asset from {base_url}")
             data = _download_bytes(url)
 
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -178,7 +194,9 @@ class build_py(_build_py):
             # Ensure downloaded binaries are packaged in any locally built wheel
             libs_root = Path(self.build_lib) / "aic" / "libs" / os_key
             if libs_root.exists():
-                binaries = [str(p.relative_to(Path(self.build_lib) / "aic")) for p in libs_root.glob("**/*") if p.is_file()]
+                binaries = [
+                    str(p.relative_to(Path(self.build_lib) / "aic")) for p in libs_root.glob("**/*") if p.is_file()
+                ]
                 self.distribution.package_data = self.distribution.package_data or {}
                 pkg_list = self.distribution.package_data.get("aic", [])
                 pkg_list.extend(binaries)
@@ -196,7 +214,7 @@ class build_py(_build_py):
             # Provide actionable error pointing users to the release page
             msg = (
                 f"[aic-sdk] ERROR while fetching SDK binaries: {exc}\n"
-                f"Ensure that a release exists at https://github.com/ai-coustics/aic-sdk-py/releases/tag/{version} "
+                f"Ensure that a release exists at https://github.com/ai-coustics/aic-sdk-py/releases/tag/{sdk_version} "
                 f"with the appropriate platform asset. You can bypass download by setting AIC_SDK_SKIP_DOWNLOAD=1."
             )
             raise RuntimeError(msg) from exc
