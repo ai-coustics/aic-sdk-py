@@ -69,9 +69,7 @@ jobs:
         id: changelog
         run: |
           awk 'BEGIN{print_mode=0} /^## /{if (print_mode==1) exit; if (NR>1) print_mode=1} {if (print_mode==1) print}' CHANGELOG.md > RELEASE_BODY.md
-          echo "latest_entry<<'EOF'" >> $GITHUB_OUTPUT
-          cat RELEASE_BODY.md >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+          echo "Generated release body:" && echo "-----" && cat RELEASE_BODY.md && echo "-----"
 
       - name: Download platform SDK assets from private repo
         env:
@@ -114,7 +112,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
-          body: ${{ steps.changelog.outputs.latest_entry }}
+          body_path: RELEASE_BODY.md
           files: |
             release-assets/*
           draft: false
