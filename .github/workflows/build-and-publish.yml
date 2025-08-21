@@ -65,6 +65,14 @@ jobs:
           )
           echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
 
+      - name: Extract latest changelog entry
+        id: changelog
+        run: |
+          awk 'BEGIN{print_mode=0} /^## /{if (print_mode==1) exit; if (NR>1) print_mode=1} {if (print_mode==1) print}' CHANGELOG.md > RELEASE_BODY.md
+          echo "latest_entry<<'EOF'" >> $GITHUB_OUTPUT
+          cat RELEASE_BODY.md >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
       - name: Download platform SDK assets from private repo
         env:
           GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
@@ -106,17 +114,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
-          body: |
-            ## ai-coustics SDK for Python ${{ steps.version.outputs.version }}
-
-            This release contains prebuilt native SDK binaries for supported platforms. The Python sdist on PyPI downloads the appropriate binary at install time.
-
-            ### Assets
-            - Linux: x86_64, aarch64 (.tar.gz)
-            - macOS: x86_64, arm64 (.tar.gz)
-            - Windows: x86_64 (.zip)
-
-            If you install via pip, the correct asset will be fetched automatically.
+          body: ${{ steps.changelog.outputs.latest_entry }}
           files: |
             release-assets/*
           draft: false
