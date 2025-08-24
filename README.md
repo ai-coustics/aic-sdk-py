@@ -170,7 +170,7 @@ For the complete, up-to-date API documentation (including class/method docs and 
 
 ## 🎵 Audio Format Requirements
 
-- **Sample Rate**: 48kHz recommended (optimal for all models)
+- **Sample Rate**: 8/16/48 kHz recommended
 - **Format**: Float32 in linear -1.0 to +1.0 range
 - **Layout**: 
   - Planar: `(channels, frames)` - use `process()`
