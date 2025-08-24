@@ -7,6 +7,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
 ## 1.0.2 – 2025-08-24
 
 ### Python SDK
+- Integrates aic-sdk `v0.6.3`
 - Updated low-sample rate models: 8- and 16 KHz Quail models updated with improved speech enhancement performance.
 
 
