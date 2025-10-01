@@ -152,7 +152,7 @@ class AICParameter(IntEnum):
     """
 
     NOISE_GATE_ENABLE = 2
-    """Enable or disable a noise gate as a pre-processing step.
+    """Enable or disable a noise gate as a post-processing step.
 
     Valid values: 0.0 or 1.0
 
