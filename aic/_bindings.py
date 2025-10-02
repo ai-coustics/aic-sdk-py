@@ -475,7 +475,7 @@ def set_parameter(model: AICModelPtrT, param: AICParameter, value: float) -> Non
 
     """
     lib = _get_lib()
-    _raise(lib.aic_model_set_parameter(model, param, value))
+    _raise(lib.aic_model_set_parameter(model, param, _ct.c_float(value)))
 
 
 def get_parameter(model: AICModelPtrT, param: AICParameter) -> float:
