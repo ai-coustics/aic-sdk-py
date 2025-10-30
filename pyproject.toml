@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aic-sdk"
-version = "1.0.2"
+version = "1.0.3"
 description = "Python bindings for the ai-coustics speech-enhancement SDK"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,8 +25,21 @@ Documentation = "https://ai-coustics.github.io/aic-sdk-py/"
 Source = "https://github.com/ai-coustics/aic-sdk-py"
 Issues = "https://github.com/ai-coustics/aic-sdk-py/issues"
 
+[project.optional-dependencies]
+# pip install -e '.[dev]' (includes test+docs+lint)
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "python-dotenv>=1.0",
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.0",
+    "mkdocstrings-python>=1.7",
+    "pre-commit>=3.7",
+    "ruff>=0.12",
+]
+
 [tool.aic-sdk]
-sdk-version = "0.6.3"
+sdk-version = "0.8.0"
 
 [tool.ruff]
 line-length = 120

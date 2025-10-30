@@ -31,26 +31,32 @@ class AICErrorCode(IntEnum):
     NULL_POINTER = 1
     """Required pointer argument was NULL."""
 
-    LICENSE_INVALID = 2
-    """License key format is invalid or corrupted."""
+    PARAMETER_OUT_OF_RANGE = 2
+    """Parameter value is outside acceptable range."""
 
-    LICENSE_EXPIRED = 3
-    """License key has expired."""
+    MODEL_NOT_INITIALIZED = 3
+    """Model must be initialized before this operation."""
 
-    UNSUPPORTED_AUDIO_CONFIG = 4
+    AUDIO_CONFIG_UNSUPPORTED = 4
     """Audio configuration is not supported by the model."""
 
     AUDIO_CONFIG_MISMATCH = 5
     """Process was called with a different audio buffer configuration than initialized."""
 
-    NOT_INITIALIZED = 6
-    """Model must be initialized before this operation."""
+    ENHANCEMENT_NOT_ALLOWED = 6
+    """SDK key not authorized or usage reporting failed (check internet connection)."""
 
-    PARAMETER_OUT_OF_RANGE = 7
-    """Parameter value is outside acceptable range."""
+    INTERNAL_ERROR = 7
+    """Internal error occurred. Contact support."""
 
-    SDK_ACTIVATION_ERROR = 8
-    """SDK activation failed."""
+    LICENSE_FORMAT_INVALID = 50
+    """License key format is invalid or corrupted."""
+
+    LICENSE_VERSION_UNSUPPORTED = 51
+    """License version is not compatible with this SDK version."""
+
+    LICENSE_EXPIRED = 52
+    """License key has expired."""
 
 
 class AICModelType(IntEnum):
@@ -126,18 +132,29 @@ class AICModelType(IntEnum):
 class AICParameter(IntEnum):
     """Configurable parameters for audio enhancement."""
 
-    ENHANCEMENT_LEVEL = 0
+    BYPASS = 0
+    """Bypass audio processing while preserving algorithmic delay.
+
+    Range: 0.0 … 1.0
+
+    - 0.0: Enhancement active (normal processing)
+    - 1.0: Bypass enabled (latency‑compensated passthrough)
+
+    Default: 0.0
+    """
+
+    ENHANCEMENT_LEVEL = 1
     """Controls the intensity of speech enhancement processing.
 
     Range: 0.0 … 1.0
 
-    - 0.0: Bypass (original signal passes through unchanged)
+    - 0.0: No enhancement
     - 1.0: Full enhancement (maximum noise reduction, potentially more artifacts)
 
     Default: 1.0
     """
 
-    VOICE_GAIN = 1
+    VOICE_GAIN = 2
     """Compensates for perceived volume reduction after noise removal.
 
     Range: 0.1 … 4.0 (linear amplitude multiplier)
@@ -151,12 +168,12 @@ class AICParameter(IntEnum):
     Default: 1.0
     """
 
-    NOISE_GATE_ENABLE = 2
-    """Enable or disable a noise gate as a pre-processing step.
+    NOISE_GATE_ENABLE = 3
+    """Enable or disable a noise gate as a post‑processing step.
 
     Valid values: 0.0 or 1.0
 
-    - 0.0: Noise gate disabled (C library default)
+    - 0.0: Noise gate disabled
     - 1.0: Noise gate enabled
 
     Default: 0.0
@@ -208,6 +225,7 @@ def _get_lib() -> _ct.CDLL:
             _ct.c_uint32,  # sample_rate
             _ct.c_uint16,  # num_channels
             _ct.c_size_t,  # num_frames
+            _ct.c_bool,  # allow_variable_frames
         ]
 
         lib.aic_model_reset.restype = AICErrorCode
@@ -267,6 +285,7 @@ def _get_lib() -> _ct.CDLL:
         lib.aic_get_optimal_num_frames.restype = AICErrorCode
         lib.aic_get_optimal_num_frames.argtypes = [
             AICModelPtr,
+            _ct.c_uint32,  # sample_rate
             _ct.POINTER(_ct.c_size_t),
         ]
 
@@ -277,6 +296,16 @@ def _get_lib() -> _ct.CDLL:
         else:
             lib.get_library_version.restype = _ct.c_char_p
             lib.get_library_version.argtypes = []
+        # wrapper ID API (optional)
+        if hasattr(lib, "aic_set_sdk_wrapper_id"):
+            lib.aic_set_sdk_wrapper_id.restype = None
+            lib.aic_set_sdk_wrapper_id.argtypes = [_ct.c_uint32]
+            try:
+                # 3 identifies the Python wrapper
+                lib.aic_set_sdk_wrapper_id(3)
+            except Exception:
+                # Be resilient if an older lib throws despite symbol presence
+                pass
         _PROTOTYPES_CONFIGURED = True
     return _LIB
 
@@ -337,7 +366,13 @@ def model_destroy(model: AICModelPtrT) -> None:
     lib.aic_model_destroy(model)
 
 
-def model_initialize(model: AICModelPtrT, sample_rate: int, num_channels: int, num_frames: int) -> None:
+def model_initialize(
+    model: AICModelPtrT,
+    sample_rate: int,
+    num_channels: int,
+    num_frames: int,
+    allow_variable_frames: bool = False,
+) -> None:
     """Configure the model for a specific audio format.
 
     Must be called before processing. For the lowest delay use the values
@@ -370,7 +405,15 @@ def model_initialize(model: AICModelPtrT, sample_rate: int, num_channels: int, n
 
     """
     lib = _get_lib()
-    _raise(lib.aic_model_initialize(model, sample_rate, num_channels, num_frames))
+    _raise(
+        lib.aic_model_initialize(
+            model,
+            sample_rate,
+            num_channels,
+            num_frames,
+            allow_variable_frames,
+        )
+    )
 
 
 def model_reset(model: AICModelPtrT) -> None:
@@ -573,18 +616,20 @@ def get_optimal_sample_rate(model: AICModelPtrT) -> int:
     return int(out.value)
 
 
-def get_optimal_num_frames(model: AICModelPtrT) -> int:
-    """Return the optimal number of frames for minimal latency.
+def get_optimal_num_frames(model: AICModelPtrT, sample_rate: int) -> int:
+    """Return the optimal number of frames for minimal latency at a sample rate.
 
     Using the optimal frame size avoids internal buffering and thus minimizes
     end-to-end delay. The optimal value depends on sample rate and updates
     when the model is initialized with a different rate. Before initialization
-    this returns the optimal size for the model's native sample rate.
+    this returns the optimal size for the provided sample rate.
 
     Parameters
     ----------
     model : AICModelPtrT
         Model instance.
+    sample_rate : int
+        Sample rate in Hz for which to query the optimal frame count.
 
     Returns
     -------
@@ -594,7 +639,7 @@ def get_optimal_num_frames(model: AICModelPtrT) -> int:
     """
     lib = _get_lib()
     out = _ct.c_size_t()
-    _raise(lib.aic_get_optimal_num_frames(model, _ct.byref(out)))
+    _raise(lib.aic_get_optimal_num_frames(model, sample_rate, _ct.byref(out)))
     return int(out.value)
 
 
