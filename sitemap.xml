@@ -2,22 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://ai-coustics.github.io/aic-sdk-py/</loc>
-         <lastmod>2025-08-24</lastmod>
+         <lastmod>2025-10-30</lastmod>
     </url>
     <url>
          <loc>https://ai-coustics.github.io/aic-sdk-py/api/</loc>
-         <lastmod>2025-08-24</lastmod>
+         <lastmod>2025-10-30</lastmod>
     </url>
     <url>
          <loc>https://ai-coustics.github.io/aic-sdk-py/examples/</loc>
-         <lastmod>2025-08-24</lastmod>
+         <lastmod>2025-10-30</lastmod>
     </url>
     <url>
          <loc>https://ai-coustics.github.io/aic-sdk-py/getting-started/</loc>
-         <lastmod>2025-08-24</lastmod>
+         <lastmod>2025-10-30</lastmod>
     </url>
     <url>
          <loc>https://ai-coustics.github.io/aic-sdk-py/low-level-bindings/</loc>
-         <lastmod>2025-08-24</lastmod>
+         <lastmod>2025-10-30</lastmod>
     </url>
 </urlset>
