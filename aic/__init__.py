@@ -65,6 +65,7 @@ class Model(AbstractContextManager):
         sample_rate: int,
         channels: int = 1,
         frames: int | None = None,
+        allow_variable_frames: bool = False,
     ) -> None:
         """Create a model wrapper.
 
@@ -95,10 +96,11 @@ class Model(AbstractContextManager):
             self._license_key = key_bytes
             self._handle = None
             self._closed = False
+            self._sample_rate = sample_rate
             chosen_type = self._select_variant_for_sample_rate(sample_rate)
             self._handle = model_create(chosen_type, self._license_key)
-            frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle)
-            model_initialize(self._handle, sample_rate, channels, frames_to_use)
+            frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle, sample_rate)
+            model_initialize(self._handle, sample_rate, channels, frames_to_use, allow_variable_frames)
             self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
         else:
             # Explicit concrete type (e.g., QUAIL_L48, QUAIL_S16, QUAIL_XS, etc.)
@@ -107,8 +109,9 @@ class Model(AbstractContextManager):
             self._license_key = key_bytes
             self._handle = model_create(self._explicit_type, self._license_key)
             self._closed = False
-            frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle)
-            model_initialize(self._handle, sample_rate, channels, frames_to_use)
+            self._sample_rate = sample_rate
+            frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle, sample_rate)
+            model_initialize(self._handle, sample_rate, channels, frames_to_use, allow_variable_frames)
             self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
 
     # public ---------------------------------------------------------------- #
@@ -271,9 +274,6 @@ class Model(AbstractContextManager):
             Sample rate in Hz.
 
         """
-        if self._handle is None:
-            # Default suggestion before creation/initialization: 48 kHz
-            return 48000
         return get_optimal_sample_rate(self._handle)
 
     def optimal_num_frames(self) -> int:
@@ -285,10 +285,7 @@ class Model(AbstractContextManager):
             Recommended block size in frames.
 
         """
-        if self._handle is None:
-            # Default suggestion before creation/initialization: 480 @ 48 kHz
-            return 480
-        return get_optimal_num_frames(self._handle)
+        return get_optimal_num_frames(self._handle, self._sample_rate)
 
     @staticmethod
     def library_version() -> str:

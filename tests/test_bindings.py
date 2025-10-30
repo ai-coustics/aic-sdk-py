@@ -23,7 +23,7 @@ class FakeFunction:
             out_ptr = args[1]
             out_ptr._obj.value = 48000
         elif self.name == "aic_get_optimal_num_frames":
-            out_ptr = args[1]
+            out_ptr = args[2]
             out_ptr._obj.value = 480
 
         self.calls.append(args)
@@ -68,7 +68,7 @@ def test_raise_on_error():
     from aic._bindings import AICErrorCode, _raise
 
     with pytest.raises(RuntimeError):
-        _raise(AICErrorCode.LICENSE_INVALID)
+        _raise(AICErrorCode.LICENSE_FORMAT_INVALID)
 
 
 def test_successful_wrappers(monkeypatch):
@@ -78,7 +78,7 @@ def test_successful_wrappers(monkeypatch):
 
     dummy_model = object()
     # initialize/reset
-    b.model_initialize(dummy_model, 48000, 1, 480)
+    b.model_initialize(dummy_model, 48000, 1, 480, False)
     b.model_reset(dummy_model)
 
     # process
@@ -92,7 +92,7 @@ def test_successful_wrappers(monkeypatch):
     # info
     assert b.get_processing_latency(dummy_model) == 480
     assert b.get_optimal_sample_rate(dummy_model) == 48000
-    assert b.get_optimal_num_frames(dummy_model) == 480
+    assert b.get_optimal_num_frames(dummy_model, 48000) == 480
 
     # calls recorded
     assert fake.aic_model_initialize.calls

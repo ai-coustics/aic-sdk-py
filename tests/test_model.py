@@ -25,9 +25,9 @@ def _install_high_level_stubs(monkeypatch):
         assert handle is state["handle"]
         state["destroyed"] = True
 
-    def model_initialize(handle, sample_rate, channels, frames):
+    def model_initialize(handle, sample_rate, channels, frames, allow_variable_frames=False):
         assert handle is state["handle"]
-        state["initialized"].append((sample_rate, channels, frames))
+        state["initialized"].append((sample_rate, channels, frames, bool(allow_variable_frames)))
 
     def model_reset(handle):
         assert handle is state["handle"]
@@ -57,7 +57,7 @@ def _install_high_level_stubs(monkeypatch):
         assert handle is state["handle"]
         return int(state["sr"])
 
-    def get_optimal_num_frames(handle):
+    def get_optimal_num_frames(handle, sample_rate):
         assert handle is state["handle"]
         return int(state["frames"])
 
@@ -101,7 +101,7 @@ def test_model_lifecycle_and_initialize_sets_noise_gate(monkeypatch):
     )
     assert state["destroyed"] is False
     # initialization called once
-    assert state["initialized"] == [(48000, 1, 480)]
+    assert state["initialized"] == [(48000, 1, 480, False)]
     # noise gate enabled by default
     assert state["params"][int(AICParameter.NOISE_GATE_ENABLE)] == 1.0
 

@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e . pytest
+          python -m pip install -e '.[dev]'
 
       - name: Run pytest
         run: |
@@ -65,7 +65,7 @@ jobs:
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."
             # VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
-            VERSION="0.6.0"
+            VERSION="0.8.0"
             echo "Version: $VERSION"
             
             # Try to determine architecture from multiple sources
@@ -259,7 +259,7 @@ jobs:
             # Extract project version from pyproject.toml
             echo "Extracting version from pyproject.toml..."
             # VERSION=$(python -c "import tomli, pathlib; print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
-            VERSION="0.6.0"
+            VERSION="0.8.0"
             echo "Version: $VERSION"
             
             # Try to determine architecture from multiple sources
