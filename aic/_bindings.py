@@ -178,7 +178,34 @@ class AICParameter(IntEnum):
 
     Default: 0.0
     """
+    VAD_WINDOW_SIZE = 4,
+    """Controls the window size used in the Voice Activity Detector.
+   
+    The window size is the number of window-length audio buffers
+    the VAD has available as a lookback-buffer.
+   
+    Range: 1.0 to 20.0
+   
+    Default: 6.0
+    """
+    VAD_SENSITIVITY = 5,
+    """Controls the sensitivity (energy threshold) of the VAD.
 
+    This value is used by the VAD as the threshold a
+    speech audio signal's energy has to exceed in order to be
+    considered speech.
+
+    Range: 1.0 to 10.0
+
+    Formula: Energy threshold = 10 ^ (-sensitivity)
+
+    Default: 6.0
+    """
+    VAD_VOICE_DETECTED = 6,
+    """Detection value of the VAD (read-only).
+    
+    1.0 if voice was detected, 0.0 otherwise.
+    """
 
 ################################################################################
 #                       struct forward declarations                             #
