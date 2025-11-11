@@ -17,8 +17,11 @@
       
       
       
+        
+      
+      
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
     
     
       
@@ -26,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.84d31ad4.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
       
       
 
@@ -51,7 +54,6 @@
     
       
 
-    
     
     
   </head>
@@ -225,9 +227,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Home
+  
+
     
   </span>
+  
   
 
       </a>
@@ -247,9 +254,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Getting Started
+  
+
     
   </span>
+  
   
 
       </a>
@@ -269,9 +281,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     API Reference
+  
+
     
   </span>
+  
   
 
       </a>
@@ -291,9 +308,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Low-level C Bindings
+  
+
     
   </span>
+  
   
 
       </a>
@@ -322,9 +344,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Examples
+  
+
     
   </span>
+  
   
 
           <span class="md-nav__icon md-icon"></span>
@@ -335,9 +362,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Examples
+  
+
     
   </span>
+  
   
 
       </a>
@@ -360,7 +392,9 @@
         <li class="md-nav__item">
   <a href="#enhance-a-wav-file" class="md-nav__link">
     <span class="md-ellipsis">
-      Enhance a WAV file
+      
+        Enhance a WAV file
+      
     </span>
   </a>
   
@@ -369,7 +403,20 @@
         <li class="md-nav__item">
   <a href="#streaming-like-chunked-processing" class="md-nav__link">
     <span class="md-ellipsis">
-      Streaming-like chunked processing
+      
+        Streaming-like chunked processing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-activity-detection-vad-during-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Activity Detection (VAD) during streaming
+      
     </span>
   </a>
   
@@ -412,7 +459,9 @@
         <li class="md-nav__item">
   <a href="#enhance-a-wav-file" class="md-nav__link">
     <span class="md-ellipsis">
-      Enhance a WAV file
+      
+        Enhance a WAV file
+      
     </span>
   </a>
   
@@ -421,7 +470,20 @@
         <li class="md-nav__item">
   <a href="#streaming-like-chunked-processing" class="md-nav__link">
     <span class="md-ellipsis">
-      Streaming-like chunked processing
+      
+        Streaming-like chunked processing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voice-activity-detection-vad-during-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Activity Detection (VAD) during streaming
+      
     </span>
   </a>
   
@@ -437,6 +499,7 @@
           
           
             <div class="md-content" data-md-component="content">
+              
               <article class="md-content__inner md-typeset">
                 
                   
@@ -453,7 +516,7 @@
 
 <h1 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h1>
 <h2 id="enhance-a-wav-file">Enhance a WAV file<a class="headerlink" href="#enhance-a-wav-file" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="nv">AICOUSTICS_API_KEY</span><span class="o">=</span>your_key_here<span class="w"> </span>python<span class="w"> </span>examples/enhance.py<span class="w"> </span>input.wav<span class="w"> </span>output.wav<span class="w"> </span>--strength<span class="w"> </span><span class="m">80</span>
+<div class="highlight"><pre><span></span><code><span class="nv">AIC_SDK_LICENSE</span><span class="o">=</span>your_key_here<span class="w"> </span>python<span class="w"> </span>examples/enhance.py<span class="w"> </span>input.wav<span class="w"> </span>output.wav<span class="w"> </span>--strength<span class="w"> </span><span class="m">80</span>
 </code></pre></div>
 <h2 id="streaming-like-chunked-processing">Streaming-like chunked processing<a class="headerlink" href="#streaming-like-chunked-processing" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -466,6 +529,23 @@
         <span class="n">chunk</span> <span class="o">=</span> <span class="n">audio_stream</span><span class="o">.</span><span class="n">get_chunk</span><span class="p">(</span><span class="mi">480</span><span class="p">)</span>
         <span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
         <span class="c1"># play or store `enhanced`</span>
+</code></pre></div>
+<h2 id="voice-activity-detection-vad-during-streaming">Voice Activity Detection (VAD) during streaming<a class="headerlink" href="#voice-activity-detection-vad-during-streaming" title="Permanent link">&para;</a></h2>
+<p>Attach a VAD to a model and query speech activity as you process audio.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">AICModelType</span><span class="p">,</span> <span class="n">AICVadParameter</span>
+
+<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_L</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">model</span><span class="o">.</span><span class="n">create_vad</span><span class="p">()</span> <span class="k">as</span> <span class="n">vad</span><span class="p">:</span>
+        <span class="c1"># Optional: tune VAD behavior</span>
+        <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">LOOKBACK_BUFFER_SIZE</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">)</span>
+        <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">SENSITIVITY</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream_chunks</span><span class="p">():</span>  <span class="c1"># yields (1, 480) float32 arrays</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="n">is_speech</span> <span class="o">=</span> <span class="n">vad</span><span class="o">.</span><span class="n">is_speech_detected</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">is_speech</span><span class="p">:</span>
+                <span class="n">handle_active_speech</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
 </code></pre></div>
 
 
@@ -531,10 +611,11 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.sections", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.sections", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
       
     
   </body>
