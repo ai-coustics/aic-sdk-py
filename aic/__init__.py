@@ -430,7 +430,6 @@ class VoiceActivityDetector(AbstractContextManager):
     """Voice Activity Detector bound to a :pyclass:`Model`."""
 
     def __init__(self, model: Model) -> None:
-        self._model = model
         self._handle = vad_create(model._handle)
         self._closed = False
 
