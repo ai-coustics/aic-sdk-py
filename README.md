@@ -43,11 +43,11 @@ The SDK requires a license key for full functionality.
 1. **Get a license key** from [ai-coustics](https://ai-coustics.com)
 2. **Set an environment variable** (or a `.env` file):
    ```bash
-   export AICOUSTICS_API_KEY="your_license_key_here"
+   export AIC_SDK_LICENSE="your_license_key_here"
    ```
    Or in a `.env` file:
    ```
-   AICOUSTICS_API_KEY=your_license_key_here
+   AIC_SDK_LICENSE=your_license_key_here
    ```
 3. **Pass the key to the model** (the SDK does not read env vars automatically):
    ```python
@@ -56,7 +56,7 @@ The SDK requires a license key for full functionality.
    from aic import Model, AICModelType
 
    load_dotenv()  # loads .env if present
-   license_key = os.getenv("AICOUSTICS_API_KEY")
+   license_key = os.getenv("AIC_SDK_LICENSE")
 
    with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
        # ...
@@ -73,7 +73,7 @@ from dotenv import load_dotenv
 from aic import Model, AICModelType, AICParameter
 
 load_dotenv()
-license_key = os.getenv("AICOUSTICS_API_KEY")
+license_key = os.getenv("AIC_SDK_LICENSE")
 
 # Create model instance
 model = Model(
@@ -104,7 +104,7 @@ from dotenv import load_dotenv
 from aic import Model, AICModelType
 
 load_dotenv()
-license_key = os.getenv("AICOUSTICS_API_KEY", "")
+license_key = os.getenv("AIC_SDK_LICENSE", "")
 
 with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
     # Process audio in chunks
@@ -138,7 +138,7 @@ def enhance_wav_file(input_path, output_path, strength=80):
     import os
 
     load_dotenv()
-    license_key = os.getenv("AICOUSTICS_API_KEY")
+    license_key = os.getenv("AIC_SDK_LICENSE")
 
     with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
         model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, strength / 100)
@@ -236,7 +236,7 @@ pytest -q
 - Integration tests (real SDK + license required):
 
 ```bash
-export AICOUSTICS_API_KEY="your_key"  # or use a .env file
+export AIC_SDK_LICENSE="your_key"  # or use a .env file
 pytest -q integration_tests
 ```
 

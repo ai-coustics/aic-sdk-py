@@ -42,7 +42,7 @@ The high-level `aic.Model` API is recommended for most applications. The low-lev
       heading_level: 3
       show_object_full_path: false
 
-## Parameters
+## Enhancement Parameters
 
 ::: aic._bindings.set_parameter
     options:
@@ -88,6 +88,38 @@ The high-level `aic.Model` API is recommended for most applications. The low-lev
       heading_level: 3
       show_object_full_path: false
 
+## Voice Activity Detection (VAD)
+
+::: aic._bindings.vad_create
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
+::: aic._bindings.vad_destroy
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
+::: aic._bindings.vad_is_speech_detected
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
+::: aic._bindings.vad_set_parameter
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
+::: aic._bindings.vad_get_parameter
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
 ## Enums
 
 ::: aic._bindings.AICErrorCode
@@ -102,7 +134,19 @@ The high-level `aic.Model` API is recommended for most applications. The low-lev
       heading_level: 3
       show_object_full_path: false
 
+::: aic._bindings.AICEnhancementParameter
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
 ::: aic._bindings.AICParameter
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
+::: aic._bindings.AICVadParameter
     options:
       show_root_heading: true
       heading_level: 3

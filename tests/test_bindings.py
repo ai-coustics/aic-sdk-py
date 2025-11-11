@@ -25,6 +25,14 @@ class FakeFunction:
         elif self.name == "aic_get_optimal_num_frames":
             out_ptr = args[2]
             out_ptr._obj.value = 480
+        elif self.name == "aic_vad_is_speech_detected":
+            # args: vad, bool* out
+            out_ptr = args[1]
+            out_ptr._obj.value = True
+        elif self.name == "aic_vad_get_parameter":
+            # args: vad, param, float* out
+            out_ptr = args[2]
+            out_ptr._obj.value = 6.0
 
         self.calls.append(args)
         return self.ret
@@ -44,6 +52,12 @@ class FakeLib:
         self.aic_get_output_delay = FakeFunction("aic_get_output_delay")
         self.aic_get_optimal_sample_rate = FakeFunction("aic_get_optimal_sample_rate")
         self.aic_get_optimal_num_frames = FakeFunction("aic_get_optimal_num_frames")
+        # VAD functions (SDK >= 0.9.0)
+        self.aic_vad_create = FakeFunction("aic_vad_create")
+        self.aic_vad_destroy = FakeFunction("aic_vad_destroy")
+        self.aic_vad_is_speech_detected = FakeFunction("aic_vad_is_speech_detected")
+        self.aic_vad_set_parameter = FakeFunction("aic_vad_set_parameter")
+        self.aic_vad_get_parameter = FakeFunction("aic_vad_get_parameter")
 
         def _get_library_version():
             return b"9.9.9"
@@ -104,3 +118,27 @@ def test_successful_wrappers(monkeypatch):
     assert fake.aic_get_output_delay.calls
     assert fake.aic_get_optimal_sample_rate.calls
     assert fake.aic_get_optimal_num_frames.calls
+
+
+def test_vad_wrappers(monkeypatch):
+    import aic._bindings as b
+
+    fake = _install_fake_lib(monkeypatch)
+
+    dummy_model = object()
+    # create VAD bound to model
+    vad = b.vad_create(dummy_model)
+    # basic query
+    assert b.vad_is_speech_detected(vad) is True
+    # parameter roundtrip
+    b.vad_set_parameter(vad, b.AICVadParameter.LOOKBACK_BUFFER_SIZE, 8.0)
+    assert b.vad_get_parameter(vad, b.AICVadParameter.SENSITIVITY) == pytest.approx(6.0, 1e-6)
+    # destroy
+    b.vad_destroy(vad)
+
+    # calls recorded
+    assert fake.aic_vad_create.calls
+    assert fake.aic_vad_is_speech_detected.calls
+    assert fake.aic_vad_set_parameter.calls
+    assert fake.aic_vad_get_parameter.calls
+    assert fake.aic_vad_destroy.calls

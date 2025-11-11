@@ -11,6 +11,7 @@ Highlights:
 - Real-time processing optimized for streaming
 - Multiple model sizes: QUAIL_L, QUAIL_S, QUAIL_XS
 - Simple, Pythonic API with context-manager support
+- Built-in Voice Activity Detection (VAD) powered by the Quail model family
 
 Quick example:
 
@@ -21,7 +22,7 @@ from dotenv import load_dotenv
 from aic import Model, AICModelType, AICParameter
 
 load_dotenv()
-license_key = os.getenv("AICOUSTICS_API_KEY", "")
+license_key = os.getenv("AIC_SDK_LICENSE", "")
 
 with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
     model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)

@@ -26,7 +26,7 @@ def process_wav(input_wav: str, output_wav: str, strength: int) -> None:
 
     enhancer = Model(
         AICModelType.QUAIL_L,  # QUAIL_L, QUAIL_S, QUAIL_XS
-        license_key=os.getenv("AICOUSTICS_API_KEY"),
+        license_key=os.getenv("AIC_SDK_LICENSE"),
         sample_rate=48000,
         channels=num_channels,
         frames=buffer_size,

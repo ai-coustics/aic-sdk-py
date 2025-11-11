@@ -129,7 +129,7 @@ class AICModelType(IntEnum):
     QUAIL_S = 3
 
 
-class AICParameter(IntEnum):
+class AICEnhancementParameter(IntEnum):
     """Configurable parameters for audio enhancement."""
 
     BYPASS = 0
@@ -180,6 +180,25 @@ class AICParameter(IntEnum):
     """
 
 
+class AICVadParameter(IntEnum):
+    """Configurable parameters for Voice Activity Detection (VAD)."""
+
+    LOOKBACK_BUFFER_SIZE = 0
+    """Number of window-length audio buffers used as a lookback buffer.
+
+    Range: 1.0 … 20.0
+    Default: 6.0
+    """
+
+    SENSITIVITY = 1
+    """Energy threshold sensitivity.
+
+    Range: 1.0 … 15.0
+    Formula: threshold = 10 ** (-sensitivity)
+    Default: 6.0
+    """
+
+
 ################################################################################
 #                       struct forward declarations                             #
 ################################################################################
@@ -192,6 +211,14 @@ class _AICModel(_ct.Structure):
 AICModelPtr = _ct.POINTER(_AICModel)
 # Alias for annotations to satisfy static type checkers (no TypeAlias to support py3.9)
 AICModelPtrT = Any
+
+
+class _AICVad(_ct.Structure):
+    pass
+
+
+AICVadPtr = _ct.POINTER(_AICVad)
+AICVadPtrT = Any
 
 ################################################################################
 #                       function prototypes                                     #
@@ -250,14 +277,14 @@ def _get_lib() -> _ct.CDLL:
         lib.aic_model_set_parameter.restype = AICErrorCode
         lib.aic_model_set_parameter.argtypes = [
             AICModelPtr,
-            _ct.c_int,  # parameter (AICParameter)
+            _ct.c_int,  # parameter (AICEnhancementParameter)
             _ct.c_float,
         ]
 
         lib.aic_model_get_parameter.restype = AICErrorCode
         lib.aic_model_get_parameter.argtypes = [
             AICModelPtr,
-            _ct.c_int,  # parameter (AICParameter)
+            _ct.c_int,  # parameter (AICEnhancementParameter)
             _ct.POINTER(_ct.c_float),
         ]
 
@@ -296,6 +323,36 @@ def _get_lib() -> _ct.CDLL:
         else:
             lib.get_library_version.restype = _ct.c_char_p
             lib.get_library_version.argtypes = []
+        # VAD API (new in >=0.9.0) - configure prototypes only if symbols exist
+        if hasattr(lib, "aic_vad_create"):
+            lib.aic_vad_create.restype = AICErrorCode
+            lib.aic_vad_create.argtypes = [
+                _ct.POINTER(AICVadPtr),  # **vad
+                AICModelPtr,  # const struct AicModel* (const ignored)
+            ]
+        if hasattr(lib, "aic_vad_destroy"):
+            lib.aic_vad_destroy.restype = None
+            lib.aic_vad_destroy.argtypes = [AICVadPtr]
+        if hasattr(lib, "aic_vad_is_speech_detected"):
+            lib.aic_vad_is_speech_detected.restype = AICErrorCode
+            lib.aic_vad_is_speech_detected.argtypes = [
+                AICVadPtr,
+                _ct.POINTER(_ct.c_bool),
+            ]
+        if hasattr(lib, "aic_vad_set_parameter"):
+            lib.aic_vad_set_parameter.restype = AICErrorCode
+            lib.aic_vad_set_parameter.argtypes = [
+                AICVadPtr,
+                _ct.c_int,  # AICVadParameter
+                _ct.c_float,
+            ]
+        if hasattr(lib, "aic_vad_get_parameter"):
+            lib.aic_vad_get_parameter.restype = AICErrorCode
+            lib.aic_vad_get_parameter.argtypes = [
+                AICVadPtr,
+                _ct.c_int,  # AICVadParameter
+                _ct.POINTER(_ct.c_float),
+            ]
         # wrapper ID API (optional)
         if hasattr(lib, "aic_set_sdk_wrapper_id"):
             lib.aic_set_sdk_wrapper_id.restype = None
@@ -495,14 +552,14 @@ def process_interleaved(model: AICModelPtrT, audio_ptr: Any, num_channels: int, 
     _raise(lib.aic_model_process_interleaved(model, audio_ptr, num_channels, num_frames))
 
 
-def set_parameter(model: AICModelPtrT, param: AICParameter, value: float) -> None:
+def set_parameter(model: AICModelPtrT, param: AICEnhancementParameter, value: float) -> None:
     """Modify a model parameter (thread-safe).
 
     Parameters
     ----------
     model : AICModelPtrT
         Model instance. Must not be ``None``.
-    param : AICParameter
+    param : AICEnhancementParameter
         Parameter to modify.
     value : float
         New parameter value. See parameter docs for valid ranges.
@@ -521,14 +578,14 @@ def set_parameter(model: AICModelPtrT, param: AICParameter, value: float) -> Non
     _raise(lib.aic_model_set_parameter(model, param, _ct.c_float(value)))
 
 
-def get_parameter(model: AICModelPtrT, param: AICParameter) -> float:
+def get_parameter(model: AICModelPtrT, param: AICEnhancementParameter) -> float:
     """Retrieve the current value of a parameter (thread-safe).
 
     Parameters
     ----------
     model : AICModelPtrT
         Model instance. Must not be ``None``.
-    param : AICParameter
+    param : AICEnhancementParameter
         Parameter to query.
 
     Returns
@@ -663,7 +720,59 @@ def get_library_version() -> str:
     return version_ptr.decode("utf-8")
 
 
+# ----------------------------- VAD wrappers ---------------------------------#
+
+
+def vad_create(model: AICModelPtrT) -> AICVadPtrT:
+    """Create a Voice Activity Detector bound to a model."""
+    lib = _get_lib()
+    if not hasattr(lib, "aic_vad_create"):
+        raise RuntimeError("VAD API not available in loaded SDK")
+    vad = AICVadPtr()
+    _raise(lib.aic_vad_create(_ct.byref(vad), model))  # type: ignore[attr-defined]
+    return vad
+
+
+def vad_destroy(vad: AICVadPtrT) -> None:
+    """Destroy a VAD instance (idempotent)."""
+    lib = _get_lib()
+    if hasattr(lib, "aic_vad_destroy"):
+        lib.aic_vad_destroy(vad)  # type: ignore[attr-defined]
+
+
+def vad_is_speech_detected(vad: AICVadPtrT) -> bool:
+    """Return the current VAD prediction."""
+    lib = _get_lib()
+    if not hasattr(lib, "aic_vad_is_speech_detected"):
+        raise RuntimeError("VAD API not available in loaded SDK")
+    out = _ct.c_bool()
+    _raise(lib.aic_vad_is_speech_detected(vad, _ct.byref(out)))  # type: ignore[attr-defined]
+    return bool(out.value)
+
+
+def vad_set_parameter(vad: AICVadPtrT, param: AICVadParameter, value: float) -> None:
+    """Set a VAD parameter."""
+    lib = _get_lib()
+    if not hasattr(lib, "aic_vad_set_parameter"):
+        raise RuntimeError("VAD API not available in loaded SDK")
+    _raise(lib.aic_vad_set_parameter(vad, param, _ct.c_float(value)))  # type: ignore[attr-defined]
+
+
+def vad_get_parameter(vad: AICVadPtrT, param: AICVadParameter) -> float:
+    """Get a VAD parameter."""
+    lib = _get_lib()
+    if not hasattr(lib, "aic_vad_get_parameter"):
+        raise RuntimeError("VAD API not available in loaded SDK")
+    out = _ct.c_float()
+    _raise(lib.aic_vad_get_parameter(vad, param, _ct.byref(out)))  # type: ignore[attr-defined]
+    return float(out.value)
+
+
 # ------------------------------------------------------------------#
 def _raise(err: AICErrorCode) -> None:
     if err != AICErrorCode.SUCCESS:
         raise RuntimeError(f"AIC-SDK error: {err.name}")
+
+
+# Backwards compatibility: retain old name
+AICParameter = AICEnhancementParameter

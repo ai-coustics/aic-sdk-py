@@ -35,7 +35,7 @@ jobs:
 
       - name: Run integration tests against real SDK
         env:
-          AICOUSTICS_API_KEY: ${{ secrets.AICOUSTICS_API_KEY }}
+          AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
         working-directory: integration_tests
         run: |
           # Ensure we import the PyPI-installed package, not the repo copy
