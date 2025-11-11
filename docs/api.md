@@ -2,7 +2,7 @@
 
 ## Model Class
 
-:::: aic.Model
+::: aic.Model
     options:
       show_root_heading: true
       heading_level: 2
@@ -10,7 +10,7 @@
 
 ## Voice Activity Detector
 
-:::: aic.VoiceActivityDetector
+::: aic.VoiceActivityDetector
     options:
       show_root_heading: true
       heading_level: 2
