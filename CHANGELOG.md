@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 1.1.0 – 2025-11-11
+
+### Python SDK
+- Integrates aic-sdk `v0.9.0`.
+- Adds Voice Activity Detection (VAD):
+  - Low-level bindings: `vad_create`, `vad_destroy`, `vad_is_speech_detected`, `vad_set_parameter`, `vad_get_parameter`.
+  - New enums: `AICVadParameter` with `LOOKBACK_BUFFER_SIZE` and `SENSITIVITY`.
+  - High-level wrapper: `Model.create_vad()` returning `VoiceActivityDetector` with `is_speech_detected()`, `set_parameter()`, and `get_parameter()`.
+- Enhancement parameters enum renamed in C SDK:
+  - Python bindings now expose `AICEnhancementParameter`.
+  - Backwards-compatible alias `AICParameter = AICEnhancementParameter` retained.
+- Docs: Updated API reference, getting started, examples, and low-level bindings for VAD and the enum rename. Examples also show VAD usage.
+- Tests: Added unit tests for VAD in `tests/test_bindings.py` and `tests/test_model.py`. Added real-SDK integration test for VAD.
+- Examples/Docs/Integration tests now reference `AIC_SDK_LICENSE` for the license key environment variable.
+
+### Breaking Changes
+- The enhancement parameter enum in the SDK was renamed to `AicEnhancementParameter`. The Python API mirrors this as `AICEnhancementParameter`. The previous name `AICParameter` remains available as a compatibility alias; prefer the new name going forward.
+
+### Migration
+- Import `AICEnhancementParameter` instead of `AICParameter` (or continue to use the alias temporarily).
+- To use VAD:
+  ```python
+  from aic import Model, AICModelType, AICVadParameter
+  with Model(AICModelType.QUAIL_L, license_key=..., sample_rate=48000, channels=1, frames=480) as m:
+      with m.create_vad() as vad:
+          vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)
+          vad.set_parameter(AICVadParameter.SENSITIVITY, 6.0)
+          m.process(audio_chunk)  # drive the model
+          print(vad.is_speech_detected())
+  ```
+
 ## 1.0.3 – 2025-10-30
 
 ### Python SDK

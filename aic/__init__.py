@@ -4,15 +4,20 @@ This module exposes the object-oriented `Model` API and re-exports selected
 enums and low-level bindings for advanced use-cases.
 """
 
+import asyncio as _asyncio
 import ctypes as _ct
+from concurrent.futures import Future as _Future
+from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 from contextlib import AbstractContextManager
 
 import numpy as _np  # NumPy is the only runtime dep
 
 from . import _bindings as bindings  # low-level names live here
 from ._bindings import (
+    AICEnhancementParameter,
     AICModelType,
     AICParameter,
+    AICVadParameter,
     get_optimal_num_frames,
     get_optimal_sample_rate,
     get_parameter,
@@ -24,6 +29,11 @@ from ._bindings import (
     process_interleaved,
     process_planar,
     set_parameter,
+    vad_create,
+    vad_destroy,
+    vad_get_parameter,
+    vad_is_speech_detected,
+    vad_set_parameter,
 )
 
 # ---------------------------------------------------------------------------
@@ -96,6 +106,8 @@ class Model(AbstractContextManager):
             self._license_key = key_bytes
             self._handle = None
             self._closed = False
+            # dedicated single-worker thread for this model instance
+            self._executor = _ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"aic-{id(self)}")
             self._sample_rate = sample_rate
             chosen_type = self._select_variant_for_sample_rate(sample_rate)
             self._handle = model_create(chosen_type, self._license_key)
@@ -109,6 +121,8 @@ class Model(AbstractContextManager):
             self._license_key = key_bytes
             self._handle = model_create(self._explicit_type, self._license_key)
             self._closed = False
+            # dedicated single-worker thread for this model instance
+            self._executor = _ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"aic-{id(self)}")
             self._sample_rate = sample_rate
             frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle, sample_rate)
             model_initialize(self._handle, sample_rate, channels, frames_to_use, allow_variable_frames)
@@ -119,6 +133,10 @@ class Model(AbstractContextManager):
     def reset(self) -> None:
         """Flush the model's internal state (between recordings, etc.)."""
         model_reset(self._handle)
+
+    def create_vad(self) -> "VoiceActivityDetector":
+        """Create a Voice Activity Detector bound to this model."""
+        return VoiceActivityDetector(self)
 
     # --------------------------------------------------------------------- #
     # audio processing                                                      #
@@ -170,6 +188,25 @@ class Model(AbstractContextManager):
 
         return pcm
 
+    async def process_async(
+        self,
+        pcm: _np.ndarray,
+        *,
+        channels: int | None = None,
+    ) -> _np.ndarray:
+        """Async variant of :py:meth:`process` executed on the model's worker thread."""
+        loop = _asyncio.get_running_loop()
+        return await loop.run_in_executor(self._executor, lambda: self.process(pcm, channels=channels))
+
+    def process_submit(
+        self,
+        pcm: _np.ndarray,
+        *,
+        channels: int | None = None,
+    ) -> _Future[_np.ndarray]:
+        """Submit :py:meth:`process` to the model's worker thread, returning a Future."""
+        return self._executor.submit(self.process, pcm, channels=channels)
+
     def process_interleaved(
         self,
         pcm: _np.ndarray,
@@ -212,17 +249,34 @@ class Model(AbstractContextManager):
 
         return pcm
 
+    async def process_interleaved_async(
+        self,
+        pcm: _np.ndarray,
+        channels: int,
+    ) -> _np.ndarray:
+        """Async variant of :py:meth:`process_interleaved` executed on the model's worker thread."""
+        loop = _asyncio.get_running_loop()
+        return await loop.run_in_executor(self._executor, lambda: self.process_interleaved(pcm, channels))
+
+    def process_interleaved_submit(
+        self,
+        pcm: _np.ndarray,
+        channels: int,
+    ) -> _Future[_np.ndarray]:
+        """Submit :py:meth:`process_interleaved` to the worker thread, returning a Future."""
+        return self._executor.submit(self.process_interleaved, pcm, channels)
+
     # --------------------------------------------------------------------- #
     # parameter helpers                                                     #
     # --------------------------------------------------------------------- #
 
-    def set_parameter(self, param: AICParameter, value: float) -> None:
+    def set_parameter(self, param: AICParameter | AICEnhancementParameter, value: float) -> None:
         """Update an algorithm parameter.
 
         Parameters
         ----------
         param
-            Parameter enum value. See :py:class:`aic._bindings.AICParameter`.
+            Parameter enum value. See :py:class:`aic._bindings.AICEnhancementParameter`.
         value
             New value for the parameter (float).
 
@@ -234,13 +288,13 @@ class Model(AbstractContextManager):
         """
         set_parameter(self._handle, param, float(value))
 
-    def get_parameter(self, param: AICParameter) -> float:
+    def get_parameter(self, param: AICParameter | AICEnhancementParameter) -> float:
         """Get the current value of a parameter.
 
         Parameters
         ----------
         param
-            Parameter enum value. See :py:class:`aic._bindings.AICParameter`.
+            Parameter enum value. See :py:class:`aic._bindings.AICEnhancementParameter`.
 
         Returns
         -------
@@ -317,6 +371,8 @@ class Model(AbstractContextManager):
         if not self._closed:
             if self._handle is not None:
                 model_destroy(self._handle)
+            # shut down dedicated executor
+            self._executor.shutdown(wait=True, cancel_futures=True)
             self._closed = True
 
     # context-manager protocol  ------------------------------------------- #
@@ -368,14 +424,56 @@ def _bytes(s: str | bytes) -> bytes:
 
 
 # ---------------------------------------------------------------------------
+# High-level VAD wrapper
+# ---------------------------------------------------------------------------
+class VoiceActivityDetector(AbstractContextManager):
+    """Voice Activity Detector bound to a :pyclass:`Model`."""
+
+    def __init__(self, model: Model) -> None:
+        self._model = model
+        self._handle = vad_create(model._handle)
+        self._closed = False
+
+    def is_speech_detected(self) -> bool:
+        return vad_is_speech_detected(self._handle)
+
+    def set_parameter(self, param: AICVadParameter, value: float) -> None:
+        vad_set_parameter(self._handle, param, float(value))
+
+    def get_parameter(self, param: AICVadParameter) -> float:
+        return vad_get_parameter(self._handle, param)
+
+    def close(self) -> None:
+        if not self._closed:
+            vad_destroy(self._handle)
+            self._closed = True
+
+    def __enter__(self) -> "VoiceActivityDetector":
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        self.close()
+        return False
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
 # Public re-exports
 # ---------------------------------------------------------------------------
 __all__ = [
     # high-level OO API
     "Model",
+    "VoiceActivityDetector",
     # C enum mirrors
     "AICModelType",
     "AICParameter",
+    "AICEnhancementParameter",
+    "AICVadParameter",
     # expert-level full bindings
     "bindings",
 ]
