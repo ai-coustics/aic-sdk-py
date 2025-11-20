@@ -7,6 +7,7 @@ Most users should prefer the higher-level :pyclass:`aic.Model` wrapper.
 from __future__ import annotations
 
 import ctypes as _ct
+import logging
 from enum import IntEnum
 from typing import Any
 
@@ -48,6 +49,9 @@ class AICErrorCode(IntEnum):
 
     INTERNAL_ERROR = 7
     """Internal error occurred. Contact support."""
+
+    PARAMETER_FIXED = 8
+    """The requested parameter is read-only for this model type and cannot be modified."""
 
     LICENSE_FORMAT_INVALID = 50
     """License key format is invalid or corrupted."""
@@ -122,6 +126,20 @@ class AICModelType(IntEnum):
     - Native sample rate: 48 kHz
     - Native num frames: 480
     - Processing latency: 10 ms
+    """
+
+    QUAIL_STT = 8
+    """Special Model for speech-to-text scenarios.
+
+    This model is optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    and is using fixed enhancement parameters that and cannot be modified at runtime. The model is compatible with our VAD
+
+    Specifications:
+
+    - Window length: 10 ms
+    - Native sample rate: 16 kHz
+    - Native num frames: 160
+    - Processing latency: 30 ms
     """
 
     # Backwards-compatible aliases
@@ -575,7 +593,12 @@ def set_parameter(model: AICModelPtrT, param: AICEnhancementParameter, value: fl
 
     """
     lib = _get_lib()
-    _raise(lib.aic_model_set_parameter(model, param, _ct.c_float(value)))
+    err = lib.aic_model_set_parameter(model, param, _ct.c_float(value))
+    if err == AICErrorCode.PARAMETER_FIXED:
+        pname = param.name if hasattr(param, "name") else str(param)
+        logging.warning(f"Parameter {pname} is fixed for this model type and cannot be modified.")
+        return
+    _raise(err)
 
 
 def get_parameter(model: AICModelPtrT, param: AICEnhancementParameter) -> float:

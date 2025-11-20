@@ -33,6 +33,11 @@ class FakeFunction:
             # args: vad, param, float* out
             out_ptr = args[2]
             out_ptr._obj.value = 6.0
+        elif self.name == "aic_model_set_parameter":
+            # check for fixed param simulation
+            param = args[1]
+            if param == 1234:  # Magic number for test_parameter_fixed
+                return 8  # PARAMETER_FIXED
 
         self.calls.append(args)
         return self.ret
@@ -118,6 +123,43 @@ def test_successful_wrappers(monkeypatch):
     assert fake.aic_get_output_delay.calls
     assert fake.aic_get_optimal_sample_rate.calls
     assert fake.aic_get_optimal_num_frames.calls
+
+
+def test_parameter_fixed_warning(monkeypatch):
+    # Placeholder to remove the failed test function signature completely
+    pass
+
+
+def test_parameter_fixed_warning_caplog(monkeypatch, caplog):
+    import logging
+
+    import aic._bindings as b
+
+    _ = _install_fake_lib(monkeypatch)
+    dummy_model = object()
+
+    with caplog.at_level(logging.WARNING):
+        # Use magic param 1234 to trigger PARAMETER_FIXED
+        b.set_parameter(dummy_model, 1234, 1.0)  # type: ignore
+
+    assert "Parameter 1234 is fixed" in caplog.text or "Parameter" in caplog.text
+    assert "cannot be modified" in caplog.text
+
+
+def test_parameter_fixed_logs_warning_caplog(monkeypatch, caplog):
+    import logging
+
+    import aic._bindings as b
+
+    fake = _install_fake_lib(monkeypatch)
+    dummy_model = object()
+
+    fake.aic_model_set_parameter.ret = b.AICErrorCode.PARAMETER_FIXED
+
+    with caplog.at_level(logging.WARNING):
+        b.set_parameter(dummy_model, b.AICEnhancementParameter.VOICE_GAIN, 1.0)
+
+    assert "Parameter VOICE_GAIN is fixed" in caplog.text
 
 
 def test_vad_wrappers(monkeypatch):

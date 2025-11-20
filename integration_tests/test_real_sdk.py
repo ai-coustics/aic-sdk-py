@@ -251,11 +251,11 @@ def test_real_sdk_models_optimal_planar_processing_changes_signal(model_type):
     with Model(model_enum, license_key=key, sample_rate=sr, channels=1, frames=frames) as m:
         m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
         m.set_parameter(AICParameter.VOICE_GAIN, 1.2)
-        m.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
+        # m.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0) -> Deprecated/Ignored
 
         assert np.isclose(m.get_parameter(AICParameter.ENHANCEMENT_LEVEL), 0.8, atol=1e-6)
         assert np.isclose(m.get_parameter(AICParameter.VOICE_GAIN), 1.2, atol=1e-6)
-        assert np.isclose(m.get_parameter(AICParameter.NOISE_GATE_ENABLE), 1.0, atol=1e-6)
+        # assert np.isclose(m.get_parameter(AICParameter.NOISE_GATE_ENABLE), 1.0, atol=1e-6)
 
         audio = _make_sine_noise_planar(1, frames * 10, sr=sr)
         original = audio.copy()

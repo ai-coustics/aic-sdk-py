@@ -118,7 +118,7 @@ def test_model_requires_license_key():
         Model(AICModelType.QUAIL_L, license_key="", sample_rate=48000)
 
 
-def test_model_lifecycle_and_initialize_sets_noise_gate(monkeypatch):
+def test_model_lifecycle(monkeypatch):
     from aic import AICModelType, AICParameter, Model
 
     state = _install_high_level_stubs(monkeypatch)
@@ -134,8 +134,8 @@ def test_model_lifecycle_and_initialize_sets_noise_gate(monkeypatch):
     assert state["destroyed"] is False
     # initialization called once
     assert state["initialized"] == [(48000, 1, 480, False)]
-    # noise gate enabled by default
-    assert state["params"][int(AICParameter.NOISE_GATE_ENABLE)] == 1.0
+    # noise gate NOT enabled by default anymore
+    assert int(AICParameter.NOISE_GATE_ENABLE) not in state["params"]
 
     m.reset()
     assert state["reset"] == 1
