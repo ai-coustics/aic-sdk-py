@@ -6,6 +6,7 @@ enums and low-level bindings for advanced use-cases.
 
 import asyncio as _asyncio
 import ctypes as _ct
+import warnings
 from concurrent.futures import Future as _Future
 from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 from contextlib import AbstractContextManager
@@ -113,7 +114,6 @@ class Model(AbstractContextManager):
             self._handle = model_create(chosen_type, self._license_key)
             frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle, sample_rate)
             model_initialize(self._handle, sample_rate, channels, frames_to_use, allow_variable_frames)
-            self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
         else:
             # Explicit concrete type (e.g., QUAIL_L48, QUAIL_S16, QUAIL_XS, etc.)
             self._family = None
@@ -126,7 +126,6 @@ class Model(AbstractContextManager):
             self._sample_rate = sample_rate
             frames_to_use = frames if frames is not None else get_optimal_num_frames(self._handle, sample_rate)
             model_initialize(self._handle, sample_rate, channels, frames_to_use, allow_variable_frames)
-            self.set_parameter(AICParameter.NOISE_GATE_ENABLE, 1.0)
 
     # public ---------------------------------------------------------------- #
 
@@ -286,6 +285,14 @@ class Model(AbstractContextManager):
             If the parameter is out of range or the SDK call fails.
 
         """
+        if param == AICParameter.NOISE_GATE_ENABLE:
+            warnings.warn(
+                "The NOISE_GATE_ENABLE parameter is deprecated and will be removed in a future version. "
+                "The noise gate is disabled by default.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return
         set_parameter(self._handle, param, float(value))
 
     def get_parameter(self, param: AICParameter | AICEnhancementParameter) -> float:

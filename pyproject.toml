@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aic-sdk"
-version = "1.1.0"
+version = "1.2.0"
 description = "Python bindings for the ai-coustics speech-enhancement SDK"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.aic-sdk]
-sdk-version = "0.9.0"
+sdk-version = "0.10.0"
 
 [tool.ruff]
 line-length = 120

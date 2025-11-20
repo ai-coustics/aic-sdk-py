@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 1.2.0 – 2025-11-20
+
+### Python SDK
+- Integrates aic-sdk `v0.10.0`. Detailed changelog can be found [here](https://docs.ai-coustics.com/sdk/changelog).
+- Added `AICModelType.QUAIL_STT` for the new speech-to-text optimized model.
+- Added `AICErrorCode.PARAMETER_FIXED` to handle read-only parameters in specific models (e.g., QUAIL_STT).
+- Deprecated `AICParameter.NOISE_GATE_ENABLE`. The noise gate is now disabled by default and setting this parameter will log a warning.
+- Updated error handling to log a warning instead of raising an exception when `PARAMETER_FIXED` is returned by the SDK.
+
 ## 1.1.0 – 2025-11-11
 
 ### Python SDK
