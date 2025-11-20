@@ -771,6 +771,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#aic._bindings.AICErrorCode.PARAMETER_FIXED" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PARAMETER_FIXED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aic._bindings.AICErrorCode.PARAMETER_OUT_OF_RANGE" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -869,6 +880,17 @@
     <span class="md-ellipsis">
       
         QUAIL_S8
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aic._bindings.AICModelType.QUAIL_STT" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QUAIL_STT
       
     </span>
   </a>
@@ -1486,6 +1508,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#aic._bindings.AICErrorCode.PARAMETER_FIXED" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PARAMETER_FIXED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aic._bindings.AICErrorCode.PARAMETER_OUT_OF_RANGE" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1584,6 +1617,17 @@
     <span class="md-ellipsis">
       
         QUAIL_S8
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aic._bindings.AICModelType.QUAIL_STT" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QUAIL_STT
       
     </span>
   </a>
@@ -2863,6 +2907,29 @@ does not succeed.</p>
 
 
 
+<h4 id="aic._bindings.AICErrorCode.PARAMETER_FIXED" class="doc doc-heading">
+            <code class=" language-python"><span class="n">PARAMETER_FIXED</span> <span class="o">=</span> <span class="mi">8</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#aic._bindings.AICErrorCode.PARAMETER_FIXED" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The requested parameter is read-only for this model type and cannot be modified.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h4 id="aic._bindings.AICErrorCode.PARAMETER_OUT_OF_RANGE" class="doc doc-heading">
             <code class=" language-python"><span class="n">PARAMETER_OUT_OF_RANGE</span> <span class="o">=</span> <span class="mi">2</span></code>
 
@@ -3114,6 +3181,38 @@ a characteristic processing latency.</p>
 <ul>
 <li>Native sample rate: 8 kHz</li>
 <li>Native num frames: 80</li>
+<li>Processing latency: 30 ms</li>
+</ul>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="aic._bindings.AICModelType.QUAIL_STT" class="doc doc-heading">
+            <code class=" language-python"><span class="n">QUAIL_STT</span> <span class="o">=</span> <span class="mi">8</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#aic._bindings.AICModelType.QUAIL_STT" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Special Model for speech-to-text scenarios.</p>
+<p>This model is optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+and is using fixed enhancement parameters that and cannot be modified at runtime. The model is compatible with our VAD</p>
+<p>Specifications:</p>
+<ul>
+<li>Window length: 10 ms</li>
+<li>Native sample rate: 16 kHz</li>
+<li>Native num frames: 160</li>
 <li>Processing latency: 30 ms</li>
 </ul>
 
