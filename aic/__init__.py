@@ -29,6 +29,7 @@ from ._bindings import (
     model_reset,
     process_interleaved,
     process_planar,
+    process_sequential,
     set_parameter,
     vad_create,
     vad_destroy,
@@ -99,9 +100,24 @@ class Model(AbstractContextManager):
         key_bytes = _bytes(license_key) if license_key is not None else b""
         if not key_bytes:
             raise ValueError("A valid license_key is required. Get one at https://developers.ai-coustics.io")
+        # Warn about deprecated QUAIL_STT alias
+        if model_type == AICModelType.QUAIL_STT:
+            warnings.warn(
+                "AICModelType.QUAIL_STT is deprecated and will be removed in a future version. "
+                "Use AICModelType.QUAIL_STT_L16 for explicit 16kHz selection, "
+                "or AICModelType.QUAIL_STT_L for auto-selection based on sample rate.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            model_type = AICModelType.QUAIL_STT_L16
         # sample_rate is required by signature
-        # Auto-select only for families L/S; otherwise honor explicit type without normalization
-        if model_type in (AICModelType.QUAIL_L, AICModelType.QUAIL_S):
+        # Auto-select only for families L/S/STT_L/STT_S; otherwise honor explicit type without normalization
+        if model_type in (
+            AICModelType.QUAIL_L,
+            AICModelType.QUAIL_S,
+            AICModelType.QUAIL_STT_L,
+            AICModelType.QUAIL_STT_S,
+        ):
             self._family = model_type
             self._explicit_type = None
             self._license_key = key_bytes
@@ -265,6 +281,69 @@ class Model(AbstractContextManager):
         """Submit :py:meth:`process_interleaved` to the worker thread, returning a Future."""
         return self._executor.submit(self.process_interleaved, pcm, channels)
 
+    def process_sequential(
+        self,
+        pcm: _np.ndarray,
+        channels: int,
+    ) -> _np.ndarray:
+        """Enhance *pcm* **in-place** using sequential channel data processing.
+
+        Processes audio where all samples for each channel are stored sequentially
+        (channel 0 samples, then channel 1 samples, etc.) rather than interleaved.
+
+        Parameters
+        ----------
+        pcm
+            Sequential 1-D array of shape *(frames * channels,)* containing sequential audio data
+            where all samples for channel 0 come first, followed by all samples for channel 1, etc.
+            Data **must** be ``float32`` in the linear -1…+1 range.
+            Any non-conforming array is copied to a compliant scratch buffer.
+
+        channels
+            Number of channels in the sequential data.
+
+        Returns
+        -------
+        numpy.ndarray
+            The same array instance (modified in-place) or a contiguous copy
+            if a dtype/stride conversion had been necessary.
+
+        """
+        if pcm.ndim != 1:
+            raise ValueError("pcm must be a 1-D array (frames * channels,)")
+
+        if channels <= 0:
+            raise ValueError("channel count must be positive")
+
+        pcm = _as_contiguous_f32(pcm)
+        total_samples = pcm.shape[0]
+        num_frames = total_samples // channels
+
+        if total_samples % channels != 0:
+            raise ValueError(f"array length {total_samples} not divisible by {channels} channels")
+
+        buffer_ptr = pcm.ctypes.data_as(_ct.POINTER(_ct.c_float))
+        process_sequential(self._handle, buffer_ptr, channels, num_frames)
+
+        return pcm
+
+    async def process_sequential_async(
+        self,
+        pcm: _np.ndarray,
+        channels: int,
+    ) -> _np.ndarray:
+        """Async variant of :py:meth:`process_sequential` executed on the model's worker thread."""
+        loop = _asyncio.get_running_loop()
+        return await loop.run_in_executor(self._executor, lambda: self.process_sequential(pcm, channels))
+
+    def process_sequential_submit(
+        self,
+        pcm: _np.ndarray,
+        channels: int,
+    ) -> _Future[_np.ndarray]:
+        """Submit :py:meth:`process_sequential` to the worker thread, returning a Future."""
+        return self._executor.submit(self.process_sequential, pcm, channels)
+
     # --------------------------------------------------------------------- #
     # parameter helpers                                                     #
     # --------------------------------------------------------------------- #
@@ -414,12 +493,24 @@ class Model(AbstractContextManager):
             if sample_rate > 8000:
                 return AICModelType.QUAIL_L16
             return AICModelType.QUAIL_L8
-        # QUAIL_S
-        if sample_rate > 16000:
-            return AICModelType.QUAIL_S48
-        if sample_rate > 8000:
-            return AICModelType.QUAIL_S16
-        return AICModelType.QUAIL_S8
+        if self._family == AICModelType.QUAIL_S:
+            if sample_rate > 16000:
+                return AICModelType.QUAIL_S48
+            if sample_rate > 8000:
+                return AICModelType.QUAIL_S16
+            return AICModelType.QUAIL_S8
+        if self._family == AICModelType.QUAIL_STT_L:
+            # STT_L models support 8kHz and 16kHz only
+            if sample_rate >= 16000:
+                return AICModelType.QUAIL_STT_L16
+            return AICModelType.QUAIL_STT_L8
+        if self._family == AICModelType.QUAIL_STT_S:
+            # STT_S models support 8kHz and 16kHz only
+            if sample_rate >= 16000:
+                return AICModelType.QUAIL_STT_S16
+            return AICModelType.QUAIL_STT_S8
+        # Fallback (should not happen)
+        return AICModelType.QUAIL_XS
 
 
 # ---------------------------------------------------------------------------

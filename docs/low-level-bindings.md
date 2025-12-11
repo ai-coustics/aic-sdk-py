@@ -42,6 +42,12 @@ The high-level `aic.Model` API is recommended for most applications. The low-lev
       heading_level: 3
       show_object_full_path: false
 
+::: aic._bindings.process_sequential
+    options:
+      show_root_heading: true
+      heading_level: 3
+      show_object_full_path: false
+
 ## Enhancement Parameters
 
 ::: aic._bindings.set_parameter

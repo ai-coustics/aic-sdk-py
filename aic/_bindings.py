@@ -128,11 +128,54 @@ class AICModelType(IntEnum):
     - Processing latency: 10 ms
     """
 
-    QUAIL_STT = 8
-    """Special Model for speech-to-text scenarios.
+    QUAIL_STT_L16 = 8
+    """Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
 
-    This model is optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
-    and is using fixed enhancement parameters that and cannot be modified at runtime. The model is compatible with our VAD
+    Specifications:
+
+    - Window length: 10 ms
+    - Native sample rate: 16 kHz
+    - Native num frames: 160
+    - Processing latency: 30 ms
+    """
+    QUAIL_STT_L8 = 9
+    """Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
+
+    Specifications:
+
+    - Window length: 10 ms
+    - Native sample rate: 8 kHz
+    - Native num frames: 80
+    - Processing latency: 30 ms
+    """
+    QUAIL_STT_S16 = 10
+    """Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
+
+    Specifications:
+
+    - Window length: 10 ms
+    - Native sample rate: 16 kHz
+    - Native num frames: 160
+    - Processing latency: 30 ms
+    """
+    QUAIL_STT_S8 = 11
+    """Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
+
+    Specifications:
+
+    - Window length: 10 ms
+    - Native sample rate: 8 kHz
+    - Native num frames: 80
+    - Processing latency: 30 ms
+    """
+    QUAIL_VF_STT_L16 = 12
+    """Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    purpose-built to isolate and elevate the foreground speaker while suppressing both
+    interfering speech and background noise.
 
     Specifications:
 
@@ -145,6 +188,9 @@ class AICModelType(IntEnum):
     # Backwards-compatible aliases
     QUAIL_L = 0
     QUAIL_S = 3
+    QUAIL_STT = 8  # Deprecated: use QUAIL_STT_L16 instead
+    QUAIL_STT_L = 8  # Family alias: auto-selects QUAIL_STT_L16 or QUAIL_STT_L8 based on sample rate
+    QUAIL_STT_S = 10  # Family alias: auto-selects QUAIL_STT_S16 or QUAIL_STT_S8 based on sample rate
 
 
 class AICEnhancementParameter(IntEnum):
@@ -202,18 +248,44 @@ class AICVadParameter(IntEnum):
     """Configurable parameters for Voice Activity Detection (VAD)."""
 
     LOOKBACK_BUFFER_SIZE = 0
-    """Number of window-length audio buffers used as a lookback buffer.
+    """Controls the lookback buffer size used in the Voice Activity Detector.
 
-    Range: 1.0 … 20.0
+    The lookback buffer size is the number of window-length audio buffers
+    the VAD has available as a lookback buffer.
+
+    This affects the stability of speech detected -> not detected transitions.
+
+    Range: 1.0 to 20.0 (rounded up/down to the closest integer)
+
     Default: 6.0
     """
 
     SENSITIVITY = 1
-    """Energy threshold sensitivity.
+    """Controls the sensitivity (energy threshold) of the VAD.
 
-    Range: 1.0 … 15.0
-    Formula: threshold = 10 ** (-sensitivity)
+    This value is used by the VAD as the threshold a
+    speech audio signal's energy has to exceed in order to be
+    considered speech.
+
+    Range: 1.0 to 15.0
+
+    Formula: Energy threshold = 10 ^ (-sensitivity)
+
     Default: 6.0
+    """
+
+    MINIMUM_SPEECH_DURATION = 2
+    """Controls for how long speech needs to be present before the VAD considers it speech.
+
+    This affects the stability of speech not detected -> detected transitions.
+
+    NOTE: The VAD returns a value per processed buffer, so this duration is rounded
+    to the closest buffer. For example, if the model is initialized to process audio
+    in chunks of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
+    Because of this, this parameter may return a different value than the one it was last set to.
+
+    Range: 0.0 … 1.0 (value in seconds)
+    Default: 0.0
     """
 
 
@@ -292,6 +364,16 @@ def _get_lib() -> _ct.CDLL:
             _ct.c_size_t,
         ]
 
+        # process_sequential API (new in >=0.11.0)
+        if hasattr(lib, "aic_model_process_sequential"):
+            lib.aic_model_process_sequential.restype = AICErrorCode
+            lib.aic_model_process_sequential.argtypes = [
+                AICModelPtr,
+                _ct.POINTER(_ct.c_float),  # float* audio
+                _ct.c_uint16,
+                _ct.c_size_t,
+            ]
+
         lib.aic_model_set_parameter.restype = AICErrorCode
         lib.aic_model_set_parameter.argtypes = [
             AICModelPtr,
@@ -346,7 +428,7 @@ def _get_lib() -> _ct.CDLL:
             lib.aic_vad_create.restype = AICErrorCode
             lib.aic_vad_create.argtypes = [
                 _ct.POINTER(AICVadPtr),  # **vad
-                AICModelPtr,  # const struct AicModel* (const ignored)
+                AICModelPtr,  # struct AicModel* (non-const as of >=0.11.0)
             ]
         if hasattr(lib, "aic_vad_destroy"):
             lib.aic_vad_destroy.restype = None
@@ -568,6 +650,41 @@ def process_interleaved(model: AICModelPtrT, audio_ptr: Any, num_channels: int, 
     """
     lib = _get_lib()
     _raise(lib.aic_model_process_interleaved(model, audio_ptr, num_channels, num_frames))
+
+
+def process_sequential(model: AICModelPtrT, audio_ptr: Any, num_channels: int, num_frames: int) -> None:
+    """Process audio in-place with sequential channel data in a single buffer.
+
+    Processes audio where all samples for each channel are stored sequentially
+    (channel 0 samples, then channel 1 samples, etc.) rather than interleaved.
+
+    Parameters
+    ----------
+    model : AICModelPtrT
+        Initialized model instance.
+    audio_ptr : Any
+        Sequential audio buffer pointer containing all samples for channel 0,
+        followed by all samples for channel 1, etc.
+    num_channels : int
+        Number of channels (must match initialization).
+    num_frames : int
+        Number of frames per channel (must match initialization).
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    RuntimeError
+        If the model is not initialized, inputs are null, or the channel/frame
+        configuration does not match the initialization.
+
+    """
+    lib = _get_lib()
+    if not hasattr(lib, "aic_model_process_sequential"):
+        raise RuntimeError("aic_model_process_sequential not available in loaded SDK")
+    _raise(lib.aic_model_process_sequential(model, audio_ptr, num_channels, num_frames))  # type: ignore[attr-defined]
 
 
 def set_parameter(model: AICModelPtrT, param: AICEnhancementParameter, value: float) -> None:

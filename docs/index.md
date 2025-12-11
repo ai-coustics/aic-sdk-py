@@ -9,9 +9,11 @@ This package provides Python bindings and binaries for high-quality, low-latency
 Highlights:
 
 - Real-time processing optimized for streaming
-- Multiple model sizes: QUAIL_L, QUAIL_S, QUAIL_XS
+- Multiple model sizes: QUAIL_L, QUAIL_S, QUAIL_XS, QUAIL_XXS
+- STT-optimized models: QUAIL_STT_L16, QUAIL_STT_L8, QUAIL_STT_S16, QUAIL_STT_S8, QUAIL_VF_STT_L16
 - Simple, Pythonic API with context-manager support
 - Built-in Voice Activity Detection (VAD) powered by the Quail model family
+- Multiple processing layouts: planar, interleaved, and sequential
 
 Quick example:
 

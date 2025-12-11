@@ -52,6 +52,7 @@ class FakeLib:
         self.aic_model_reset = FakeFunction("aic_model_reset")
         self.aic_model_process_planar = FakeFunction("aic_model_process_planar")
         self.aic_model_process_interleaved = FakeFunction("aic_model_process_interleaved")
+        self.aic_model_process_sequential = FakeFunction("aic_model_process_sequential")
         self.aic_model_set_parameter = FakeFunction("aic_model_set_parameter")
         self.aic_model_get_parameter = FakeFunction("aic_model_get_parameter")
         self.aic_get_output_delay = FakeFunction("aic_get_output_delay")
@@ -103,6 +104,7 @@ def test_successful_wrappers(monkeypatch):
     # process
     b.process_planar(dummy_model, None, 1, 480)
     b.process_interleaved(dummy_model, None, 1, 480)
+    b.process_sequential(dummy_model, None, 1, 480)
 
     # params
     b.set_parameter(dummy_model, 0, 1.0)
@@ -118,6 +120,7 @@ def test_successful_wrappers(monkeypatch):
     assert fake.aic_model_reset.calls
     assert fake.aic_model_process_planar.calls
     assert fake.aic_model_process_interleaved.calls
+    assert fake.aic_model_process_sequential.calls
     assert fake.aic_model_set_parameter.calls
     assert fake.aic_model_get_parameter.calls
     assert fake.aic_get_output_delay.calls
@@ -184,3 +187,38 @@ def test_vad_wrappers(monkeypatch):
     assert fake.aic_vad_set_parameter.calls
     assert fake.aic_vad_get_parameter.calls
     assert fake.aic_vad_destroy.calls
+
+
+def test_model_type_enums():
+    """Test that new STT model types exist and have correct values."""
+    from aic._bindings import AICModelType
+
+    # New STT models
+    assert AICModelType.QUAIL_STT_L16 == 8
+    assert AICModelType.QUAIL_STT_L8 == 9
+    assert AICModelType.QUAIL_STT_S16 == 10
+    assert AICModelType.QUAIL_STT_S8 == 11
+    assert AICModelType.QUAIL_VF_STT_L16 == 12
+
+    # Family aliases
+    assert AICModelType.QUAIL_STT_L == 8
+    assert AICModelType.QUAIL_STT_S == 10
+
+    # Deprecated alias still works
+    assert AICModelType.QUAIL_STT == 8
+    assert AICModelType.QUAIL_STT == AICModelType.QUAIL_STT_L16
+
+
+def test_process_sequential_not_available_raises(monkeypatch):
+    """Test that process_sequential raises when SDK doesn't have it."""
+    import aic._bindings as b
+
+    fake = _install_fake_lib(monkeypatch)
+    # Remove the sequential function to simulate older SDK
+    delattr(fake, "aic_model_process_sequential")
+    # Reset prototypes
+    monkeypatch.setattr(b, "_PROTOTYPES_CONFIGURED", False)
+
+    dummy_model = object()
+    with pytest.raises(RuntimeError, match="not available"):
+        b.process_sequential(dummy_model, None, 1, 480)

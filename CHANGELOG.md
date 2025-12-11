@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 1.2.1 – Unreleased
+
+### Python SDK
+- Integrates aic-sdk `v0.11.1`. Detailed changelog can be found [here](https://docs.ai-coustics.com/sdk/changelog).
+- Added new VAD parameter `AICVadParameter.MINIMUM_SPEECH_DURATION` to control how long speech needs to be present before detection (range: 0.0 to 1.0 seconds, default: 0.0).
+- Added new model types:
+  - `AICModelType.QUAIL_STT_L8` - STT-optimized model for 8 kHz
+  - `AICModelType.QUAIL_STT_S16` - STT-optimized model for 16 kHz (small variant)
+  - `AICModelType.QUAIL_STT_S8` - STT-optimized model for 8 kHz (small variant)
+  - `AICModelType.QUAIL_VF_STT_L16` - Voice Focus STT model for isolating foreground speaker
+- Added `process_sequential()` function for processing sequential channel data (all samples for channel 0, then channel 1, etc.)
+- `Model` class now includes `process_sequential()`, `process_sequential_async()`, and `process_sequential_submit()` methods
+
+### Deprecated
+- `AICModelType.QUAIL_STT` renamed to `AICModelType.QUAIL_STT_L16`
+  - The old name remains available as a deprecated alias with a deprecation warning
+  - Update code to use `QUAIL_STT_L16` instead
+
+### Migration
+- Replace `AICModelType.QUAIL_STT` with `AICModelType.QUAIL_STT_L16`:
+  ```python
+  # Old (deprecated, will show warning)
+  Model(AICModelType.QUAIL_STT, ...)
+  
+  # New (recommended)
+  Model(AICModelType.QUAIL_STT_L16, ...)
+  ```
+- To use sequential processing:
+  ```python
+  # Sequential layout: [ch0_samples..., ch1_samples..., ...]
+  audio_sequential = np.concatenate([ch0, ch1])  # All ch0, then all ch1
+  model.process_sequential(audio_sequential, channels=2)
+  ```
+
 ## 1.2.0 – 2025-11-20
 
 ### Python SDK
