@@ -247,17 +247,23 @@ class AICEnhancementParameter(IntEnum):
 class AICVadParameter(IntEnum):
     """Configurable parameters for Voice Activity Detection (VAD)."""
 
-    LOOKBACK_BUFFER_SIZE = 0
-    """Controls the lookback buffer size used in the Voice Activity Detector.
+    SPEECH_HOLD_DURATION = 0
+    """Controls for how long the VAD continues to detect speech after the audio signal
+    no longer contains speech.
 
-    The lookback buffer size is the number of window-length audio buffers
-    the VAD has available as a lookback buffer.
+    The VAD reports speech detected if the audio signal contained speech in at least 50%
+    of the frames processed in the last `speech_hold_duration` seconds.
 
     This affects the stability of speech detected -> not detected transitions.
 
-    Range: 1.0 to 20.0 (rounded up/down to the closest integer)
+    NOTE: The VAD returns a value per processed buffer, so this duration is rounded
+    to the closest model window length. For example, if the model has a processing window
+    length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
+    Because of this, this parameter may return a different value than the one it was last set to.
 
-    Default: 6.0
+    Range: 0.0 to 20x model window length (value in seconds)
+
+    Default: 0.05
     """
 
     SENSITIVITY = 1

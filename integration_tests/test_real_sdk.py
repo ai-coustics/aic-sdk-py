@@ -391,12 +391,12 @@ def test_real_sdk_vad_detection_runs():
         m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 1.0)
         with m.create_vad() as vad:
             # set VAD parameters to reasonable defaults
-            vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)
+            vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)  # Use default value
             vad.set_parameter(AICVadParameter.SENSITIVITY, 6.0)
-            lb = vad.get_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE)
+            shd = vad.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION)
             se = vad.get_parameter(AICVadParameter.SENSITIVITY)
-            assert isinstance(lb, float)
-            assert 1.0 <= lb <= 20.0
+            assert isinstance(shd, float)
+            assert 0.0 <= shd <= 0.4  # 20x 10ms window = 0.2s, but allow some margin
             assert isinstance(se, float)
             assert 1.0 <= se <= 15.0
 

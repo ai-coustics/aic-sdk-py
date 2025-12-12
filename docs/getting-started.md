@@ -94,7 +94,7 @@ from aic import Model, AICModelType, AICVadParameter
 
 with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
     with model.create_vad() as vad:
-        vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)
+        vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)
         vad.set_parameter(AICVadParameter.SENSITIVITY, 6.0)
 
         # Drive the model to produce VAD predictions

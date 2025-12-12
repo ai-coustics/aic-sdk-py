@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
-## 1.2.1 – Unreleased
+## 1.3.0 – 2025-12-12
 
 ### Python SDK
 - Integrates aic-sdk `v0.11.1`. Detailed changelog can be found [here](https://docs.ai-coustics.com/sdk/changelog).
@@ -16,6 +16,12 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
   - `AICModelType.QUAIL_VF_STT_L16` - Voice Focus STT model for isolating foreground speaker
 - Added `process_sequential()` function for processing sequential channel data (all samples for channel 0, then channel 1, etc.)
 - `Model` class now includes `process_sequential()`, `process_sequential_async()`, and `process_sequential_submit()` methods
+
+### Breaking Changes
+- `AICVadParameter.LOOKBACK_BUFFER_SIZE` replaced by `AICVadParameter.SPEECH_HOLD_DURATION`
+  - Changed from buffer count (1.0-20.0) to duration in seconds (0.0 to 20x model window length)
+  - Default changed from 6.0 buffers to 0.05 seconds
+  - Controls how long VAD continues detecting speech after audio no longer contains speech
 
 ### Deprecated
 - `AICModelType.QUAIL_STT` renamed to `AICModelType.QUAIL_STT_L16`
@@ -31,6 +37,16 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
   # New (recommended)
   Model(AICModelType.QUAIL_STT_L16, ...)
   ```
+- Replace `AICVadParameter.LOOKBACK_BUFFER_SIZE` with `AICVadParameter.SPEECH_HOLD_DURATION`:
+  ```python
+  # Old (removed in 1.3.0)
+  vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)  # buffer count
+  
+  # New (duration in seconds)
+  vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)  # 60ms
+  ```
+  Note: The new parameter uses seconds instead of buffer count. For a 10ms window model, 
+  approximately 6 buffers ≈ 0.06 seconds.
 - To use sequential processing:
   ```python
   # Sequential layout: [ch0_samples..., ch1_samples..., ...]
