@@ -45,8 +45,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
   # New (duration in seconds)
   vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)  # 60ms
   ```
-  Note: The new parameter uses seconds instead of buffer count. For a 10ms window model, 
-  approximately 6 buffers ≈ 0.06 seconds.
+  Note: The new parameter uses seconds instead of buffer count.
 - To use sequential processing:
   ```python
   # Sequential layout: [ch0_samples..., ch1_samples..., ...]
