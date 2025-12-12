@@ -251,7 +251,7 @@ def test_real_sdk_models_optimal_planar_processing_changes_signal(model_type):
     # Determine probe sample rate based on model type
     is_stt_model = model_type in (8, 9, 10, 11, 12)
     if is_stt_model:
-        # STT models: L16/S16/VF use 16kHz, L8/S8 use 8kHz
+        # STT models: L16/S16 use 16kHz, L8/S8 use 8kHz
         probe_sr = 16000 if model_type in (8, 10, 12) else 8000
     else:
         # Regular models can use 48kHz
