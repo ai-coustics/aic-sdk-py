@@ -61,7 +61,7 @@ class Model(AbstractContextManager):
     model_type
         The neural model variant to load; defaults to :pydata:`AICModelType.QUAIL_L`.
     license_key
-        Optional signed license string.  Empty string means *trial* mode.
+        Optional signed license string.  Empty string means trial mode.
 
     """
 
@@ -163,17 +163,17 @@ class Model(AbstractContextManager):
         *,
         channels: int | None = None,
     ) -> _np.ndarray:
-        """Enhance *pcm* **in-place** using planar processing (convenience pass-through).
+        """Enhance ``pcm`` in-place using planar processing (convenience pass-through).
 
         Parameters
         ----------
         pcm
-            Planar 2-D array of shape *(channels, frames)*
-            Data **must** be ``float32`` in the linear -1…+1 range.
+            Planar 2-D array of shape ``(channels, frames)``
+            Data must be ``float32`` in the linear -1…+1 range.
             Any non-conforming array is copied to a compliant scratch buffer.
 
         channels
-            Override channel count auto-detected from *pcm*.  Rarely needed.
+            Override channel count auto-detected from ``pcm``.  Rarely needed.
 
         Returns
         -------
@@ -227,13 +227,13 @@ class Model(AbstractContextManager):
         pcm: _np.ndarray,
         channels: int,
     ) -> _np.ndarray:
-        """Enhance *pcm* **in-place** using interleaved processing (convenience pass-through).
+        """Enhance ``pcm`` in-place using interleaved processing (convenience pass-through).
 
         Parameters
         ----------
         pcm
-            Interleaved 1-D array of shape *(frames,)* containing interleaved audio data
-            Data **must** be ``float32`` in the linear -1…+1 range.
+            Interleaved 1-D array of shape ``(frames,)`` containing interleaved audio data
+            Data must be ``float32`` in the linear -1…+1 range.
             Any non-conforming array is copied to a compliant scratch buffer.
 
         channels
@@ -286,7 +286,7 @@ class Model(AbstractContextManager):
         pcm: _np.ndarray,
         channels: int,
     ) -> _np.ndarray:
-        """Enhance *pcm* **in-place** using sequential channel data processing.
+        """Enhance ``pcm`` in-place using sequential channel data processing.
 
         Processes audio where all samples for each channel are stored sequentially
         (channel 0 samples, then channel 1 samples, etc.) rather than interleaved.
@@ -294,9 +294,9 @@ class Model(AbstractContextManager):
         Parameters
         ----------
         pcm
-            Sequential 1-D array of shape *(frames * channels,)* containing sequential audio data
+            Sequential 1-D array of shape ``(frames * channels,)`` containing sequential audio data
             where all samples for channel 0 come first, followed by all samples for channel 1, etc.
-            Data **must** be ``float32`` in the linear -1…+1 range.
+            Data must be ``float32`` in the linear -1…+1 range.
             Any non-conforming array is copied to a compliant scratch buffer.
 
         channels

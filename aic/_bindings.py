@@ -202,7 +202,7 @@ class AICEnhancementParameter(IntEnum):
     Range: 0.0 … 1.0
 
     - 0.0: Enhancement active (normal processing)
-    - 1.0: Bypass enabled (latency‑compensated passthrough)
+    - 1.0: Bypass enabled (latency-compensated passthrough)
 
     Default: 0.0
     """
@@ -223,17 +223,17 @@ class AICEnhancementParameter(IntEnum):
 
     Range: 0.1 … 4.0 (linear amplitude multiplier)
 
-    - 0.1: Significant volume reduction (≈ −20 dB)
+    - 0.1: Significant volume reduction (≈ -20 dB)
     - 1.0: No gain change (0 dB, default)
     - 2.0: Double amplitude (+6 dB)
     - 4.0: Maximum boost (+12 dB)
 
-    Formula: gain_dB = 20 × log10(value)
+    Formula: gain_dB = 20 * log10(value)
     Default: 1.0
     """
 
     NOISE_GATE_ENABLE = 3
-    """Enable or disable a noise gate as a post‑processing step.
+    """Enable or disable a noise gate as a post-processing step.
 
     Valid values: 0.0 or 1.0
 

@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import pytest
+from aic import AICModelType
 
 # Try to load .env if key is not present, otherwise skip the module
 _key = os.getenv("AIC_SDK_LICENSE")
@@ -231,40 +232,50 @@ def test_real_sdk_interleaved_processing_submit_future():
 @pytest.mark.parametrize(
     "model_type",
     [
-        0,  # AICModelType.QUAIL_L48
-        3,  # AICModelType.QUAIL_S48
-        1,  # AICModelType.QUAIL_L16
-        6,  # AICModelType.QUAIL_XS
-        8,  # AICModelType.QUAIL_STT_L16
-        9,  # AICModelType.QUAIL_STT_L8
-        10,  # AICModelType.QUAIL_STT_S16
-        12,  # AICModelType.QUAIL_VF_STT_L16
+        AICModelType.QUAIL_L48,
+        AICModelType.QUAIL_S48,
+        AICModelType.QUAIL_L16,
+        AICModelType.QUAIL_XS,
+        AICModelType.QUAIL_STT_L16,
+        AICModelType.QUAIL_STT_L8,
+        AICModelType.QUAIL_STT_S16,
+        AICModelType.QUAIL_VF_STT_L16,
     ],
 )
 def test_real_sdk_models_optimal_planar_processing_changes_signal(model_type):
-    from aic import AICModelType, AICParameter, Model
+    from aic import AICParameter, Model
 
     key = os.environ["AIC_SDK_LICENSE"]
-    model_enum = AICModelType(model_type)
 
     # STT models have specific optimal sample rates (8kHz or 16kHz), not 48kHz
     # Determine probe sample rate based on model type
-    is_stt_model = model_type in (8, 9, 10, 11, 12)
+    stt_models_16k = (
+        AICModelType.QUAIL_STT_L16,
+        AICModelType.QUAIL_STT_S16,
+        AICModelType.QUAIL_VF_STT_L16,
+    )
+    stt_models_8k = (
+        AICModelType.QUAIL_STT_L8,
+        AICModelType.QUAIL_STT_S8,
+    )
+    all_stt_models = stt_models_16k + stt_models_8k
+
+    is_stt_model = model_type in all_stt_models
     if is_stt_model:
         # STT models: L16/S16 use 16kHz, L8/S8 use 8kHz
-        probe_sr = 16000 if model_type in (8, 10, 12) else 8000
+        probe_sr = 16000 if model_type in stt_models_16k else 8000
     else:
         # Regular models can use 48kHz
         probe_sr = 48000
 
-    with Model(model_enum, license_key=key, sample_rate=probe_sr) as m:
+    with Model(model_type, license_key=key, sample_rate=probe_sr) as m:
         sr = m.optimal_sample_rate()
         frames = m.optimal_num_frames()
         # Recreate with optimal parameters (constructor-only API)
         m.close()
-    with Model(model_enum, license_key=key, sample_rate=sr, channels=1, frames=frames) as m:
+    with Model(model_type, license_key=key, sample_rate=sr, channels=1, frames=frames) as m:
         # STT models may have fixed parameters, so try to set but don't fail if fixed
-        is_stt_model = model_type in (8, 9, 10, 11, 12)  # All STT model types
+        is_stt_model = model_type in all_stt_models
         if not is_stt_model:
             m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
             m.set_parameter(AICParameter.VOICE_GAIN, 1.2)
@@ -311,21 +322,20 @@ def test_real_sdk_models_optimal_planar_processing_changes_signal(model_type):
 @pytest.mark.parametrize(
     "model_type",
     [
-        6,  # AICModelType.QUAIL_XS
-        3,  # AICModelType.QUAIL_S48
+        AICModelType.QUAIL_XS,
+        AICModelType.QUAIL_S48,
     ],
 )
 def test_real_sdk_models_interleaved_processing_runs(model_type):
-    from aic import AICModelType, Model
+    from aic import Model
 
     key = os.environ["AIC_SDK_LICENSE"]
-    model_enum = AICModelType(model_type)
 
-    with Model(model_enum, license_key=key, sample_rate=48000) as m:
+    with Model(model_type, license_key=key, sample_rate=48000) as m:
         sr = m.optimal_sample_rate()
         frames = m.optimal_num_frames()
         m.close()
-    with Model(model_enum, license_key=key, sample_rate=sr, channels=2, frames=frames) as m:
+    with Model(model_type, license_key=key, sample_rate=sr, channels=2, frames=frames) as m:
         planar = _make_sine_noise_planar(2, frames, sr=sr)
         interleaved = planar.T.reshape(-1).astype(np.float32, copy=False)
 
@@ -483,29 +493,33 @@ def test_real_sdk_sequential_processing_async():
 @pytest.mark.parametrize(
     "model_type",
     [
-        8,  # AICModelType.QUAIL_STT_L16
-        9,  # AICModelType.QUAIL_STT_L8
-        10,  # AICModelType.QUAIL_STT_S16
-        11,  # AICModelType.QUAIL_STT_S8
-        12,  # AICModelType.QUAIL_VF_STT_L16
+        AICModelType.QUAIL_STT_L16,
+        AICModelType.QUAIL_STT_L8,
+        AICModelType.QUAIL_STT_S16,
+        AICModelType.QUAIL_STT_S8,
+        AICModelType.QUAIL_VF_STT_L16,
     ],
 )
 def test_real_sdk_stt_models_processing(model_type):
     """Test that STT models process audio correctly."""
-    from aic import AICModelType, AICParameter, Model
+    from aic import AICParameter, Model
 
     key = os.environ["AIC_SDK_LICENSE"]
-    model_enum = AICModelType(model_type)
 
     # STT models have specific optimal sample rates (8kHz or 16kHz)
     # Use a reasonable default to probe, then recreate with optimal
-    probe_sr = 16000 if model_type in (8, 10, 12) else 8000  # L16/S16/VF use 16k, L8/S8 use 8k
-    with Model(model_enum, license_key=key, sample_rate=probe_sr) as probe:
+    stt_models_16k = (
+        AICModelType.QUAIL_STT_L16,
+        AICModelType.QUAIL_STT_S16,
+        AICModelType.QUAIL_VF_STT_L16,
+    )
+    probe_sr = 16000 if model_type in stt_models_16k else 8000  # L16/S16 use 16k, L8/S8 use 8k
+    with Model(model_type, license_key=key, sample_rate=probe_sr) as probe:
         sr = probe.optimal_sample_rate()
         frames = probe.optimal_num_frames()
         probe.close()
 
-    with Model(model_enum, license_key=key, sample_rate=sr, channels=1, frames=frames) as m:
+    with Model(model_type, license_key=key, sample_rate=sr, channels=1, frames=frames) as m:
         m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
 
         audio = _make_sine_noise_planar(1, frames * 10, sr=sr)
