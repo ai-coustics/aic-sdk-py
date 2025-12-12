@@ -482,6 +482,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#aic.Model.process_sequential" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_sequential
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aic.Model.process_sequential_async" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_sequential_async
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aic.Model.process_sequential_submit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_sequential_submit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aic.Model.process_submit" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -785,6 +818,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#aic.Model.process_sequential" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_sequential
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aic.Model.process_sequential_async" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_sequential_async
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aic.Model.process_sequential_submit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        process_sequential_submit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aic.Model.process_submit" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -920,7 +986,7 @@
 )
           –
           <div class="doc-md-description">
-            <p>Optional signed license string.  Empty string means <em>trial</em> mode.</p>
+            <p>Optional signed license string.  Empty string means trial mode.</p>
           </div>
         </li>
     </ul>
@@ -992,7 +1058,7 @@ model's :py:meth:<code>optimal_num_frames</code> will be used.</p>
 
 
 
-  <div class="doc doc-children">
+<div class="doc doc-children">
 
 
 
@@ -1191,7 +1257,7 @@ model's :py:meth:<code>optimal_num_frames</code> will be used.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Enhance <em>pcm</em> <strong>in-place</strong> using planar processing (convenience pass-through).</p>
+        <p>Enhance <code>pcm</code> in-place using planar processing (convenience pass-through).</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1201,8 +1267,8 @@ model's :py:meth:<code>optimal_num_frames</code> will be used.</p>
               (<code><span title="numpy.ndarray">ndarray</span></code>)
           –
           <div class="doc-md-description">
-            <p>Planar 2-D array of shape <em>(channels, frames)</em>
-Data <strong>must</strong> be <code>float32</code> in the linear -1…+1 range.
+            <p>Planar 2-D array of shape <code>(channels, frames)</code>
+Data must be <code>float32</code> in the linear -1…+1 range.
 Any non-conforming array is copied to a compliant scratch buffer.</p>
           </div>
         </li>
@@ -1213,7 +1279,7 @@ Any non-conforming array is copied to a compliant scratch buffer.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Override channel count auto-detected from <em>pcm</em>.  Rarely needed.</p>
+            <p>Override channel count auto-detected from <code>pcm</code>.  Rarely needed.</p>
           </div>
         </li>
     </ul>
@@ -1269,7 +1335,7 @@ if a dtype/stride conversion had been necessary.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Enhance <em>pcm</em> <strong>in-place</strong> using interleaved processing (convenience pass-through).</p>
+        <p>Enhance <code>pcm</code> in-place using interleaved processing (convenience pass-through).</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1279,8 +1345,8 @@ if a dtype/stride conversion had been necessary.</p>
               (<code><span title="numpy.ndarray">ndarray</span></code>)
           –
           <div class="doc-md-description">
-            <p>Interleaved 1-D array of shape <em>(frames,)</em> containing interleaved audio data
-Data <strong>must</strong> be <code>float32</code> in the linear -1…+1 range.
+            <p>Interleaved 1-D array of shape <code>(frames,)</code> containing interleaved audio data
+Data must be <code>float32</code> in the linear -1…+1 range.
 Any non-conforming array is copied to a compliant scratch buffer.</p>
           </div>
         </li>
@@ -1346,6 +1412,103 @@ if a dtype/stride conversion had been necessary.</p>
     <div class="doc doc-contents ">
 
         <p>Submit :py:meth:<code>process_interleaved</code> to the worker thread, returning a Future.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="aic.Model.process_sequential" class="doc doc-heading">
+            <code class=" language-python"><span class="n">process_sequential</span><span class="p">(</span><span class="n">pcm</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span></code>
+
+<a href="#aic.Model.process_sequential" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Enhance <code>pcm</code> in-place using sequential channel data processing.</p>
+<p>Processes audio where all samples for each channel are stored sequentially
+(channel 0 samples, then channel 1 samples, etc.) rather than interleaved.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>pcm</code></b>
+              (<code><span title="numpy.ndarray">ndarray</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Sequential 1-D array of shape <code>(frames * channels,)</code> containing sequential audio data
+where all samples for channel 0 come first, followed by all samples for channel 1, etc.
+Data must be <code>float32</code> in the linear -1…+1 range.
+Any non-conforming array is copied to a compliant scratch buffer.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>channels</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of channels in the sequential data.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="numpy.ndarray">ndarray</span></code>
+          –
+          <div class="doc-md-description">
+            <p>The same array instance (modified in-place) or a contiguous copy
+if a dtype/stride conversion had been necessary.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="aic.Model.process_sequential_async" class="doc doc-heading">
+            <code class=" language-python"><span class="n">process_sequential_async</span><span class="p">(</span><span class="n">pcm</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#aic.Model.process_sequential_async" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Async variant of :py:meth:<code>process_sequential</code> executed on the model's worker thread.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="aic.Model.process_sequential_submit" class="doc doc-heading">
+            <code class=" language-python"><span class="n">process_sequential_submit</span><span class="p">(</span><span class="n">pcm</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span></code>
+
+<a href="#aic.Model.process_sequential_submit" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Submit :py:meth:<code>process_sequential</code> to the worker thread, returning a Future.</p>
 
 
     </div>
@@ -1508,7 +1671,7 @@ if a dtype/stride conversion had been necessary.</p>
 
 
 
-  <div class="doc doc-children">
+<div class="doc doc-children">
 
 
 

@@ -344,6 +344,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#processing-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#voice-activity-detection-vad" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -503,6 +525,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#processing-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#voice-activity-detection-vad" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -564,20 +608,58 @@
 <span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_L</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
     <span class="n">model</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICParameter</span><span class="o">.</span><span class="n">ENHANCEMENT_LEVEL</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">)</span>
 
+    <span class="c1"># Planar format: (channels, frames) - default processing method</span>
     <span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">480</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
     <span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">audio</span><span class="p">)</span>
 </code></pre></div>
-<ul>
-<li>Use <code>optimal_num_frames()</code> to get a recommended buffer size for streaming.</li>
+<h2 id="processing-methods">Processing Methods<a class="headerlink" href="#processing-methods" title="Permanent link">&para;</a></h2>
+<p>The SDK supports three audio layouts:</p>
+<ol>
+<li>
+<p><strong>Planar</strong> (default): Separate buffer per channel <code>(channels, frames)</code>
+   <div class="highlight"><pre><span></span><code><span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">480</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># 2 channels, 480 frames</span>
+<span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">audio</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Interleaved</strong>: Channels interleaved in single buffer <code>(frames * channels,)</code>
+   <div class="highlight"><pre><span></span><code><span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">960</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># 2 channels * 480 frames</span>
+<span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process_interleaved</span><span class="p">(</span><span class="n">audio</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Sequential</strong>: All samples for channel 0, then channel 1, etc. <code>(frames * channels,)</code>
+   <div class="highlight"><pre><span></span><code><span class="n">ch0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">480</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">ch1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">480</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">ch0</span><span class="p">,</span> <span class="n">ch1</span><span class="p">])</span>  <span class="c1"># Sequential layout</span>
+<span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process_sequential</span><span class="p">(</span><span class="n">audio</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p>Use <code>optimal_num_frames()</code> to get a recommended buffer size for streaming.</p>
+</li>
 <li>Use <code>optimal_sample_rate()</code> for the preferred I/O sample rate.</li>
+</ol>
+<h2 id="model-types">Model Types<a class="headerlink" href="#model-types" title="Permanent link">&para;</a></h2>
+<p>The SDK provides several model families optimized for different use cases:</p>
+<ul>
+<li><strong>QUAIL_L / QUAIL_S</strong>: General-purpose enhancement models (auto-selects sample rate variant)</li>
+<li><strong>QUAIL_XS / QUAIL_XXS</strong>: Lower latency models for real-time applications</li>
+<li><strong>QUAIL_STT_</strong>*: Models optimized for speech-to-text applications:</li>
+<li><code>QUAIL_STT_L16</code> - 16 kHz, large variant</li>
+<li><code>QUAIL_STT_L8</code> - 8 kHz, large variant</li>
+<li><code>QUAIL_STT_S16</code> - 16 kHz, small variant</li>
+<li><code>QUAIL_STT_S8</code> - 8 kHz, small variant</li>
+<li><code>QUAIL_VF_STT_L16</code> - Voice Focus model for isolating foreground speaker</li>
 </ul>
+<p>Note: <code>QUAIL_STT</code> is deprecated; use <code>QUAIL_STT_L16</code> instead.</p>
 <h2 id="voice-activity-detection-vad">Voice Activity Detection (VAD)<a class="headerlink" href="#voice-activity-detection-vad" title="Permanent link">&para;</a></h2>
 <p>Create a VAD tied to your model to get speech activity predictions with minimal effort.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">aic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">AICModelType</span><span class="p">,</span> <span class="n">AICVadParameter</span>
 
 <span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_L</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
     <span class="k">with</span> <span class="n">model</span><span class="o">.</span><span class="n">create_vad</span><span class="p">()</span> <span class="k">as</span> <span class="n">vad</span><span class="p">:</span>
-        <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">LOOKBACK_BUFFER_SIZE</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">)</span>
+        <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">SPEECH_HOLD_DURATION</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)</span>
         <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">SENSITIVITY</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">)</span>
 
         <span class="c1"># Drive the model to produce VAD predictions</span>

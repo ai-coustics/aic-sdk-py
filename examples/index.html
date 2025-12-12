@@ -422,6 +422,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sequential-channel-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequential channel processing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stt-optimized-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT-optimized models
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -489,6 +511,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sequential-channel-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequential channel processing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stt-optimized-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STT-optimized models
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -538,7 +582,7 @@
 <span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_L</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
     <span class="k">with</span> <span class="n">model</span><span class="o">.</span><span class="n">create_vad</span><span class="p">()</span> <span class="k">as</span> <span class="n">vad</span><span class="p">:</span>
         <span class="c1"># Optional: tune VAD behavior</span>
-        <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">LOOKBACK_BUFFER_SIZE</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">)</span>
+        <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">SPEECH_HOLD_DURATION</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)</span>
         <span class="n">vad</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">AICVadParameter</span><span class="o">.</span><span class="n">SENSITIVITY</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream_chunks</span><span class="p">():</span>  <span class="c1"># yields (1, 480) float32 arrays</span>
@@ -546,6 +590,40 @@
             <span class="n">is_speech</span> <span class="o">=</span> <span class="n">vad</span><span class="o">.</span><span class="n">is_speech_detected</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">is_speech</span><span class="p">:</span>
                 <span class="n">handle_active_speech</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="sequential-channel-processing">Sequential channel processing<a class="headerlink" href="#sequential-channel-processing" title="Permanent link">&para;</a></h2>
+<p>Process audio where channels are stored sequentially (all samples for channel 0, then channel 1, etc.) rather than interleaved.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">AICModelType</span>
+
+<span class="c1"># Sequential layout: [ch0_samples..., ch1_samples..., ...]</span>
+<span class="n">ch0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">480</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">ch1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">480</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">audio_sequential</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">ch0</span><span class="p">,</span> <span class="n">ch1</span><span class="p">])</span>  <span class="c1"># All ch0, then all ch1</span>
+
+<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_L</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">48000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">480</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
+    <span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process_sequential</span><span class="p">(</span><span class="n">audio_sequential</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="c1"># enhanced is modified in-place</span>
+</code></pre></div>
+<h2 id="stt-optimized-models">STT-optimized models<a class="headerlink" href="#stt-optimized-models" title="Permanent link">&para;</a></h2>
+<p>Use STT-optimized models for speech-to-text applications. These models are designed to improve STT accuracy in challenging environments.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">AICModelType</span>
+
+<span class="c1"># For 16 kHz audio (recommended for most STT systems)</span>
+<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_STT_L16</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">160</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
+    <span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">160</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">audio</span><span class="p">)</span>
+
+<span class="c1"># For 8 kHz audio</span>
+<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_STT_L8</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">8000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
+    <span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">80</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">audio</span><span class="p">)</span>
+
+<span class="c1"># Voice Focus model - isolates foreground speaker while suppressing interfering speech</span>
+<span class="k">with</span> <span class="n">Model</span><span class="p">(</span><span class="n">AICModelType</span><span class="o">.</span><span class="n">QUAIL_VF_STT_L16</span><span class="p">,</span> <span class="n">license_key</span><span class="o">=</span><span class="n">license_key</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="mi">160</span><span class="p">)</span> <span class="k">as</span> <span class="n">model</span><span class="p">:</span>
+    <span class="n">audio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">160</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">enhanced</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">audio</span><span class="p">)</span>
 </code></pre></div>
 
 
