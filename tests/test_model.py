@@ -399,9 +399,9 @@ def test_vad_lifecycle_and_detection(monkeypatch):
     vad = model.create_vad()
     assert vad.is_speech_detected() is True
 
-    vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.07)
+    vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)
     vad.set_parameter(AICVadParameter.SENSITIVITY, 5.0)
-    assert pytest.approx(vad.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION), 1e-9) == 0.07
+    assert pytest.approx(vad.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION), 1e-9) == 0.06
     assert pytest.approx(vad.get_parameter(AICVadParameter.SENSITIVITY), 1e-9) == 5.0
 
     # manual close calls underlying destroy
@@ -411,8 +411,8 @@ def test_vad_lifecycle_and_detection(monkeypatch):
 
     # context manager
     with model.create_vad() as v:
-        v.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)
-        assert pytest.approx(v.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION), 1e-9) == 0.06
+        v.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.05)
+        assert pytest.approx(v.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION), 1e-9) == 0.05
     assert state["vad_destroy_count"] == 2
 
 

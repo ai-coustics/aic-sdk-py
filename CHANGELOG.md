@@ -43,7 +43,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
   vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)  # buffer count
   
   # New (duration in seconds)
-  vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)  # 60ms
+  vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.05)  # equivalent to buffer count 6.0
   ```
   Note: The new parameter uses seconds instead of buffer count.
 - To use sequential processing:

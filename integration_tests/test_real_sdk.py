@@ -401,7 +401,7 @@ def test_real_sdk_vad_detection_runs():
         m.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 1.0)
         with m.create_vad() as vad:
             # set VAD parameters to reasonable defaults
-            vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)  # Use default value
+            vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.05)
             vad.set_parameter(AICVadParameter.SENSITIVITY, 6.0)
             shd = vad.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION)
             se = vad.get_parameter(AICVadParameter.SENSITIVITY)

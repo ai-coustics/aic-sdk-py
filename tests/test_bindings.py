@@ -176,7 +176,7 @@ def test_vad_wrappers(monkeypatch):
     # basic query
     assert b.vad_is_speech_detected(vad) is True
     # parameter roundtrip
-    b.vad_set_parameter(vad, b.AICVadParameter.SPEECH_HOLD_DURATION, 0.08)
+    b.vad_set_parameter(vad, b.AICVadParameter.SPEECH_HOLD_DURATION, 0.07)
     assert b.vad_get_parameter(vad, b.AICVadParameter.SENSITIVITY) == pytest.approx(6.0, 1e-6)
     # destroy
     b.vad_destroy(vad)

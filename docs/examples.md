@@ -32,7 +32,7 @@ from aic import Model, AICModelType, AICVadParameter
 with Model(AICModelType.QUAIL_L, sample_rate=48000, channels=1, frames=480) as model:
     with model.create_vad() as vad:
         # Optional: tune VAD behavior
-        vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)
+        vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.05)
         vad.set_parameter(AICVadParameter.SENSITIVITY, 6.0)
 
         for chunk in stream_chunks():  # yields (1, 480) float32 arrays
