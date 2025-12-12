@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.aic-sdk]
-sdk-version = "0.11.1"
+sdk-version = "0.12.0"
 
 [tool.ruff]
 line-length = 120
