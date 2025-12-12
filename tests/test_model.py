@@ -12,6 +12,7 @@ def _install_high_level_stubs(monkeypatch):
         "reset": 0,
         "process_planar_calls": 0,
         "process_interleaved_calls": 0,
+        "process_sequential_calls": 0,
         "params": {},
         "latency": 480,
         "sr": 48000,
@@ -45,6 +46,10 @@ def _install_high_level_stubs(monkeypatch):
     def process_interleaved(handle, buffer_ptr, channels, num_frames):
         assert handle is state["handle"]
         state["process_interleaved_calls"] += 1
+
+    def process_sequential(handle, buffer_ptr, channels, num_frames):
+        assert handle is state["handle"]
+        state["process_sequential_calls"] += 1
 
     def set_parameter(handle, param, value):
         assert handle is state["handle"]
@@ -93,6 +98,7 @@ def _install_high_level_stubs(monkeypatch):
     monkeypatch.setattr(aic_mod, "model_reset", model_reset)
     monkeypatch.setattr(aic_mod, "process_planar", process_planar)
     monkeypatch.setattr(aic_mod, "process_interleaved", process_interleaved)
+    monkeypatch.setattr(aic_mod, "process_sequential", process_sequential)
     monkeypatch.setattr(aic_mod, "set_parameter", set_parameter)
     monkeypatch.setattr(aic_mod, "get_parameter", get_parameter)
     monkeypatch.setattr(aic_mod, "get_processing_latency", get_processing_latency)
@@ -393,9 +399,9 @@ def test_vad_lifecycle_and_detection(monkeypatch):
     vad = model.create_vad()
     assert vad.is_speech_detected() is True
 
-    vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 7.0)
+    vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.06)
     vad.set_parameter(AICVadParameter.SENSITIVITY, 5.0)
-    assert pytest.approx(vad.get_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE), 1e-9) == 7.0
+    assert pytest.approx(vad.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION), 1e-9) == 0.06
     assert pytest.approx(vad.get_parameter(AICVadParameter.SENSITIVITY), 1e-9) == 5.0
 
     # manual close calls underlying destroy
@@ -405,6 +411,192 @@ def test_vad_lifecycle_and_detection(monkeypatch):
 
     # context manager
     with model.create_vad() as v:
-        v.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)
-        assert pytest.approx(v.get_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE), 1e-9) == 6.0
+        v.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.05)
+        assert pytest.approx(v.get_parameter(AICVadParameter.SPEECH_HOLD_DURATION), 1e-9) == 0.05
     assert state["vad_destroy_count"] == 2
+
+
+def test_quail_stt_deprecation_warning(monkeypatch):
+    """Test that using QUAIL_STT shows deprecation warning."""
+    import warnings
+
+    from aic import AICModelType, Model
+
+    _install_high_level_stubs(monkeypatch)
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        Model(
+            AICModelType.QUAIL_STT,
+            license_key="key",
+            sample_rate=16000,
+            channels=1,
+            frames=160,
+        )
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "QUAIL_STT is deprecated" in str(w[0].message)
+        assert "QUAIL_STT_L16" in str(w[0].message)
+
+
+def test_quail_stt_l_family_auto_selection(monkeypatch):
+    """Test that QUAIL_STT_L family auto-selects correct variant."""
+    from aic import AICModelType, Model
+
+    _ = _install_high_level_stubs(monkeypatch)
+
+    # Test 16kHz -> selects QUAIL_STT_L16
+    model = Model(
+        AICModelType.QUAIL_STT_L,
+        license_key="key",
+        sample_rate=16000,
+        channels=1,
+        frames=160,
+    )
+    # Verify family was set
+    assert model._family == AICModelType.QUAIL_STT_L
+    # Verify the selected type (should be QUAIL_STT_L16)
+    assert model._select_variant_for_sample_rate(16000) == AICModelType.QUAIL_STT_L16
+
+    # Test 8kHz -> selects QUAIL_STT_L8
+    model2 = Model(
+        AICModelType.QUAIL_STT_L,
+        license_key="key",
+        sample_rate=8000,
+        channels=1,
+        frames=80,
+    )
+    assert model2._select_variant_for_sample_rate(8000) == AICModelType.QUAIL_STT_L8
+
+    model.close()
+    model2.close()
+
+
+def test_quail_stt_s_family_auto_selection(monkeypatch):
+    """Test that QUAIL_STT_S family auto-selects correct variant."""
+    from aic import AICModelType, Model
+
+    _ = _install_high_level_stubs(monkeypatch)
+
+    # Test 16kHz -> selects QUAIL_STT_S16
+    model = Model(
+        AICModelType.QUAIL_STT_S,
+        license_key="key",
+        sample_rate=16000,
+        channels=1,
+        frames=160,
+    )
+    assert model._family == AICModelType.QUAIL_STT_S
+    assert model._select_variant_for_sample_rate(16000) == AICModelType.QUAIL_STT_S16
+
+    # Test 8kHz -> selects QUAIL_STT_S8
+    model2 = Model(
+        AICModelType.QUAIL_STT_S,
+        license_key="key",
+        sample_rate=8000,
+        channels=1,
+        frames=80,
+    )
+    assert model2._select_variant_for_sample_rate(8000) == AICModelType.QUAIL_STT_S8
+
+    model.close()
+    model2.close()
+
+
+def test_process_sequential_validations_and_copy_behavior(monkeypatch):
+    """Test process_sequential validation and behavior."""
+    from aic import AICModelType, Model
+
+    _install_high_level_stubs(monkeypatch)
+    model = Model(
+        AICModelType.QUAIL_L,
+        license_key="key",
+        sample_rate=48000,
+        channels=2,
+        frames=480,
+    )
+
+    # Wrong ndim
+    with pytest.raises(ValueError):
+        model.process_sequential(np.zeros((2, 480), dtype=np.float32), channels=2)
+
+    # Not divisible by channels
+    with pytest.raises(ValueError):
+        model.process_sequential(np.zeros(10, dtype=np.float32), channels=3)
+
+    # Non-positive channels
+    with pytest.raises(ValueError):
+        model.process_sequential(np.zeros(10, dtype=np.float32), channels=0)
+
+    # Valid returns same object; dtype conversion returns new object
+    ch0 = np.zeros(480, dtype=np.float32)
+    ch1 = np.zeros(480, dtype=np.float32)
+    buf = np.concatenate([ch0, ch1])
+    out = model.process_sequential(buf, channels=2)
+    assert out is buf
+
+    buf64 = np.concatenate([np.zeros(480, dtype=np.float64), np.zeros(480, dtype=np.float64)])
+    out2 = model.process_sequential(buf64, channels=2)
+    assert out2 is not buf64
+    assert out2.dtype == np.float32
+
+
+def test_process_sequential_async(monkeypatch):
+    """Test async process_sequential."""
+    import asyncio
+    import threading
+
+    from aic import AICModelType, Model
+
+    state = _install_high_level_stubs(monkeypatch)
+    state["thread_names_seq"] = []
+
+    def _wrap_process_sequential(handle, buffer_ptr, channels, num_frames):
+        state["process_sequential_calls"] += 1
+        state["thread_names_seq"].append(threading.current_thread().name)
+
+    import aic as aic_mod
+
+    monkeypatch.setattr(aic_mod, "process_sequential", _wrap_process_sequential)
+
+    model = Model(
+        AICModelType.QUAIL_L,
+        license_key="key",
+        sample_rate=48000,
+        channels=2,
+        frames=480,
+    )
+
+    ch0 = np.zeros(480, dtype=np.float32)
+    ch1 = np.zeros(480, dtype=np.float32)
+    buf = np.concatenate([ch0, ch1])
+
+    async def _run():
+        out = await model.process_sequential_async(buf, channels=2)
+        return out
+
+    out = asyncio.run(_run())
+    assert out is buf
+    assert state["process_sequential_calls"] == 1
+    assert any(name.startswith("aic-") for name in state["thread_names_seq"])
+
+
+def test_process_sequential_submit(monkeypatch):
+    """Test submit process_sequential."""
+    from aic import AICModelType, Model
+
+    _install_high_level_stubs(monkeypatch)
+    model = Model(
+        AICModelType.QUAIL_L,
+        license_key="key",
+        sample_rate=48000,
+        channels=2,
+        frames=480,
+    )
+    ch0 = np.zeros(480, dtype=np.float32)
+    ch1 = np.zeros(480, dtype=np.float32)
+    buf = np.concatenate([ch0, ch1])
+
+    fut = model.process_sequential_submit(buf, channels=2)
+    out = fut.result(timeout=2.0)
+    assert out is buf
