@@ -7,7 +7,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
 ## 1.3.0 – 2025-12-12
 
 ### Python SDK
-- Integrates aic-sdk `v0.11.1`. Detailed changelog can be found [here](https://docs.ai-coustics.com/sdk/changelog).
+- Integrates aic-sdk `v0.12.0`. Detailed changelog can be found [here](https://docs.ai-coustics.com/sdk/changelog).
 - Added new VAD parameter `AICVadParameter.MINIMUM_SPEECH_DURATION` to control how long speech needs to be present before detection (range: 0.0 to 1.0 seconds, default: 0.0).
 - Added new model types:
   - `AICModelType.QUAIL_STT_L8` - STT-optimized model for 8 kHz
