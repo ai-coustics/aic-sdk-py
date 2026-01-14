@@ -1,0 +1,89 @@
+name: Build and Run Integration Tests
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    setup:
+        runs-on: ubuntu-latest
+        outputs:
+            python-versions: ${{ steps.set-versions.outputs.versions }}
+        steps:
+            - id: set-versions
+              run: echo 'versions=["3.10", "3.11", "3.12", "3.13", "3.14"]' >> $GITHUB_OUTPUT
+
+    test:
+        needs: setup
+        name: Test on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, macos-latest, windows-latest]
+                python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Download SDK libs (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  gh release download 2.0.0-pre.3 --repo ai-coustics/aic-sdk --pattern "aic-sdk-x86_64-unknown-linux-gnu-*.tar.gz"
+                  tar -xzf aic-sdk-x86_64-unknown-linux-gnu-*.tar.gz
+                  echo "AIC_LIB_PATH=${{ github.workspace }}/lib" >> $GITHUB_ENV
+              env:
+                  GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+
+            - name: Download SDK libs (macOS)
+              if: runner.os == 'macOS'
+              run: |
+                  gh release download 2.0.0-pre.3 --repo ai-coustics/aic-sdk --pattern "aic-sdk-aarch64-apple-darwin-*.tar.gz"
+                  tar -xzf aic-sdk-aarch64-apple-darwin-*.tar.gz
+                  echo "AIC_LIB_PATH=${{ github.workspace }}/lib" >> $GITHUB_ENV
+              env:
+                  GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+
+            - name: Download SDK libs (Windows)
+              if: runner.os == 'Windows'
+              run: |
+                  gh release download 2.0.0-pre.3 --repo ai-coustics/aic-sdk --pattern "aic-sdk-x86_64-pc-windows-msvc-*.zip"
+                  Expand-Archive -Path aic-sdk-x86_64-pc-windows-msvc-*.zip -DestinationPath .
+                  echo "AIC_LIB_PATH=${{ github.workspace }}/lib" >> $env:GITHUB_ENV
+              env:
+                  GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v4
+              with:
+                  enable-cache: true
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ matrix.python-version }}
+
+            - name: Install Rust
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Create virtual environment
+              run: uv venv
+
+            - name: Install dependencies
+              run: |
+                  uv pip install maturin numpy
+
+            - name: Build package
+              run: uv run maturin develop --release
+
+            - name: Run example
+              run: uv run python examples/basic.py
+              env:
+                  AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+
+            - name: Run async example
+              run: uv run python examples/basic_async.py
+              env:
+                  AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}

@@ -1,0 +1,33 @@
+name: Pre-commit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download SDK libs
+        run: |
+          gh release download 2.0.0-pre.3 --repo ai-coustics/aic-sdk --pattern "aic-sdk-x86_64-unknown-linux-gnu-*.tar.gz"
+          tar -xzf aic-sdk-x86_64-unknown-linux-gnu-*.tar.gz
+          echo "AIC_LIB_PATH=${{ github.workspace }}/lib" >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: pre-commit/action@v3.0.1
