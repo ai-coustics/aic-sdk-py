@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from conftest import make_sine_noise
 
-import aic
+import aic_sdk as aic
 
 
 @pytest.mark.asyncio

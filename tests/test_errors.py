@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pytest
 
-import aic
+import aic_sdk as aic
 from conftest import create_processor_or_skip, create_processor_async_or_skip
 
 

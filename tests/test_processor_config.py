@@ -1,4 +1,4 @@
-import aic
+import aic_sdk as aic
 
 
 def test_processor_config_init_sets_sample_rate():

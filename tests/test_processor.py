@@ -1,4 +1,4 @@
-import aic
+import aic_sdk as aic
 import numpy as np
 import pytest
 

@@ -16,4 +16,4 @@ dev = ["pytest>=7.0", "pytest-asyncio>=0.21.0"]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-include = ["aic.pyi"]
+include = ["aic_sdk.pyi"]

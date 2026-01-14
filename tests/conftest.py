@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pytest
 
-import aic
+import aic_sdk as aic
 
 _LICENSE_KEY = os.environ.get("AIC_SDK_LICENSE")
 

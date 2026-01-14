@@ -1,4 +1,4 @@
-import aic
+import aic_sdk as aic
 
 
 def test_get_sdk_version_returns_string():

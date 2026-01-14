@@ -16,7 +16,7 @@ pip install aic-sdk
 ## Quick Start
 
 ```python
-import aic
+import aic_sdk as aic
 import numpy as np
 import os
 
@@ -151,7 +151,7 @@ print(f"Enhancement level: {level}")
 ```python
 import asyncio
 import numpy as np
-import aic
+import aic_sdk as aic
 
 async def process_audio():
     # Download and load model (or download manually at https://artifacts.ai-coustics.io/)
@@ -209,7 +209,7 @@ The SDK provides specific exception types for different error conditions. All ex
 #### Catching Specific Errors
 
 ```python
-import aic
+import aic_sdk as aic
 
 try:
     processor = aic.Processor(model, license_key, config)
@@ -232,7 +232,7 @@ except (aic.ModelInvalidError, aic.ModelVersionUnsupportedError) as e:
     print(f"Model error: {e.message}")
 ```
 
-For a complete list of all available exception types and their descriptions, see the [type stubs file](aic.pyi).
+For a complete list of all available exception types and their descriptions, see the [type stubs file](aic_sdk.pyi).
 
 ## Examples
 
@@ -243,7 +243,7 @@ For a complete file enhancement example, see [`enhance_file.py`](examples/enhanc
 ## Documentation
 
 - **Full Documentation**: [docs.ai-coustics.com](https://docs.ai-coustics.com)
-- **Python API Reference**: See the [type stubs](aic.pyi) for detailed type information
+- **Python API Reference**: See the [type stubs](aic_sdk.pyi) for detailed type information
 - **Available Models**: [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io)
 
 ## License

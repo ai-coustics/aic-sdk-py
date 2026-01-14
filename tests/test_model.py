@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import aic
+import aic_sdk as aic
 
 
 async def _download_model(model_id, download_dir, use_async):

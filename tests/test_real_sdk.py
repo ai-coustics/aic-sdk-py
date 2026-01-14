@@ -3,7 +3,7 @@ import re
 import numpy as np
 from conftest import chunks, make_sine_noise
 
-import aic
+import aic_sdk as aic
 
 
 def test_real_sdk_processing_changes_signal(processor):

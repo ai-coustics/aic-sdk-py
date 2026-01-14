@@ -17,7 +17,7 @@ import numpy as np
 import soundfile as sf
 from tqdm import tqdm
 
-import aic
+import aic_sdk as aic
 
 
 def _load_audio_mono_48k(input_wav: str) -> tuple[np.ndarray, int]:

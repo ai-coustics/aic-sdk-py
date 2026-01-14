@@ -30,7 +30,8 @@ fn set_sdk_id(id: u32) {
 }
 
 #[pymodule]
-fn aic(m: &Bound<'_, PyModule>) -> PyResult<()> {
+#[pyo3(name = "aic_sdk")]
+fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_sdk_version, m)?)?;
     m.add_function(wrap_pyfunction!(get_compatible_model_version, m)?)?;
     m.add_function(wrap_pyfunction!(set_sdk_id, m)?)?;

@@ -1,6 +1,6 @@
 import numpy as np
 
-import aic
+import aic_sdk as aic
 from conftest import create_processor_or_skip
 
 
