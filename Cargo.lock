@@ -13,8 +13,8 @@ dependencies = [
 
 [[package]]
 name = "aic-sdk"
-version = "2.0.0"
-source = "git+https://github.com/ai-coustics/aic-sdk-rs.git?branch=release-2.0.0#9349ef74c70d0849594bdf114485b7b0d409efba"
+version = "0.13.0"
+source = "git+https://github.com/ai-coustics/aic-sdk-rs.git?branch=release-2.0.0#69f9151f195c88df161367f93d7fbc6af61ef86e"
 dependencies = [
  "aic-sdk-sys",
  "serde",
@@ -37,8 +37,8 @@ dependencies = [
 
 [[package]]
 name = "aic-sdk-sys"
-version = "2.0.0"
-source = "git+https://github.com/ai-coustics/aic-sdk-rs.git?branch=release-2.0.0#9349ef74c70d0849594bdf114485b7b0d409efba"
+version = "0.13.0"
+source = "git+https://github.com/ai-coustics/aic-sdk-rs.git?branch=release-2.0.0#69f9151f195c88df161367f93d7fbc6af61ef86e"
 dependencies = [
  "bindgen",
 ]
