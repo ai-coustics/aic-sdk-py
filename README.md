@@ -1,298 +1,251 @@
-# ai-coustics SDK for Python (`aic`)
+# aic-sdk - Python Bindings for ai-coustics SDK
 
-[![Integration Tests](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/post-publish-tests.yml/badge.svg)](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/post-publish-tests.yml)
-[![Deploy Docs](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/ai-coustics/aic-sdk-py/actions/workflows/gh-pages.yml)
+Python wrapper for the ai-coustics Speech Enhancement SDK.
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+For comprehensive documentation, visit [docs.ai-coustics.com](https://docs.ai-coustics.com).
 
-This repository provides prebuilt Python wheels for the **ai-coustics real-time audio enhancement SDK**, compatible with a variety of platforms and Python versions. The SDK offers state-of-the-art neural network-based audio enhancement for speech processing applications.
+> [!NOTE]
+> This SDK requires a license key. Generate your key at [developers.ai-coustics.io](https://developers.ai-coustics.io).
 
-## 🚀 Features
-
-- **Real-time audio enhancement** using advanced neural networks
-- **Multiple model variants**: QUAIL_L, QUAIL_S, QUAIL_XS for different performance/quality trade-offs
-- **Low latency processing** optimized for streaming applications
-- **Cross-platform support**: Linux, macOS, Windows
-- **Context manager support** for automatic resource management
-
-## 📦 Installation
-
-### Prerequisites
-
-- Python 3.9 or higher
-- GLIBC >= 2.28 on Linux
-
-### Install the SDK
+## Installation
 
 ```bash
 pip install aic-sdk
 ```
 
-### For Development/Examples
-
-To run the examples, install additional dependencies:
-
-```bash
-pip install -r examples/requirements.txt
-```
-
-## 🔑 License Key Setup
-
-The SDK requires a license key for full functionality.
-
-1. **Get a license key** from [ai-coustics](https://ai-coustics.com)
-2. **Set an environment variable** (or a `.env` file):
-   ```bash
-   export AIC_SDK_LICENSE="your_license_key_here"
-   ```
-   Or in a `.env` file:
-   ```
-   AIC_SDK_LICENSE=your_license_key_here
-   ```
-3. **Pass the key to the model** (the SDK does not read env vars automatically):
-   ```python
-   import os
-   from dotenv import load_dotenv
-   from aic import Model, AICModelType
-
-   load_dotenv()  # loads .env if present
-   license_key = os.getenv("AIC_SDK_LICENSE")
-
-   with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
-       # ...
-   ```
-
-## 🎯 Quick Start
-
-### Basic Audio Enhancement
+## Quick Start
 
 ```python
-import os
+import aic
 import numpy as np
-from dotenv import load_dotenv
-from aic import Model, AICModelType, AICParameter
+import os
 
-load_dotenv()
-license_key = os.getenv("AIC_SDK_LICENSE")
+# Get your license key (set with: export AIC_SDK_LICENSE="your-key")
+license_key = os.environ["AIC_SDK_LICENSE"]
 
-# Create model instance
-model = Model(
-    model_type=AICModelType.QUAIL_L,
-    license_key=license_key,   # pass the key from env (empty = trial)
+# Download and load a model (or download manually at https://artifacts.ai-coustics.io/)
+model_path = aic.Model.download("sparrow-xxs-48khz", "./models")
+model = aic.Model.from_file(model_path)
+
+# Get optimal configuration
+config = aic.ProcessorConfig.optimal(model, num_channels=2)
+
+# Create and initialize processor in one step
+processor = aic.Processor(model, license_key, config)
+
+# Process audio (2D NumPy array: channels × frames)
+audio_buffer = np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
+processed = processor.process(audio_buffer)
+```
+
+## Usage
+
+### SDK Information
+
+```python
+# Get SDK version
+print(f"SDK version: {aic.get_sdk_version()}")
+
+# Get compatible model version
+print(f"Compatible model version: {aic.get_compatible_model_version()}")
+```
+
+### Loading Models
+
+Download models and find available IDs at [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io/).
+
+#### From File
+```python
+model = aic.Model.from_file("path/to/model.aicmodel")
+```
+
+#### Download from CDN (Sync)
+```python
+model_path = aic.Model.download("sparrow-xxs-48khz", "./models")
+model = aic.Model.from_file(model_path)
+```
+
+#### Download from CDN (Async)
+```python
+model_path = await aic.Model.download_async("sparrow-xxs-48khz", "./models")
+model = aic.Model.from_file(model_path)
+```
+
+### Model Information
+
+```python
+# Get model ID
+model_id = model.get_id()
+
+# Get optimal sample rate for the model
+optimal_rate = model.get_optimal_sample_rate()
+
+# Get optimal frame count for a specific sample rate
+optimal_frames = model.get_optimal_num_frames(48000)
+```
+
+### Configuring the Processor
+
+```python
+# Get optimal configuration for the model
+config = aic.ProcessorConfig.optimal(model, num_channels=1, allow_variable_frames=False)
+print(config)  # ProcessorConfig(sample_rate=48000, num_channels=1, num_frames=480, allow_variable_frames=False)
+
+# Modify configuration
+config.num_channels = 2
+config.sample_rate = 48000
+
+# Or create from scratch
+config = aic.ProcessorConfig(
     sample_rate=48000,
-    channels=1,
-    frames=480,
+    num_channels=2,
+    num_frames=480,
+    allow_variable_frames=False
 )
 
-# Set enhancement strength (0.0 to 1.0)
-model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, 0.8)
+# Option 1: Create and initialize in one step
+processor = aic.Processor(model, license_key, config)
 
-# Process audio (planar format: [channels, frames])
-audio_input = np.random.randn(1, 480).astype(np.float32)
-enhanced_audio = model.process(audio_input)
-
-# Clean up
-model.close()
+# Option 2: Create first, then initialize separately
+processor = aic.Processor(model, license_key)
+processor.initialize(config)
 ```
 
-### Using Context Manager (Recommended)
+### Processing Audio
 
 ```python
-import os
+# Synchronous processing
 import numpy as np
-from dotenv import load_dotenv
-from aic import Model, AICModelType
 
-load_dotenv()
-license_key = os.getenv("AIC_SDK_LICENSE", "")
+# Create audio buffer (channels × frames)
+audio = np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
 
-with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
-    # Process audio in chunks
-    audio_chunk = np.random.randn(1, 480).astype(np.float32)
-    enhanced = model.process(audio_chunk)
-    # Model automatically closed when exiting context
+# Process
+processed = processor.process(audio)
 ```
 
-## 📁 Example: Enhance WAV File
-
-The repository includes a complete example for processing WAV files:
-
-```bash
-python examples/enhance.py input.wav output.wav --strength 80
-```
-
-### Example Usage
+### Processor Context
 
 ```python
-import librosa
-import soundfile as sf
-from aic import Model, AICModelType, AICParameter
+# Get processor context
+proc_ctx = processor.get_processor_context()
 
-def enhance_wav_file(input_path, output_path, strength=80):
-    # Load audio
-    audio, sample_rate = librosa.load(input_path, sr=48000, mono=True)
-    audio = audio.reshape(1, -1)  # Convert to planar format
-    
-    # Create model
-    from dotenv import load_dotenv
-    import os
+# Get output delay in samples
+delay = proc_ctx.get_output_delay()
 
-    load_dotenv()
-    license_key = os.getenv("AIC_SDK_LICENSE")
+# Reset processor state (clears internal buffers)
+proc_ctx.reset()
 
-    with Model(AICModelType.QUAIL_L, license_key=license_key, sample_rate=48000, channels=1, frames=480) as model:
-        model.set_parameter(AICParameter.ENHANCEMENT_LEVEL, strength / 100)
-        
-        # Process in chunks
-        chunk_size = 480
-        output = np.zeros_like(audio)
-        
-        for i in range(0, audio.shape[1], chunk_size):
-            chunk = audio[:, i:i + chunk_size]
-            # Pad last chunk if needed
-            if chunk.shape[1] < chunk_size:
-                padded = np.zeros((1, chunk_size), dtype=audio.dtype)
-                padded[:, :chunk.shape[1]] = chunk
-                chunk = padded
-            
-            enhanced_chunk = model.process(chunk)
-            output[:, i:i + chunk_size] = enhanced_chunk[:, :chunk.shape[1]]
-    
-    # Save result
-    sf.write(output_path, output.T, sample_rate)
+# Set enhancement parameters
+proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
+proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
+proc_ctx.set_parameter(aic.ProcessorParameter.Bypass, 0.0)
+
+# Get parameter values
+level = proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel)
+print(f"Enhancement level: {level}")
 ```
 
-## 🔧 API Reference
-
-For the complete, up-to-date API documentation (including class/method docs and enums), see the published site:
-
-- [ai-coustics SDK for Python – Documentation](https://ai-coustics.github.io/aic-sdk-py/)
-
-## 🎵 Audio Format Requirements
-
-- **Sample Rate**: 8/16/48 kHz recommended
-- **Format**: Float32 in linear -1.0 to +1.0 range
-- **Layout**: 
-  - Planar: `(channels, frames)` - use `process()`
-  - Interleaved: `(frames,)` - use `process_interleaved()`
-- **Channels**: Mono (1) or stereo (2) supported
-
-## 🔄 Processing Patterns
-
-### Real-time Streaming
+### Async API
 
 ```python
-with Model(AICModelType.QUAIL_S, sample_rate=48000, channels=1, frames=480) as model:
-    
-    while audio_stream.has_data():
-        chunk = audio_stream.get_chunk(480)  # Get 480 frames
-        enhanced = model.process(chunk)
-        audio_output.play(enhanced)
+import asyncio
+import numpy as np
+import aic
+
+async def process_audio():
+    # Download and load model (or download manually at https://artifacts.ai-coustics.io/)
+    model_path = await aic.Model.download_async("sparrow-xxs-48khz", "./models")
+    model = aic.Model.from_file(model_path)
+
+    # Get optimal config
+    config = aic.ProcessorConfig.optimal(model, num_channels=2)
+
+    # Create and initialize async processor in one step
+    processor = aic.ProcessorAsync(model, "your-license-key", config)
+
+    # Process audio
+    audio = np.zeros((2, config.num_frames), dtype=np.float32)
+    result = await processor.process_async(audio)
+
+    # Process multiple buffers concurrently
+    buffers = [np.random.randn(2, config.num_frames).astype(np.float32) for _ in range(4)]
+    results = await asyncio.gather(*[
+        processor.process_async(buf) for buf in buffers
+    ])
+
+asyncio.run(process_audio())
 ```
 
-### Batch Processing
+### Voice Activity Detection (VAD)
 
 ```python
-with Model(AICModelType.QUAIL_L, sample_rate=48000, channels=1, frames=480) as model:
-    
-    for audio_file in audio_files:
-        audio = load_audio(audio_file)
-        enhanced = process_in_chunks(model, audio)
-        save_audio(enhanced, f"enhanced_{audio_file}")
+# Get VAD context from processor
+vad_ctx = processor.get_vad_context()
+
+# Configure VAD parameters
+vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
+vad_ctx.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.05)
+vad_ctx.set_parameter(aic.VadParameter.MinimumSpeechDuration, 0.0)
+
+# Get parameter values
+sensitivity = vad_ctx.parameter(aic.VadParameter.Sensitivity)
+print(f"VAD sensitivity: {sensitivity}")
+
+# Check for speech (after processing audio through the processor)
+if vad_ctx.is_speech_detected():
+    print("Speech detected!")
 ```
 
-## 🧑‍💻 Development
+### When to Use Sync vs Async
 
-### Setup
+- **`Processor` (sync)**: Simple scripts, command-line tools, batch processing
+- **`ProcessorAsync` (async)**: Web servers, real-time applications, concurrent stream processing
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
-pip install -r requirements-dev.txt  # includes editable install (-e .)
+### Error Handling
+
+The SDK provides specific exception types for different error conditions. All exceptions include a `message` attribute with details about the error.
+
+#### Catching Specific Errors
+
+```python
+import aic
+
+try:
+    processor = aic.Processor(model, license_key, config)
+except aic.LicenseFormatInvalidError as e:
+    print(f"Invalid license format: {e.message}")
+except aic.LicenseExpiredError as e:
+    print(f"License expired: {e.message}")
+except aic.ModelInvalidError as e:
+    print(f"Invalid model: {e.message}")
 ```
 
-### Pre-commit hooks (Ruff)
+#### Catching Multiple Error Types
 
-```bash
-pre-commit install
-pre-commit run --all-files
+```python
+try:
+    processor = aic.Processor(model, license_key, config)
+except (aic.LicenseFormatInvalidError, aic.LicenseExpiredError) as e:
+    print(f"License error: {e.message}")
+except (aic.ModelInvalidError, aic.ModelVersionUnsupportedError) as e:
+    print(f"Model error: {e.message}")
 ```
 
-This runs Ruff linting and formatting on commit. You can also run Ruff manually:
+For a complete list of all available exception types and their descriptions, see the [type stubs file](aic.pyi).
 
-```bash
-ruff check . --fix
-ruff format .
-```
+## Examples
 
-### Running tests
+See the [`basic.py`](examples/basic.py) or [`basic_async.py`](examples/basic_async.py) file for a complete working example.
 
-- Unit tests (no native SDK required):
+For a complete file enhancement example, see [`enhance_file.py`](examples/enhance_file.py).
 
-```bash
-pytest -q
-```
+## Documentation
 
-- Integration tests (real SDK + license required):
+- **Full Documentation**: [docs.ai-coustics.com](https://docs.ai-coustics.com)
+- **Python API Reference**: See the [type stubs](aic.pyi) for detailed type information
+- **Available Models**: [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io)
 
-```bash
-export AIC_SDK_LICENSE="your_key"  # or use a .env file
-pytest -q integration_tests
-```
+## License
 
-Note: To run against the real native SDK locally, it is simplest to install the package non-editable so the platform binaries are bundled:
-
-```bash
-pip uninstall -y aic-sdk
-pip install .
-```
-
-Editable installs (`-e .`) do not place native binaries into the source tree. The unit test suite does not need them; the integration suite does.
-
-### Docs (MkDocs)
-
-```bash
-mkdocs serve   # live-reload docs at http://127.0.0.1:8000
-# or
-mkdocs build
-```
-
-### Versioning
-
-- Python wrapper version: `pyproject.toml` → `[project].version`
-- C SDK binary version: `pyproject.toml` → `[tool.aic-sdk].sdk-version`
-
-The Python version and the underlying C SDK version are intentionally decoupled. The build step downloads platform binaries named from `sdk-version`.
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **"GLIBC"**: On Linux you need to have GLIBC >= 2.28
-2. **"Array shape error"**: Ensure audio is in correct format (planar or interleaved)
-3. **"Sample rate mismatch"**: Use 48kHz for optimal performance
-
-### Performance Tips
-
-- Use `QUAIL_XS` for applications that need lower latency
-- Process in chunks of `optimal_num_frames()` size
-- Use context manager for automatic cleanup
-- Pre-allocate output arrays to avoid memory allocation
-
-| Component                              | License                          | File              |
-| -------------------------------------- | -------------------------------- | ----------------- |
-| **Python wrapper** (`aic/*.py`)        | Apache-2.0                       | `LICENSE`         |
-| **Native SDK binaries** (`aic/libs/*`) | Proprietary, all rights reserved | `LICENSE.AIC-SDK` |
-
-## 🤝 Support
-
-- **Documentation**: [ai-coustics.com](https://ai-coustics.github.io/aic-sdk-py/)
-- **Issues**: Report bugs and feature requests via GitHub issues
-
-## 🔗 Related
-
-- [ai-coustics Website](https://ai-coustics.com)
-- Documentation: Will be published via GitHub Pages. Until then, you can build and view locally:
-  - Install docs deps: `pip install mkdocs mkdocs-material mkdocstrings-python`
-  - Serve locally: `mkdocs serve`
-  - Build static site: `mkdocs build`
+This Python wrapper is distributed under the Apache 2.0 license. The core C SDK is distributed under the proprietary AIC-SDK license.

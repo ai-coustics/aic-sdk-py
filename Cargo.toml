@@ -1,0 +1,22 @@
+[package]
+name = "aic-sdk-py"
+version = "2.0.0"
+edition = "2024"
+
+[lib]
+name = "aic"
+crate-type = ["cdylib"]
+
+[dependencies]
+aic-sdk = { git = "https://github.com/ai-coustics/aic-sdk-rs.git", branch = "release-2.0.0", features = [
+  "download-model",
+] }
+numpy = "0.27"
+pyo3 = { version = "0.27", features = ["extension-module"] }
+pyo3-async-runtimes = { version = "0.27", features = ["tokio-runtime"] }
+tokio = { version = "1.40", features = ["rt", "rt-multi-thread"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3

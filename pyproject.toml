@@ -1,65 +1,19 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "aic-sdk"
-version = "1.3.0"
-description = "Python bindings for the ai-coustics speech-enhancement SDK"
+version = "2.0.0"
+description = "Python bindings for ai-coustics SDK"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
-authors = [{ name = "ai-coustics GmbH", email = "info@ai-coustics.com" }]
-dependencies = ["numpy"]
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: C",
-    "Operating System :: POSIX :: Linux",
-    "Operating System :: MacOS",
-    "Operating System :: Microsoft :: Windows",
-]
-
-[project.urls]
-Homepage = "https://github.com/ai-coustics/aic-sdk-py"
-Documentation = "https://ai-coustics.github.io/aic-sdk-py/"
-Source = "https://github.com/ai-coustics/aic-sdk-py"
-Issues = "https://github.com/ai-coustics/aic-sdk-py/issues"
+license = { text = "Apache-2.0" }
+dependencies = ["numpy>=2.0.2"]
 
 [project.optional-dependencies]
-# pip install -e '.[dev]' (includes test+docs+lint)
-dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "python-dotenv>=1.0",
-    "mkdocs>=1.5",
-    "mkdocs-material>=9.0",
-    "mkdocstrings-python>=1.7",
-    "pre-commit>=3.7",
-    "ruff>=0.12",
-]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21.0"]
 
-[tool.aic-sdk]
-sdk-version = "0.12.0"
-
-[tool.ruff]
-line-length = 120
-src = ["aic", "tests"]
-target-version = "py313"
-lint.ignore = [
-    "ASYNC230",
-    "COM812",
-    "D100",
-    "D101",
-    "D102",
-    "D103",
-    "D104",
-    "D105",
-    "D106",
-    "D107",
-    "DTZ005",
-    "EM101",
-    "EM102",
-    "PLR0913",
-    "TRY002",
-    "TRY003",
-]
+[tool.maturin]
+features = ["pyo3/extension-module"]
+include = ["aic.pyi"]
