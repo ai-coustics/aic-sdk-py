@@ -699,8 +699,10 @@ class Processor:
             A new NumPy array with the same shape containing the enhanced audio.
 
         Raises:
-            RuntimeError: If processing fails.
-            ValueError: If the buffer shape doesn't match the configured audio settings.
+            ModelNotInitializedError: If the processor has not been initialized.
+            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.
+            EnhancementNotAllowedError: If SDK key is not authorized or processing fails to report usage.
+            InternalError: If an internal processing error occurs.
 
         Example:
             >>> audio = np.random.randn(2, 1024).astype(np.float32)
@@ -823,8 +825,10 @@ class ProcessorAsync:
             A new NumPy array with the same shape containing the enhanced audio.
 
         Raises:
-            RuntimeError: If processing fails.
-            ValueError: If the buffer shape doesn't match the configured audio settings.
+            ModelNotInitializedError: If the processor has not been initialized.
+            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.
+            EnhancementNotAllowedError: If SDK key is not authorized or processing fails to report usage.
+            InternalError: If an internal processing error occurs.
 
         Example:
             >>> audio = np.random.randn(2, 1024).astype(np.float32)

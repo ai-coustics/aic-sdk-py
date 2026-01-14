@@ -238,7 +238,7 @@ For a complete list of all available exception types and their descriptions, see
 
 See the [`basic.py`](examples/basic.py) or [`basic_async.py`](examples/basic_async.py) file for a complete working example.
 
-For a complete file enhancement example, see [`enhance_file.py`](examples/enhance_file.py).
+For a complete file enhancement example with parallel processing, see [`enhance_files.py`](examples/enhance_files.py).
 
 ## Documentation
 
