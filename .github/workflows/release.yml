@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  push:
+    branches: [next]
   release:
     types: [published]
   workflow_dispatch:
@@ -83,7 +85,11 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
+      - name: List artifacts
+        run: ls -la dist/
+
+      # Disabled for testing - uncomment to publish
+      # - name: Publish to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     packages-dir: dist/
