@@ -2,7 +2,6 @@
 # requires-python = ">=3.14"
 # dependencies = [
 #     "aic-sdk @ file:///${PROJECT_ROOT}",
-#     "librosa>=0.11.0",
 #     "numpy>=2.3.5",
 #     "soundfile>=0.13.1",
 #     "tqdm>=4.67.1",
@@ -10,9 +9,9 @@
 # ///
 
 import argparse
+import asyncio
 import os
 
-import librosa
 import numpy as np
 import soundfile as sf
 from tqdm import tqdm
@@ -20,19 +19,58 @@ from tqdm import tqdm
 import aic_sdk as aic
 
 
-def _load_audio_mono_48k(input_wav: str) -> tuple[np.ndarray, int]:
-    """Load audio as mono at 48kHz and return planar array (1, frames) and sample_rate."""
-    # librosa loads as (frames,), we reshape to (1, frames)
-    audio, sample_rate = librosa.load(input_wav, sr=48000, mono=True)
-    audio = audio.astype(np.float32, copy=False).reshape(1, -1)
-    return audio, sample_rate
+def _load_audio_original(input_wav: str) -> tuple[np.ndarray, int, int]:
+    """Load audio with original sample rate and channels, return numpy ndarray, sample_rate, and num_channels."""
+    # Use soundfile to preserve original properties
+    audio, sample_rate = sf.read(input_wav, dtype="float32")
+
+    # audio is (frames,) for mono or (frames, channels) for multi-channel
+    if audio.ndim == 1:
+        # Mono audio: reshape to (1, frames)
+        audio = audio.reshape(1, -1)
+        num_channels = 1
+    else:
+        # Multi-channel: transpose from (frames, channels) to (channels, frames)
+        audio = audio.T
+        num_channels = audio.shape[0]
+
+    return audio, sample_rate, num_channels
 
 
-def process_wav(input_wav: str, output_wav: str, strength: int, model: str) -> None:
+async def process_chunk(
+    processor: aic.ProcessorAsync,
+    chunk: np.ndarray,
+    buffer_size: int,
+    num_channels: int,
+) -> np.ndarray:
+    """Process a single audio chunk with the given processor."""
+    valid_samples = chunk.shape[1]
+
+    # Create and zero-initialize process buffer
+    process_buffer = np.zeros((num_channels, buffer_size), dtype=np.float32)
+
+    # Copy input data into the buffer
+    process_buffer[:, :valid_samples] = chunk
+
+    # Process the chunk
+    processed_chunk = await processor.process_async(process_buffer)
+
+    # Return only the valid part
+    return processed_chunk[:, :valid_samples]
+
+
+async def process_wav_async(
+    input_wav: str,
+    output_wav: str,
+    enhancement_level: float | None,
+    model_name: str,
+    max_threads: int = 4,
+) -> None:
     print(f"Processing {input_wav}")
 
-    # Load Audio
-    audio_input, sample_rate = _load_audio_mono_48k(input_wav)
+    # Load Audio with original properties
+    audio_input, sample_rate, num_channels = _load_audio_original(input_wav)
+    print(f"Input audio: {num_channels} channel(s), {sample_rate} Hz")
 
     # Get license key from environment
     license_key = os.environ["AIC_SDK_LICENSE"]
@@ -40,63 +78,131 @@ def process_wav(input_wav: str, output_wav: str, strength: int, model: str) -> N
     print("Initializing ai-coustics SDK...")
 
     # Download and load the model
-    model_path = aic.Model.download(model, "./models")
+    model_path = aic.Model.download(model_name, "./models")
     model = aic.Model.from_file(model_path)
 
-    # Create optimal config for mono processing (1 channel)
-    config = aic.ProcessorConfig.optimal(model, num_channels=1)
-
-    # Create and initialize processor in one step
-    processor = aic.Processor(model, license_key, config)
-
-    # Context
-    proc_ctx = processor.get_processor_context()
-
-    # Print out model information
-    print(f"Optimal input buffer size: {config.num_frames} samples")
-    print(f"Optimal sample rate: {model.get_optimal_sample_rate()} Hz")
-
-    # Calculate latency in ms
-    latency_samples = proc_ctx.get_output_delay()
-    print(f"Current algorithmic latency: {latency_samples / sample_rate * 1000:.2f}ms")
-
-    # Set Enhancement Parameter
-    enhancement_level = max(0, min(100, strength)) / 100.0
-    proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, enhancement_level)
-
-    # initialize output array
-    output = np.zeros_like(audio_input)
-
-    # Create a reusable buffer for processing
-    num_channels = config.num_channels
-    buffer_size = config.num_frames
-    process_buffer = np.zeros((num_channels, buffer_size), dtype=np.float32)
-
-    print(
-        f"Enhancing file with {int(proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel) * 100)}% strength"
+    # Create optimal config using original number of channels and sample rate
+    config = aic.ProcessorConfig.optimal(
+        model, sample_rate=sample_rate, num_channels=num_channels
     )
 
-    num_frames = audio_input.shape[1]
+    # Create a temporary processor to get the algorithmic delay
+    temp_processor = aic.ProcessorAsync(model, license_key, config)
+    temp_proc_ctx = temp_processor.get_processor_context()
+    latency_samples = temp_proc_ctx.get_output_delay()
 
-    for start in tqdm(range(0, num_frames, buffer_size), desc="Processing"):
-        end = start + buffer_size
+    # Calculate latency in ms
+    print(f"Current algorithmic delay: {latency_samples / sample_rate * 1000:.2f}ms")
+    print(f"Padding input with {latency_samples} samples to compensate for delay")
+
+    # Pad the input audio with zeros at the beginning to compensate for algorithmic delay
+    padding = np.zeros((num_channels, latency_samples), dtype=np.float32)
+    audio_input = np.concatenate([padding, audio_input], axis=1)
+
+    # Calculate how many chunks we'll have to determine optimal processor count (after padding)
+    num_frames_model = config.num_frames
+    num_frames_audio_input = audio_input.shape[1]
+    num_chunks = (num_frames_audio_input + num_frames_model - 1) // num_frames_model
+
+    # Create only as many processors as we need (up to max_threads), reusing the temp processor
+    num_threads = min(max_threads, num_chunks)
+    processors = [temp_processor]  # Reuse the temporary processor
+    processors.extend(
+        [aic.ProcessorAsync(model, license_key, config) for _ in range(num_threads - 1)]
+    )
+
+    # Get context from first processor for info (all share same config)
+    proc_ctx = processors[0].get_processor_context()
+
+    # Print out model information
+    print(
+        f"Optimal number of frames: {config.num_frames} samples (for {sample_rate} Hz input audio)"
+    )
+    print(f"Native model sample rate: {model.get_optimal_sample_rate()} Hz")
+    print(f"Number of chunks: {num_chunks}")
+    print(f"Number of processing threads: {num_threads}")
+
+    # Set Enhancement Parameter for all processors if provided
+    if enhancement_level is not None:
+        try:
+            for processor in processors:
+                ctx = processor.get_processor_context()
+                ctx.set_parameter(
+                    aic.ProcessorParameter.EnhancementLevel, enhancement_level
+                )
+        except Exception as e:
+            if "fixed parameter" in str(e).lower():
+                raise ValueError(
+                    f"Error: Enhancement level cannot be adjusted for model '{model_name}'. "
+                    "This model has a fixed enhancement level. Please run without specifying --enhancement_level."
+                ) from e
+            else:
+                raise
+    else:
+        # Use model's default enhancement level
+        enhancement_level = proc_ctx.get_parameter(
+            aic.ProcessorParameter.EnhancementLevel
+        )
+
+    # Initialize output array
+    output = np.zeros_like(audio_input)
+
+    print(
+        f"Enhancing file with enhancement level {enhancement_level} using {num_threads} threads"
+    )
+
+    # Split audio into chunks
+    chunks = []
+    chunk_indices = []
+    for start in range(0, num_frames_audio_input, num_frames_model):
+        end = start + num_frames_model
         chunk = audio_input[:, start:end]
-        valid_samples = chunk.shape[1]
+        chunks.append(chunk)
+        chunk_indices.append((start, end))
 
-        # Reset process buffer to zeros
-        process_buffer.fill(0)
+    # Process chunks in parallel batches of 4
+    with tqdm(total=len(chunks), desc="Processing") as pbar:
+        for batch_start in range(0, len(chunks), num_threads):
+            batch_end = min(batch_start + num_threads, len(chunks))
+            batch_chunks = chunks[batch_start:batch_end]
+            batch_indices = chunk_indices[batch_start:batch_end]
 
-        # Copy input data into the F-ordered buffer
-        process_buffer[:, :valid_samples] = chunk
+            # Process batch in parallel
+            tasks = [
+                process_chunk(
+                    processors[i],
+                    batch_chunks[i],
+                    num_frames_model,
+                    config.num_channels,
+                )
+                for i in range(len(batch_chunks))
+            ]
+            results = await asyncio.gather(*tasks)
 
-        # Process the chunk
-        processed_chunk = processor.process(process_buffer)
+            # Write results to output
+            for i, processed_chunk in enumerate(results):
+                start, end = batch_indices[i]
+                valid_samples = processed_chunk.shape[1]
+                output[:, start : start + valid_samples] = processed_chunk
 
-        # Copy back the valid part to output
-        output[:, start:end] = processed_chunk[:, :valid_samples]
+            pbar.update(len(batch_chunks))
 
-    sf.write(output_wav, output.T, 48000)
+    # Remove the algorithmic delay padding from the beginning of the output
+    output = output[:, latency_samples:]
+
+    sf.write(output_wav, output.T, sample_rate)
     print(f"Enhanced file saved to {output_wav}")
+
+
+def process_wav(
+    input_wav: str,
+    output_wav: str,
+    strength: float | None,
+    model: str,
+    max_threads: int = 4,
+) -> None:
+    """Synchronous wrapper for async processing."""
+    asyncio.run(process_wav_async(input_wav, output_wav, strength, model, max_threads))
 
 
 if __name__ == "__main__":
@@ -104,19 +210,32 @@ if __name__ == "__main__":
     parser.add_argument("input_file", help="Path to the input WAV file")
     parser.add_argument("output_file", help="Path to the output WAV file")
     parser.add_argument(
-        "--strength",
-        help="Enhancement strength (0-100)",
-        type=int,
-        default=100,
+        "--enhancement_level",
+        help="Enhancement strength (0.0-1.0). If not specified, uses the model's default.",
+        type=float,
+        default=None,
         required=False,
     )
     parser.add_argument(
         "--model",
         help="The model to download",
         type=str,
-        default="sparrow-xxs-48khz",
+        default="sparrow-l-48khz",
+        required=False,
+    )
+    parser.add_argument(
+        "--max-threads",
+        help="Maximum number of processing threads (default: 4)",
+        type=int,
+        default=4,
         required=False,
     )
     args = parser.parse_args()
 
-    process_wav(args.input_file, args.output_file, args.strength, args.model)
+    process_wav(
+        args.input_file,
+        args.output_file,
+        args.enhancement_level,
+        args.model,
+        args.max_threads,
+    )

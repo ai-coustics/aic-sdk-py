@@ -66,11 +66,11 @@ This release comes with a number of new features and several breaking changes. M
 - VAD is now accessed via `VadContext` obtained from `Processor.get_vad_context()` instead of `Model.create_vad()`:
   - `VoiceActivityDetector.is_speech_detected()` → `VadContext.is_speech_detected()`
   - `VoiceActivityDetector.set_parameter()` → `VadContext.set_parameter()`
-  - `VoiceActivityDetector.get_parameter()` → `VadContext.parameter()`
+  - `VoiceActivityDetector.get_parameter()` → `VadContext.get_parameter()`
 - Processor control via `ProcessorContext` obtained from `Processor.get_processor_context()`:
   - `Model.reset()` → `ProcessorContext.reset()`
   - `Model.set_parameter()` → `ProcessorContext.set_parameter()`
-  - `Model.get_parameter()` → `ProcessorContext.parameter()`
+  - `Model.get_parameter()` → `ProcessorContext.get_parameter()`
   - `Model.get_processing_latency()` → `ProcessorContext.get_output_delay()`
 - Model query methods moved from module-level functions to `Model` methods:
   - `get_optimal_sample_rate(handle)` → `Model.get_optimal_sample_rate()`

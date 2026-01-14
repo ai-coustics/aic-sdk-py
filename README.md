@@ -142,7 +142,7 @@ proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
 proc_ctx.set_parameter(aic.ProcessorParameter.Bypass, 0.0)
 
 # Get parameter values
-level = proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel)
+level = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
 print(f"Enhancement level: {level}")
 ```
 
@@ -189,7 +189,7 @@ vad_ctx.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.05)
 vad_ctx.set_parameter(aic.VadParameter.MinimumSpeechDuration, 0.0)
 
 # Get parameter values
-sensitivity = vad_ctx.parameter(aic.VadParameter.Sensitivity)
+sensitivity = vad_ctx.get_parameter(aic.VadParameter.Sensitivity)
 print(f"VAD sensitivity: {sensitivity}")
 
 # Check for speech (after processing audio through the processor)

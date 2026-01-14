@@ -37,7 +37,7 @@ impl VadContext {
         Ok(())
     }
 
-    fn parameter(&self, parameter: VadParameter) -> PyResult<f32> {
+    fn get_parameter(&self, parameter: VadParameter) -> PyResult<f32> {
         let value = self.inner.parameter(parameter.into()).map_err(to_py_err)?;
         Ok(value)
     }
