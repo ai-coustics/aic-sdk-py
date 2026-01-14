@@ -11,7 +11,7 @@ This release comes with a number of new features and several breaking changes. M
 ### Important Changes
 
 - **New license keys required**: License keys previously generated in the [developer portal](https://developers.ai-coustics.io) will no longer work. New license keys must be generated.
-- **Model naming changes**: 
+- **Model naming changes**:
   - Quail-STT models are now called "Quail" – These models are optimized for human-to-machine enhancement (e.g., Speech-to-Text applications).
   - Quail models are now called "Sparrow" – These models are optimized for human-to-human enhancement (e.g., voice calls, conferencing).
   - This naming change clarifies the distinction between STT-focused models and human-to-human communication models.
@@ -145,7 +145,7 @@ if vad.is_speech_detected():
   ```python
   # Old (deprecated, will show warning)
   Model(AICModelType.QUAIL_STT, ...)
-  
+
   # New (recommended)
   Model(AICModelType.QUAIL_STT_L16, ...)
   ```
@@ -153,7 +153,7 @@ if vad.is_speech_detected():
   ```python
   # Old (removed in 1.3.0)
   vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)  # buffer count
-  
+
   # New (duration in seconds)
   vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.05)  # equivalent to buffer count 6.0
   ```

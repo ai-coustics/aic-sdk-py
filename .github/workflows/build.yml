@@ -28,33 +28,6 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - name: Download SDK libs (Linux)
-              if: runner.os == 'Linux'
-              run: |
-                  gh release download 2.0.0-pre.3 --repo ai-coustics/aic-sdk --pattern "aic-sdk-x86_64-unknown-linux-gnu-*.tar.gz"
-                  tar -xzf aic-sdk-x86_64-unknown-linux-gnu-*.tar.gz
-                  echo "AIC_LIB_PATH=${{ github.workspace }}/lib" >> $GITHUB_ENV
-              env:
-                  GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
-
-            - name: Download SDK libs (macOS)
-              if: runner.os == 'macOS'
-              run: |
-                  gh release download 2.0.0-pre.3 --repo ai-coustics/aic-sdk --pattern "aic-sdk-aarch64-apple-darwin-*.tar.gz"
-                  tar -xzf aic-sdk-aarch64-apple-darwin-*.tar.gz
-                  echo "AIC_LIB_PATH=${{ github.workspace }}/lib" >> $GITHUB_ENV
-              env:
-                  GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
-
-            - name: Download SDK libs (Windows)
-              if: runner.os == 'Windows'
-              run: |
-                  gh release download 2.0.0-pre.3 --repo ai-coustics/aic-sdk --pattern "aic-sdk-x86_64-pc-windows-msvc-*.zip"
-                  Expand-Archive -Path aic-sdk-x86_64-pc-windows-msvc-*.zip -DestinationPath .
-                  echo "AIC_LIB_PATH=${{ github.workspace }}/lib" >> $env:GITHUB_ENV
-              env:
-                  GH_TOKEN: ${{ secrets.AIC_SDK_ACCESS_TOKEN }}
-
             - name: Install uv
               uses: astral-sh/setup-uv@v4
               with:
