@@ -239,9 +239,13 @@ def process_files(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Enhance WAV file(s) using ai-coustics SDK."
+        description="Enhance Audio file(s) using ai-coustics SDK."
     )
-    parser.add_argument("input_files", nargs="+", help="Path(s) to input WAV file(s)")
+    parser.add_argument(
+        "input_files",
+        nargs="+",
+        help="Path(s) to input audio file(s). Supports wildcards (e.g., *.wav, audio/*.wav)",
+    )
     parser.add_argument(
         "--output-dir",
         help="Output directory for enhanced files. If not specified, files will be saved with '_enhanced' suffix in the same directory as input.",
