@@ -20,7 +20,7 @@ import aic
 import numpy as np
 import os
 
-# Get your license key (set with: export AIC_SDK_LICENSE="your-key")
+# Get your license key from the environment variable
 license_key = os.environ["AIC_SDK_LICENSE"]
 
 # Download and load a model (or download manually at https://artifacts.ai-coustics.io/)
