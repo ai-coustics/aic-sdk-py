@@ -238,6 +238,7 @@ For a complete file enhancement example with parallel processing, see [`enhance_
 
 ## Documentation
 
+- **Complete API**: [Stubs Files (aic_sdk.pyi)](aic_sdk.pyi)
 - **Full Documentation**: [docs.ai-coustics.com](https://docs.ai-coustics.com)
 - **Python API Reference**: See the [type stubs](aic_sdk.pyi) for detailed type information
 - **Available Models**: [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io)
