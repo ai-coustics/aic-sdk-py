@@ -4,6 +4,118 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.0.0 – 2026-01-14
+
+Version 2.0.0 represents a complete rewrite of the Python SDK, now built on PyO3 for a safer, faster, and more Pythonic interface. This rewrite includes a new async runtime for non-blocking audio processing, improved thread safety, and better memory management. This release comes with a number of new features and several breaking changes. Most notably, the C library no longer includes any models, which significantly reduces the library's binary size. The models are now available separately for download at https://artifacts.ai-coustics.io.
+
+### Important Changes
+
+- **New license keys required**: License keys previously generated in the [developer portal](https://developers.ai-coustics.io) will no longer work. New license keys must be generated.
+- **Model naming changes**:
+  - Quail-STT models are now called "Quail" – These models are optimized for human-to-machine enhancement (e.g., Speech-to-Text applications).
+  - Quail models are now called "Sparrow" – These models are optimized for human-to-human enhancement (e.g., voice calls, conferencing).
+  - This naming change clarifies the distinction between STT-focused models and human-to-human communication models.
+- **Module renamed**: The Python module has been renamed from `aic` to `aic_sdk`.
+- **API restructuring**: The API has been restructured to separate model data from processing instances. What was previously the `Model` class (which handled both model data and processing) has been split into:
+  - `Model`: Now represents only the ML model data loaded from files or memory.
+  - `Processor`: New class that performs the actual audio processing using a model.
+  - `ProcessorAsync`: Async variant of `Processor` for non-blocking audio processing.
+  - Multiple processors can share the same model, allowing efficient resource usage across streams.
+  - To change parameters, reset the processor and get the output delay, use `ProcessorContext` obtained via `Processor.get_processor_context()`. This context can be freely moved between threads.
+
+### New Features
+
+- Models now load from files via `Model.from_file(path)`.
+- Added `Model.download(model_id, download_dir)` and `Model.download_async()` to fetch models from the ai-coustics CDN.
+- Added `Model.get_id()` to query the id of a model.
+- A single `Model` instance can be shared across multiple `Processor` instances.
+- Added `Processor` class so each stream can be initialized independently from a shared model while sharing weights.
+- Added `ProcessorAsync` class for async audio processing with `process_async()` and `initialize_async()` methods.
+- Added `ProcessorConfig` class for audio configuration with `ProcessorConfig.optimal(model)` factory method.
+- Added `get_compatible_model_version()` to query the required model version for this SDK.
+- Added context-based APIs for thread-safe control operations:
+  - `Processor.get_processor_context()` returns a `ProcessorContext` for parameter management
+  - `Processor.get_vad_context()` returns a `VadContext` for voice activity detection
+- Model query methods:
+  - `Model.get_optimal_sample_rate()` – gets optimal sample rate for a model
+  - `Model.get_optimal_num_frames(sample_rate)` – gets optimal frame count for a model at given sample rate
+- Added new exception types for model loading errors:
+  - `ModelInvalidError`
+  - `ModelVersionUnsupportedError`
+  - `ModelFilePathInvalidError`
+  - `FileSystemError`
+  - `ModelDataUnalignedError`
+  - `ModelDownloadError`
+
+### Breaking Changes
+
+- **Module renamed**: Import from `aic_sdk` instead of `aic`.
+- License keys previously generated in the [developer portal](https://developers.ai-coustics.io) will no longer work. New license keys must be generated.
+- Removed `AICModelType` enum; callers must supply a model file path to `Model.from_file()` instead of selecting a built-in model.
+- The `Model` class no longer handles processing directly. Use `Processor(model, license_key)` instead.
+- License keys are now provided to `Processor` constructor rather than `Model`.
+- Renamed `AICEnhancementParameter` to `ProcessorParameter`:
+  - `AICEnhancementParameter.BYPASS` → `ProcessorParameter.Bypass`
+  - `AICEnhancementParameter.ENHANCEMENT_LEVEL` → `ProcessorParameter.EnhancementLevel`
+  - `AICEnhancementParameter.VOICE_GAIN` → `ProcessorParameter.VoiceGain`
+  - `AICEnhancementParameter.NOISE_GATE_ENABLE` → removed
+- Renamed `AICVadParameter` to `VadParameter`:
+  - `AICVadParameter.SPEECH_HOLD_DURATION` → `VadParameter.SpeechHoldDuration`
+  - `AICVadParameter.SENSITIVITY` → `VadParameter.Sensitivity`
+  - `AICVadParameter.MINIMUM_SPEECH_DURATION` → `VadParameter.MinimumSpeechDuration`
+- VAD is now accessed via `VadContext` obtained from `Processor.get_vad_context()` instead of `Model.create_vad()`:
+  - `VoiceActivityDetector.is_speech_detected()` → `VadContext.is_speech_detected()`
+  - `VoiceActivityDetector.set_parameter()` → `VadContext.set_parameter()`
+  - `VoiceActivityDetector.get_parameter()` → `VadContext.get_parameter()`
+- Processor control via `ProcessorContext` obtained from `Processor.get_processor_context()`:
+  - `Model.reset()` → `ProcessorContext.reset()`
+  - `Model.set_parameter()` → `ProcessorContext.set_parameter()`
+  - `Model.get_parameter()` → `ProcessorContext.get_parameter()`
+  - `Model.get_processing_latency()` → `ProcessorContext.get_output_delay()`
+- Model query methods moved from module-level functions to `Model` methods:
+  - `get_optimal_sample_rate(handle)` → `Model.get_optimal_sample_rate()`
+  - `get_optimal_num_frames(handle, sample_rate)` → `Model.get_optimal_num_frames(sample_rate)`
+
+### Migration
+
+```python
+# Old (v1.x)
+from aic import Model, AICModelType, AICEnhancementParameter, AICVadParameter
+
+model = Model(AICModelType.QUAIL_L, license_key, sample_rate=48000, channels=1)
+model.set_parameter(AICEnhancementParameter.ENHANCEMENT_LEVEL, 0.8)
+enhanced = model.process(audio)
+
+with model.create_vad() as vad:
+    vad.set_parameter(AICVadParameter.SENSITIVITY, 5.0)
+    if vad.is_speech_detected():
+        print("Speech!")
+
+# New (v2.0)
+from aic_sdk import Model, Processor, ProcessorConfig, ProcessorParameter, VadParameter
+
+model = Model.from_file("/path/to/sparrow-l-48khz.aicmodel")
+# Or download: path = Model.download("sparrow-l-48khz", "/tmp/models")
+
+processor = Processor(model, license_key)
+config = ProcessorConfig.optimal(model, num_channels=1)
+processor.initialize(config)
+
+ctx = processor.get_processor_context()
+ctx.set_parameter(ProcessorParameter.EnhancementLevel, 0.8)
+enhanced = processor.process(audio)
+
+vad = processor.get_vad_context()
+vad.set_parameter(VadParameter.Sensitivity, 5.0)
+if vad.is_speech_detected():
+    print("Speech!")
+```
+
+### Fixes
+
+- Improved thread safety.
+- Fixed an issue where the allocated size for an FFT operation could be incorrect, leading to a crash.
+
 ## 1.3.0 – 2025-12-12
 
 ### Python SDK
@@ -33,7 +145,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
   ```python
   # Old (deprecated, will show warning)
   Model(AICModelType.QUAIL_STT, ...)
-  
+
   # New (recommended)
   Model(AICModelType.QUAIL_STT_L16, ...)
   ```
@@ -41,7 +153,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
   ```python
   # Old (removed in 1.3.0)
   vad.set_parameter(AICVadParameter.LOOKBACK_BUFFER_SIZE, 6.0)  # buffer count
-  
+
   # New (duration in seconds)
   vad.set_parameter(AICVadParameter.SPEECH_HOLD_DURATION, 0.05)  # equivalent to buffer count 6.0
   ```
