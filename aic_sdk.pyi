@@ -157,25 +157,35 @@ class ProcessorConfig:
     def __repr__(self) -> str: ...
     @staticmethod
     def optimal(
-        model: Model, num_channels: int = 1, allow_variable_frames: bool = False
+        model: Model,
+        sample_rate: int | None = None,
+        num_channels: int = 1,
+        num_frames: int | None = None,
+        allow_variable_frames: bool = False,
     ) -> ProcessorConfig:
-        """Returns a ProcessorConfig pre-filled with the model's optimal sample rate and frame size.
+        """Returns a ProcessorConfig pre-filled with the model's optimal settings.
 
-        Adjust the number of channels and enable variable frames as needed.
-
-        If you need to configure a non-optimal sample rate or number of frames,
-        construct the ProcessorConfig directly.
+        This method provides a convenient way to create a config with optimal defaults
+        while allowing you to override specific parameters as needed.
 
         Args:
             model: The Model instance to get optimal config for
+            sample_rate: Custom sample rate in Hz. If None, uses the model's optimal sample rate (default: None)
             num_channels: Number of audio channels (default: 1)
+            num_frames: Custom number of frames per processing call. If None, uses the optimal frame count
+                for the sample rate (default: None). Note that using non-optimal frame counts increases latency.
             allow_variable_frames: Allow variable frame sizes (default: False)
 
         Returns:
             ProcessorConfig with optimal settings for the given model.
 
         Example:
+            >>> # Use all optimal defaults with stereo
             >>> config = ProcessorConfig.optimal(model, num_channels=2)
+            >>> # Use custom sample rate (optimal frames calculated automatically)
+            >>> config = ProcessorConfig.optimal(model, sample_rate=44100, num_channels=2)
+            >>> # Use custom sample rate and frames (increases latency)
+            >>> config = ProcessorConfig.optimal(model, sample_rate=48000, num_frames=512, num_channels=2)
         """
         ...
 
@@ -487,7 +497,7 @@ class ProcessorContext:
         """
         ...
 
-    def parameter(self, parameter: ProcessorParameter) -> float:
+    def get_parameter(self, parameter: ProcessorParameter) -> float:
         """Retrieves the current value of a parameter.
 
         This function can be called from any thread.
@@ -499,7 +509,7 @@ class ProcessorContext:
             The current parameter value.
 
         Example:
-            >>> level = processor_context.parameter(ProcessorParameter.EnhancementLevel)
+            >>> level = processor_context.get_parameter(ProcessorParameter.EnhancementLevel)
             >>> print(f"Current enhancement level: {level}")
         """
         ...
@@ -583,7 +593,7 @@ class VadContext:
         """
         ...
 
-    def parameter(self, parameter: VadParameter) -> float:
+    def get_parameter(self, parameter: VadParameter) -> float:
         """Retrieves the current value of a VAD parameter.
 
         Args:
@@ -593,7 +603,7 @@ class VadContext:
             The current parameter value.
 
         Example:
-            >>> sensitivity = vad.parameter(VadParameter.Sensitivity)
+            >>> sensitivity = vad.get_parameter(VadParameter.Sensitivity)
             >>> print(f"Current sensitivity: {sensitivity}")
         """
         ...
@@ -689,8 +699,10 @@ class Processor:
             A new NumPy array with the same shape containing the enhanced audio.
 
         Raises:
-            RuntimeError: If processing fails.
-            ValueError: If the buffer shape doesn't match the configured audio settings.
+            ModelNotInitializedError: If the processor has not been initialized.
+            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.
+            EnhancementNotAllowedError: If SDK key is not authorized or processing fails to report usage.
+            InternalError: If an internal processing error occurs.
 
         Example:
             >>> audio = np.random.randn(2, 1024).astype(np.float32)
@@ -813,8 +825,10 @@ class ProcessorAsync:
             A new NumPy array with the same shape containing the enhanced audio.
 
         Raises:
-            RuntimeError: If processing fails.
-            ValueError: If the buffer shape doesn't match the configured audio settings.
+            ModelNotInitializedError: If the processor has not been initialized.
+            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.
+            EnhancementNotAllowedError: If SDK key is not authorized or processing fails to report usage.
+            InternalError: If an internal processing error occurs.
 
         Example:
             >>> audio = np.random.randn(2, 1024).astype(np.float32)

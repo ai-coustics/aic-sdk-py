@@ -82,17 +82,17 @@ def main():
     # Adjust enhancement parameters
     print("\nAdjust enhancement parameters")
     print(
-        f"  Current enhancement level: {proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel)}"
+        f"  Current enhancement level: {proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)}"
     )
 
     proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
     print(
-        f"  New enhancement level: {proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel)}"
+        f"  New enhancement level: {proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)}"
     )
 
     proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
     print(
-        f"  Voice gain set to: {proc_ctx.parameter(aic.ProcessorParameter.VoiceGain)}"
+        f"  Voice gain set to: {proc_ctx.get_parameter(aic.ProcessorParameter.VoiceGain)}"
     )
 
     # Create VAD Context (Voice Activity Detection)
@@ -101,7 +101,7 @@ def main():
 
     # Set VAD parameters
     vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
-    print(f"  VAD sensitivity: {vad_ctx.parameter(aic.VadParameter.Sensitivity)}")
+    print(f"  VAD sensitivity: {vad_ctx.get_parameter(aic.VadParameter.Sensitivity)}")
 
     # Check if speech is detected (after processing audio through the processor)
     print(f"  Speech detected: {vad_ctx.is_speech_detected()}")

@@ -72,17 +72,19 @@ async def main():
     # Test parameter adjustment
     print("\nAdjusting parameters...")
     proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
-    level = proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel)
+    level = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
     print(f"  Enhancement level set to: {level:.2f}")
 
     proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
-    gain = proc_ctx.parameter(aic.ProcessorParameter.VoiceGain)
+    gain = proc_ctx.get_parameter(aic.ProcessorParameter.VoiceGain)
     print(f"  Voice gain set to: {gain:.2f}")
 
     # Test VAD
     print("\nVoice Activity Detection...")
     vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
-    print(f"  VAD sensitivity: {vad_ctx.parameter(aic.VadParameter.Sensitivity):.2f}")
+    print(
+        f"  VAD sensitivity: {vad_ctx.get_parameter(aic.VadParameter.Sensitivity):.2f}"
+    )
     print(f"  Speech detected: {vad_ctx.is_speech_detected()}")
 
     # Reset processor state

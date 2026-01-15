@@ -6,7 +6,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
 
 ## 2.0.0 – 2026-01-14
 
-This release comes with a number of new features and several breaking changes. Most notably, the C library no longer includes any models, which significantly reduces the library's binary size. The models are now available separately for download at https://artifacts.ai-coustics.io.
+Version 2.0.0 represents a complete rewrite of the Python SDK, now built on PyO3 for a safer, faster, and more Pythonic interface. This rewrite includes a new async runtime for non-blocking audio processing, improved thread safety, and better memory management. This release comes with a number of new features and several breaking changes. Most notably, the C library no longer includes any models, which significantly reduces the library's binary size. The models are now available separately for download at https://artifacts.ai-coustics.io.
 
 ### Important Changes
 
@@ -66,11 +66,11 @@ This release comes with a number of new features and several breaking changes. M
 - VAD is now accessed via `VadContext` obtained from `Processor.get_vad_context()` instead of `Model.create_vad()`:
   - `VoiceActivityDetector.is_speech_detected()` → `VadContext.is_speech_detected()`
   - `VoiceActivityDetector.set_parameter()` → `VadContext.set_parameter()`
-  - `VoiceActivityDetector.get_parameter()` → `VadContext.parameter()`
+  - `VoiceActivityDetector.get_parameter()` → `VadContext.get_parameter()`
 - Processor control via `ProcessorContext` obtained from `Processor.get_processor_context()`:
   - `Model.reset()` → `ProcessorContext.reset()`
   - `Model.set_parameter()` → `ProcessorContext.set_parameter()`
-  - `Model.get_parameter()` → `ProcessorContext.parameter()`
+  - `Model.get_parameter()` → `ProcessorContext.get_parameter()`
   - `Model.get_processing_latency()` → `ProcessorContext.get_output_delay()`
 - Model query methods moved from module-level functions to `Model` methods:
   - `get_optimal_sample_rate(handle)` → `Model.get_optimal_sample_rate()`

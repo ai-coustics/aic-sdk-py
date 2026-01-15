@@ -58,10 +58,17 @@ impl ProcessorConfig {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (model, num_channels=1, allow_variable_frames=false))]
-    fn optimal(model: &Bound<'_, Model>, num_channels: u16, allow_variable_frames: bool) -> Self {
-        let sample_rate = model.borrow().inner.optimal_sample_rate();
-        let num_frames = model.borrow().inner.optimal_num_frames(sample_rate);
+    #[pyo3(signature = (model, sample_rate=None, num_channels=1, num_frames=None, allow_variable_frames=false))]
+    fn optimal(
+        model: &Bound<'_, Model>,
+        sample_rate: Option<u32>,
+        num_channels: u16,
+        num_frames: Option<usize>,
+        allow_variable_frames: bool,
+    ) -> Self {
+        let sample_rate = sample_rate.unwrap_or_else(|| model.borrow().inner.optimal_sample_rate());
+        let num_frames =
+            num_frames.unwrap_or_else(|| model.borrow().inner.optimal_num_frames(sample_rate));
 
         Self {
             sample_rate,
@@ -112,7 +119,7 @@ impl ProcessorContext {
         Ok(())
     }
 
-    fn parameter(&self, parameter: ProcessorParameter) -> PyResult<f32> {
+    fn get_parameter(&self, parameter: ProcessorParameter) -> PyResult<f32> {
         let value = self.inner.parameter(parameter.into()).map_err(to_py_err)?;
         Ok(value)
     }

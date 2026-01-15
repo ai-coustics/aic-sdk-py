@@ -91,16 +91,12 @@ optimal_frames = model.get_optimal_num_frames(48000)
 config = aic.ProcessorConfig.optimal(model, num_channels=1, allow_variable_frames=False)
 print(config)  # ProcessorConfig(sample_rate=48000, num_channels=1, num_frames=480, allow_variable_frames=False)
 
-# Modify configuration
-config.num_channels = 2
-config.sample_rate = 48000
-
 # Or create from scratch
 config = aic.ProcessorConfig(
     sample_rate=48000,
     num_channels=2,
     num_frames=480,
-    allow_variable_frames=False
+    allow_variable_frames=False # up to num_frames
 )
 
 # Option 1: Create and initialize in one step
@@ -142,7 +138,7 @@ proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
 proc_ctx.set_parameter(aic.ProcessorParameter.Bypass, 0.0)
 
 # Get parameter values
-level = proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel)
+level = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
 print(f"Enhancement level: {level}")
 ```
 
@@ -189,7 +185,7 @@ vad_ctx.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.05)
 vad_ctx.set_parameter(aic.VadParameter.MinimumSpeechDuration, 0.0)
 
 # Get parameter values
-sensitivity = vad_ctx.parameter(aic.VadParameter.Sensitivity)
+sensitivity = vad_ctx.get_parameter(aic.VadParameter.Sensitivity)
 print(f"VAD sensitivity: {sensitivity}")
 
 # Check for speech (after processing audio through the processor)
@@ -238,7 +234,7 @@ For a complete list of all available exception types and their descriptions, see
 
 See the [`basic.py`](examples/basic.py) or [`basic_async.py`](examples/basic_async.py) file for a complete working example.
 
-For a complete file enhancement example, see [`enhance_file.py`](examples/enhance_file.py).
+For a complete file enhancement example with parallel processing, see [`enhance_files.py`](examples/enhance_files.py).
 
 ## Documentation
 
