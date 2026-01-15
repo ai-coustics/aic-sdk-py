@@ -91,16 +91,12 @@ optimal_frames = model.get_optimal_num_frames(48000)
 config = aic.ProcessorConfig.optimal(model, num_channels=1, allow_variable_frames=False)
 print(config)  # ProcessorConfig(sample_rate=48000, num_channels=1, num_frames=480, allow_variable_frames=False)
 
-# Modify configuration
-config.num_channels = 2
-config.sample_rate = 48000
-
 # Or create from scratch
 config = aic.ProcessorConfig(
     sample_rate=48000,
     num_channels=2,
     num_frames=480,
-    allow_variable_frames=False
+    allow_variable_frames=False # up to num_frames
 )
 
 # Option 1: Create and initialize in one step
