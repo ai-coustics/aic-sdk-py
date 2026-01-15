@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  push:
+    branches: [next]
   release:
     types: [published]
   workflow_dispatch:
@@ -45,9 +47,15 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
 
       - name: Build wheels
         run: uvx maturin build --release --out dist
+
+      - name: Build wheels (macOS x86_64)
+        if: runner.os == 'macOS'
+        run: uvx maturin build --release --target x86_64-apple-darwin --out dist
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -90,8 +98,7 @@ jobs:
       - name: List artifacts
         run: ls -la dist/
 
-      # Disabled for testing - uncomment to publish
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
+#      - name: Publish to PyPI
+#        uses: pypa/gh-action-pypi-publish@release/v1
+#        with:
+#          packages-dir: dist/

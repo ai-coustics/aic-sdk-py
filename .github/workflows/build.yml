@@ -44,6 +44,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
 
       - name: Create virtual environment
         run: uv venv
@@ -54,6 +56,10 @@ jobs:
 
       - name: Build package
         run: uv run maturin develop --release
+
+      - name: Build package (macOS x86_64)
+        if: runner.os == 'macOS'
+        run: uv run maturin build --release --target x86_64-apple-darwin --out dist
 
       - name: Run example
         run: uv run python examples/basic.py
