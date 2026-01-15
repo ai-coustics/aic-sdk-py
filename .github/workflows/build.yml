@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm ]
+        os: [ macos-latest, windows-latest, windows-11-arm ]
         python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
         exclude:
           # Python 3.10 doesn't have a Windows ARM release
@@ -70,3 +70,34 @@ jobs:
         run: uv run python examples/basic_async.py
         env:
           AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+
+  build-linux:
+    needs: setup
+    name: Build on Linux / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t aic-sdk-builder -f .github/Dockerfile .
+
+      - name: Build wheels (x86_64)
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/project aic-sdk-builder \
+            bash -c "rustup target add x86_64-unknown-linux-gnu && \
+              uvx maturin build --release --target x86_64-unknown-linux-gnu \
+                --interpreter python${{ matrix.python-version }} --out /project/dist"
+
+      - name: Build wheels (aarch64)
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/project aic-sdk-builder \
+            bash -c "rustup target add aarch64-unknown-linux-gnu && \
+              uvx maturin build --release --target aarch64-unknown-linux-gnu \
+                --interpreter python${{ matrix.python-version }} --out /project/dist"
