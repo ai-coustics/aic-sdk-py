@@ -236,6 +236,8 @@ See the [`basic.py`](examples/basic.py) or [`basic_async.py`](examples/basic_asy
 
 For a complete file enhancement example with parallel processing, see [`enhance_files.py`](examples/enhance_files.py).
 
+For a benchmarking example that tests how many concurrent processing sessions your CPU can support, see [`benchmark.py`](examples/benchmark.py).
+
 ## Documentation
 
 - **Full Documentation**: [docs.ai-coustics.com](https://docs.ai-coustics.com)
