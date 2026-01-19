@@ -1,11 +1,15 @@
-#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "aic-sdk @ file:///${PROJECT_ROOT}",
+# ]
+# ///
 """Benchmark real-time processing throughput for ai-coustics SDK."""
-
-from __future__ import annotations
 
 from dataclasses import dataclass
 import os
 import queue
+import sys
 import threading
 import time
 
@@ -14,8 +18,12 @@ import numpy as np
 import aic_sdk as aic
 
 
+# Specify the model to benchmark.
 MODEL = "quail-vf-l-16khz"
 SPAWN_INTERVAL_SECONDS = 5.0
+# Safety margin to account for system variability.
+# e.g. 0.3 means 30% of the period is reserved as a safety margin.
+SAFETY_MARGIN = 0.0
 
 
 @dataclass
@@ -31,6 +39,7 @@ def spawn_session(
     license_key: str,
     config: aic.ProcessorConfig,
     period_seconds: float,
+    safety_margin_seconds: float,
     stop_event: threading.Event,
     report_queue: "queue.Queue[SessionReport]",
 ) -> threading.Thread:
@@ -53,6 +62,8 @@ def spawn_session(
         max_execution_seconds = 0.0
         error = None
 
+        deadline_seconds = period_seconds - safety_margin_seconds
+
         while not stop_event.is_set():
             # Process the audio buffer
             start = time.monotonic()
@@ -68,8 +79,8 @@ def spawn_session(
                 max_execution_seconds = execution_seconds
 
             # Check if we missed the deadline
-            if execution_seconds > period_seconds:
-                error = f"late by {execution_seconds - period_seconds:.6f} s"
+            if execution_seconds > deadline_seconds:
+                error = f"late by {execution_seconds - deadline_seconds:.6f}s"
                 break
 
             # Sleep until the next deadline
@@ -102,14 +113,16 @@ def main() -> None:
 
     config = aic.ProcessorConfig.optimal(model)
     period_seconds = config.num_frames / config.sample_rate
+    safety_margin_seconds = period_seconds * SAFETY_MARGIN
 
     print(f"Model: {model.get_id()}")
     print(f"Sample rate: {config.sample_rate} Hz")
     print(f"Frames per buffer: {config.num_frames}")
-    print(f"Period: {period_seconds * 1000:.0f} ms\n")
+    print(f"Period: {period_seconds * 1000:.0f} ms")
+    print(f"Safety margin: {safety_margin_seconds * 1000:.0f} ms\n")
 
     print(
-        "Starting benchmark: spawning a session every 5 seconds until a deadline is missed...\n"
+        "Starting benchmark: spawning a processing thread every 5 seconds until a deadline is missed...\n"
     )
 
     stop_event = threading.Event()
@@ -117,20 +130,21 @@ def main() -> None:
     reports: list[SessionReport] = []
     threads: list[threading.Thread] = []
 
-    session_id = 1
+    thread_id = 1
     threads.append(
         spawn_session(
-            session_id,
+            thread_id,
             model,
             license_key,
             config,
             period_seconds,
+            safety_margin_seconds,
             stop_event,
             report_queue,
         )
     )
-    active_sessions = 1
-    print(f"Started session {session_id}")
+    active_threads = 1
+    _print_progress(active_threads)
 
     next_spawn = time.monotonic() + SPAWN_INTERVAL_SECONDS
 
@@ -140,25 +154,27 @@ def main() -> None:
         try:
             report = report_queue.get(timeout=timeout)
         except queue.Empty:
-            # Spawn a new session at regular intervals
-            session_id += 1
+            # Spawn a new session at regular intervals.
+            thread_id += 1
             threads.append(
                 spawn_session(
-                    session_id,
+                    thread_id,
                     model,
                     license_key,
                     config,
                     period_seconds,
+                    safety_margin_seconds,
                     stop_event,
                     report_queue,
                 )
             )
-            active_sessions += 1
-            print(f"Started session {session_id}")
+            active_threads += 1
+            _print_progress(active_threads)
             next_spawn += SPAWN_INTERVAL_SECONDS
             continue
 
         # Check for deadline misses and break the loop if one occurs
+        _print_progress_end(active_threads)
         reports.append(report)
         if report.error is not None:
             first_session_report = report
@@ -180,38 +196,70 @@ def main() -> None:
 
     number_of_missed_deadlines = 0
 
-    print("\nSession report (max processing time per buffer):")
+    print(" ID | Max Exec Time |   RTF   | Notes")
+    print("----+---------------+---------+------")
     period_ms = period_seconds * 1000.0
     for report in reports:
         max_ms = report.max_execution_seconds * 1000.0
         rtf = (max_ms / period_ms) if period_ms > 0 else 0.0
         if report.error:
             number_of_missed_deadlines += 1
-            miss_note = f" (deadline missed: {report.error})"
+            miss_note = f"deadline missed: {report.error}"
         else:
             miss_note = ""
         print(
-            f"Session {report.session_id:>3}: max {max_ms:>7.3f} ms (RTF: {rtf:>6.3f}){miss_note}"
+            f"{report.session_id:>3} | {max_ms:>9.3f} ms  | {rtf:>7.3f} | {miss_note}"
         )
 
     print()
 
-    max_ok = max(active_sessions - 1, 0)
+    max_ok = max(active_threads - 1, 0)
+
+    print(
+        "System can run "
+        f"{max_ok} instances of this model/config concurrently while meeting real-time requirements"
+    )
+
     if first_session_report is not None:
         reason = first_session_report.error or "unknown"
         print(
-            "After spawning "
-            f"{active_sessions} concurrent sessions, session "
-            f"{first_session_report.session_id} missed its deadline ({reason})"
+            "After spawning the "
+            f"{active_threads}{number_suffix(active_threads)} thread, thread "
+            f"#{first_session_report.session_id} missed its deadline ({reason})"
         )
         if number_of_missed_deadlines > 1:
             print(
-                "Other sessions also missed deadlines after session "
-                f"{first_session_report.session_id}"
+                "Other threads also missed deadlines after thread "
+                f"#{first_session_report.session_id}"
             )
     else:
-        print("Missed deadline in session unknown (no report)")
-    print(f"Max concurrent sessions without missing deadlines: {max_ok}")
+        print("Missed deadline in thread unknown (no report)")
+
+
+def _print_progress(active_threads: int) -> None:
+    sys.stdout.write("*")
+    if active_threads % 50 == 0:
+        sys.stdout.write("\n")
+    sys.stdout.flush()
+
+
+def _print_progress_end(active_threads: int) -> None:
+    if active_threads % 50 == 0:
+        print()
+    else:
+        print("\n")
+
+
+def number_suffix(value: int) -> str:
+    mod_100 = value % 100
+    mod_10 = value % 10
+    if mod_10 == 1 and mod_100 != 11:
+        return "st"
+    if mod_10 == 2 and mod_100 != 12:
+        return "nd"
+    if mod_10 == 3 and mod_100 != 13:
+        return "rd"
+    return "th"
 
 
 if __name__ == "__main__":
