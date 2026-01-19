@@ -7,10 +7,10 @@
 """Benchmark real-time processing throughput for ai-coustics SDK."""
 
 from dataclasses import dataclass
+import multiprocessing as mp
 import os
 import queue
 import sys
-import threading
 import time
 
 import numpy as np
@@ -20,7 +20,7 @@ import aic_sdk as aic
 
 # Specify the model to benchmark.
 MODEL = "quail-vf-l-16khz"
-SPAWN_INTERVAL_SECONDS = 5.0
+SPAWN_INTERVAL_SECONDS = 3.0
 # Safety margin to account for system variability.
 # e.g. 0.3 means 30% of the period is reserved as a safety margin.
 SAFETY_MARGIN = 0.0
@@ -33,73 +33,104 @@ class SessionReport:
     error: str | None
 
 
-def spawn_session(
+def session_worker(
     session_id: int,
-    model: aic.Model,
+    model_path: str,
     license_key: str,
-    config: aic.ProcessorConfig,
+    config_data: tuple[int, int, int, bool],
     period_seconds: float,
     safety_margin_seconds: float,
-    stop_event: threading.Event,
-    report_queue: "queue.Queue[SessionReport]",
-) -> threading.Thread:
-    def run() -> None:
-        try:
-            processor = aic.Processor(model, license_key, config)
-        except Exception as exc:  # noqa: BLE001 - surface init errors from SDK
-            report_queue.put(
-                SessionReport(
-                    session_id=session_id,
-                    max_execution_seconds=0.0,
-                    error=f"processor init failed: {exc}",
-                )
-            )
-            return
-
-        buffer = np.zeros(
-            (config.num_channels, config.num_frames), dtype=np.float32, order="C"
+    stop_event: mp.Event,
+    report_queue: "mp.Queue[SessionReport]",
+) -> None:
+    # Use processes to avoid GIL contention and show best possible throughput.
+    try:
+        model = aic.Model.from_file(model_path)
+        config = aic.ProcessorConfig(
+            sample_rate=config_data[0],
+            num_channels=config_data[1],
+            num_frames=config_data[2],
+            allow_variable_frames=config_data[3],
         )
-        max_execution_seconds = 0.0
-        error = None
-
-        deadline_seconds = period_seconds - safety_margin_seconds
-
-        while not stop_event.is_set():
-            # Process the audio buffer
-            start = time.monotonic()
-            try:
-                processor.process(buffer)
-            except Exception as exc:  # noqa: BLE001 - propagate SDK error
-                error = f"process error: {exc}"
-                break
-
-            end = time.monotonic()
-            execution_seconds = end - start
-            if execution_seconds > max_execution_seconds:
-                max_execution_seconds = execution_seconds
-
-            # Check if we missed the deadline
-            if execution_seconds > deadline_seconds:
-                error = f"late by {execution_seconds - deadline_seconds:.6f}s"
-                break
-
-            # Sleep until the next deadline
-            deadline = start + period_seconds
-            sleep_for = deadline - time.monotonic()
-            if sleep_for > 0:
-                time.sleep(sleep_for)
-
+        processor = aic.Processor(model, license_key, config)
+    except Exception as exc:  # noqa: BLE001 - surface init errors from SDK
         report_queue.put(
             SessionReport(
                 session_id=session_id,
-                max_execution_seconds=max_execution_seconds,
-                error=error,
+                max_execution_seconds=0.0,
+                error=f"processor init failed: {exc}",
             )
         )
+        return
 
-    thread = threading.Thread(target=run, name=f"benchmark-session-{session_id}")
-    thread.start()
-    return thread
+    buffer = np.zeros(
+        (config.num_channels, config.num_frames), dtype=np.float32, order="C"
+    )
+    max_execution_seconds = 0.0
+    error = None
+
+    deadline_seconds = period_seconds - safety_margin_seconds
+
+    while not stop_event.is_set():
+        # Process the audio buffer
+        start = time.monotonic()
+        try:
+            processor.process(buffer)
+        except Exception as exc:  # noqa: BLE001 - propagate SDK error
+            error = f"process error: {exc}"
+            break
+
+        end = time.monotonic()
+        execution_seconds = end - start
+        if execution_seconds > max_execution_seconds:
+            max_execution_seconds = execution_seconds
+
+        # Check if we missed the deadline
+        if execution_seconds > deadline_seconds:
+            error = f"late by {execution_seconds - deadline_seconds:.6f}s"
+            break
+
+        # Sleep until the next deadline
+        deadline = start + period_seconds
+        sleep_for = deadline - time.monotonic()
+        if sleep_for > 0:
+            time.sleep(sleep_for)
+
+    report_queue.put(
+        SessionReport(
+            session_id=session_id,
+            max_execution_seconds=max_execution_seconds,
+            error=error,
+        )
+    )
+
+
+def spawn_session(
+    session_id: int,
+    model_path: str,
+    license_key: str,
+    config_data: tuple[int, int, int, bool],
+    period_seconds: float,
+    safety_margin_seconds: float,
+    stop_event: mp.Event,
+    report_queue: "mp.Queue[SessionReport]",
+) -> mp.Process:
+    process = mp.Process(
+        target=session_worker,
+        name=f"benchmark-session-{session_id}",
+        args=(
+            session_id,
+            model_path,
+            license_key,
+            config_data,
+            period_seconds,
+            safety_margin_seconds,
+            stop_event,
+            report_queue,
+        ),
+    )
+    process.start()
+    return process
 
 
 def main() -> None:
@@ -112,6 +143,12 @@ def main() -> None:
     print(f"Model loaded from {model_path}\n")
 
     config = aic.ProcessorConfig.optimal(model)
+    config_data = (
+        config.sample_rate,
+        config.num_channels,
+        config.num_frames,
+        config.allow_variable_frames,
+    )
     period_seconds = config.num_frames / config.sample_rate
     safety_margin_seconds = period_seconds * SAFETY_MARGIN
 
@@ -122,29 +159,29 @@ def main() -> None:
     print(f"Safety margin: {safety_margin_seconds * 1000:.0f} ms\n")
 
     print(
-        "Starting benchmark: spawning a processing thread every 5 seconds until a deadline is missed...\n"
+        f"Starting benchmark: spawning a simulated audio process every {SPAWN_INTERVAL_SECONDS} seconds until a deadline is missed...\n"
     )
 
-    stop_event = threading.Event()
-    report_queue: "queue.Queue[SessionReport]" = queue.Queue()
+    stop_event = mp.Event()
+    report_queue: "mp.Queue[SessionReport]" = mp.Queue()
     reports: list[SessionReport] = []
-    threads: list[threading.Thread] = []
+    processes: list[mp.Process] = []
 
-    thread_id = 1
-    threads.append(
+    process_id = 1
+    processes.append(
         spawn_session(
-            thread_id,
-            model,
+            process_id,
+            model_path,
             license_key,
-            config,
+            config_data,
             period_seconds,
             safety_margin_seconds,
             stop_event,
             report_queue,
         )
     )
-    active_threads = 1
-    _print_progress(active_threads)
+    active_processes = 1
+    _print_progress(active_processes)
 
     next_spawn = time.monotonic() + SPAWN_INTERVAL_SECONDS
 
@@ -155,26 +192,26 @@ def main() -> None:
             report = report_queue.get(timeout=timeout)
         except queue.Empty:
             # Spawn a new session at regular intervals.
-            thread_id += 1
-            threads.append(
+            process_id += 1
+            processes.append(
                 spawn_session(
-                    thread_id,
-                    model,
+                    process_id,
+                    model_path,
                     license_key,
-                    config,
+                    config_data,
                     period_seconds,
                     safety_margin_seconds,
                     stop_event,
                     report_queue,
                 )
             )
-            active_threads += 1
-            _print_progress(active_threads)
+            active_processes += 1
+            _print_progress(active_processes)
             next_spawn += SPAWN_INTERVAL_SECONDS
             continue
 
         # Check for deadline misses and break the loop if one occurs
-        _print_progress_end(active_threads)
+        _print_progress_end(active_processes)
         reports.append(report)
         if report.error is not None:
             first_session_report = report
@@ -183,8 +220,8 @@ def main() -> None:
     print("Benchmark complete\n")
 
     stop_event.set()
-    for thread in threads:
-        thread.join()
+    for process in processes:
+        process.join()
 
     while True:
         try:
@@ -213,7 +250,7 @@ def main() -> None:
 
     print()
 
-    max_ok = max(active_threads - 1, 0)
+    max_ok = max(active_processes - 1, 0)
 
     print(
         "System can run "
@@ -224,27 +261,27 @@ def main() -> None:
         reason = first_session_report.error or "unknown"
         print(
             "After spawning the "
-            f"{active_threads}{number_suffix(active_threads)} thread, thread "
+            f"{active_processes}{number_suffix(active_processes)} process, process "
             f"#{first_session_report.session_id} missed its deadline ({reason})"
         )
         if number_of_missed_deadlines > 1:
             print(
-                "Other threads also missed deadlines after thread "
+                "Other processes also missed deadlines after process "
                 f"#{first_session_report.session_id}"
             )
     else:
-        print("Missed deadline in thread unknown (no report)")
+        print("Missed deadline in process unknown (no report)")
 
 
-def _print_progress(active_threads: int) -> None:
+def _print_progress(active_processes: int) -> None:
     sys.stdout.write("*")
-    if active_threads % 50 == 0:
+    if active_processes % 50 == 0:
         sys.stdout.write("\n")
     sys.stdout.flush()
 
 
-def _print_progress_end(active_threads: int) -> None:
-    if active_threads % 50 == 0:
+def _print_progress_end(active_processes: int) -> None:
+    if active_processes % 50 == 0:
         print()
     else:
         print("\n")
