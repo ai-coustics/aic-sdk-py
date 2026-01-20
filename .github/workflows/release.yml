@@ -84,6 +84,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs: [build, sdist]
+    environment: publish
     permissions:
       id-token: write
     steps:
