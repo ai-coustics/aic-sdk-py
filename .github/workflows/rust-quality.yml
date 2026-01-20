@@ -1,4 +1,4 @@
-name: Quality Checks
+name: Rust Quality Checks
 
 on:
   push:
