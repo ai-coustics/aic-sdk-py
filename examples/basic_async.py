@@ -1,4 +1,9 @@
-#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "aic-sdk @ file:///${PROJECT_ROOT}",
+# ]
+# ///
 """Async example usage of aic-sdk."""
 
 import asyncio
