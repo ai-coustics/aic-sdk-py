@@ -2,6 +2,7 @@
 """Example usage of aic-sdk."""
 
 import os
+from pathlib import Path
 
 import numpy as np
 
@@ -19,8 +20,8 @@ def main():
     # Download and load a model from the CDN
     print("\nDownload model from CDN")
 
-    # Download the model
-    model_path = aic.Model.download("sparrow-xxs-48khz", "./models")
+    # Download the model (using pathlib.Path for the download directory)
+    model_path = aic.Model.download("sparrow-xxs-48khz", Path("./models"))
     print(f"  Model downloaded to: {model_path}")
 
     # Load the downloaded model

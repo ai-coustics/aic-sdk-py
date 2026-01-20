@@ -1,6 +1,7 @@
 use crate::to_py_err;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use std::path::PathBuf;
 
 /// Audio enhancement model
 #[pyclass(module = "aic")]
@@ -11,21 +12,21 @@ pub struct Model {
 #[pymethods]
 impl Model {
     #[staticmethod]
-    fn from_file(path: &str) -> PyResult<Self> {
-        let inner = aic_sdk::Model::from_file(path).map_err(to_py_err)?;
+    fn from_file(path: PathBuf) -> PyResult<Self> {
+        let inner = aic_sdk::Model::from_file(&path).map_err(to_py_err)?;
         Ok(Model { inner })
     }
 
     #[staticmethod]
-    fn download(model_id: &str, download_dir: &str) -> PyResult<String> {
-        let path = aic_sdk::Model::download(model_id, download_dir).map_err(to_py_err)?;
+    fn download(model_id: &str, download_dir: PathBuf) -> PyResult<String> {
+        let path = aic_sdk::Model::download(model_id, &download_dir).map_err(to_py_err)?;
         Ok(path.to_string_lossy().to_string())
     }
 
     #[staticmethod]
     fn download_async<'py>(
         model_id: String,
-        download_dir: String,
+        download_dir: PathBuf,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, pyo3::types::PyAny>> {
         use tokio::task;
