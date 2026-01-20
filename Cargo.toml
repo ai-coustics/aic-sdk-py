@@ -1,20 +1,21 @@
 [package]
-name = "aic-sdk-py"
-version = "2.0.0"
 edition = "2024"
+name = "aic-sdk-py"
+rust-version = "1.87"
+version = "2.0.0"
 
 [lib]
-name = "aic_sdk"
 crate-type = ["cdylib"]
+name = "aic_sdk"
 
 [dependencies]
-aic-sdk = { version = "0.13.0", features = [ "download-model", "download-lib" ] }
+aic-sdk = { version = "0.13.0", features = ["download-lib", "download-model"] }
 numpy = "0.27"
 pyo3 = { version = "0.27", features = ["extension-module"] }
 pyo3-async-runtimes = { version = "0.27", features = ["tokio-runtime"] }
 tokio = { version = "1.49", features = ["rt", "rt-multi-thread"] }
 
 [profile.release]
-lto = true
 codegen-units = 1
+lto = true
 opt-level = 3
