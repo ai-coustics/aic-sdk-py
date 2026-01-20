@@ -1,0 +1,92 @@
+name: Quality Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+
+jobs:
+  cargo-fmt:
+    name: Code Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@beta
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+
+  taplo-fmt:
+    name: TOML Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: uncenter/setup-taplo@v1
+      - run: taplo fmt --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@beta
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: RUSTFLAGS="-D warnings" cargo clippy
+
+  doc:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@beta
+      - uses: Swatinem/rust-cache@v2
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --document-private-items --all-features --workspace
+
+  unused-dependencies:
+    name: Unused Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Cargo Shear
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-shear
+      - name: Run Cargo Shear
+        run: |
+          cargo shear
+
+  hack:
+    name: Feature Matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@beta
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: Swatinem/rust-cache@v2
+      # Test runner is not supposed to work with every feature combination
+      - run: cargo hack --feature-powerset check --workspace --exclude test-runner
+
+  msrv:
+    name: MSRV Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.87.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-targets

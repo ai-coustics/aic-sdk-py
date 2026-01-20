@@ -1,4 +1,3 @@
-use aic_sdk;
 use pyo3::prelude::*;
 
 mod error;
