@@ -1,6 +1,8 @@
 """Python bindings for ai-coustics SDK"""
 
+import os
 from enum import IntEnum
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -297,7 +299,7 @@ class Model:
     """
 
     @staticmethod
-    def from_file(path: str) -> Model:
+    def from_file(path: str | os.PathLike[str]) -> Model:
         """Creates a new audio enhancement model instance from a file.
 
         Multiple models can be created to process different audio streams simultaneously
@@ -306,7 +308,7 @@ class Model:
         Args:
             path: Path to the model file (.aicmodel). You can download models manually
                 from https://artifacts.ai-coustics.io or use Model.download() to fetch
-                them programmatically.
+                them programmatically. Accepts both string paths and pathlib.Path objects.
 
         Returns:
             A new Model instance.
@@ -319,11 +321,12 @@ class Model:
 
         Example:
             >>> model = Model.from_file("/path/to/model.aicmodel")
+            >>> model = Model.from_file(Path("/path/to/model.aicmodel"))
         """
         ...
 
     @staticmethod
-    def download(model_id: str, download_dir: str) -> str:
+    def download(model_id: str, download_dir: str | os.PathLike[str]) -> str:
         """Downloads a model file from the ai-coustics artifact CDN.
 
         This method fetches the model manifest, verifies that the requested model
@@ -354,11 +357,13 @@ class Model:
             >>> # Find model IDs at https://artifacts.ai-coustics.io
             >>> path = Model.download("sparrow-l-16khz", "/tmp/models")
             >>> model = Model.from_file(path)
+            >>> # Or using pathlib.Path
+            >>> path = Model.download("sparrow-l-16khz", Path("/tmp/models"))
         """
         ...
 
     @staticmethod
-    async def download_async(model_id: str, download_dir: str) -> str:
+    async def download_async(model_id: str, download_dir: str | os.PathLike[str]) -> str:
         """Downloads a model file asynchronously from the ai-coustics artifact CDN.
 
         This method fetches the model manifest, verifies that the requested model
@@ -389,6 +394,8 @@ class Model:
             >>> # Find model IDs at https://artifacts.ai-coustics.io
             >>> path = await Model.download_async("sparrow-l-16khz", "/tmp/models")
             >>> model = Model.from_file(path)
+            >>> # Or using pathlib.Path
+            >>> path = await Model.download_async("sparrow-l-16khz", Path("/tmp/models"))
         """
         ...
 
