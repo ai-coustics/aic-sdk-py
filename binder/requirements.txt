@@ -4,3 +4,5 @@ matplotlib
 soundfile
 tqdm
 pyfar
+aic-sdk
+ipywidgets
