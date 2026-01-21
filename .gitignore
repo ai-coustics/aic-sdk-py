@@ -14,3 +14,5 @@ venv/
 models/
 .env
 *.wav
+.DS_Store
+/.vscode
