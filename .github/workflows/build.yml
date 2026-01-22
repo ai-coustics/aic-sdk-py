@@ -7,27 +7,33 @@ on:
     branches: [ main ]
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      python-versions: ${{ steps.set-versions.outputs.versions }}
-    steps:
-      - id: set-versions
-        run: echo 'versions=["3.10", "3.11", "3.12", "3.13", "3.14"]' >> $GITHUB_OUTPUT
-
-  test:
-    needs: setup
-    name: Test on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+  build:
+    name: Build and test on ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, ubuntu-22.04-arm, macos-latest, windows-latest, windows-11-arm ]
-        python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
-        exclude:
-          # Python 3.10 doesn't have a Windows ARM release
-          - os: windows-11-arm
-            python-version: "3.10"
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            manylinux: auto
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+            manylinux: auto
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            interpreters: '3.11 3.12 3.13 3.14'
 
     steps:
       - uses: actions/checkout@v4
@@ -37,36 +43,25 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
         with:
-          python-version: ${{ matrix.python-version }}
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out dist --interpreter ${{ matrix.interpreters }}
+          rust-toolchain: stable
+          sccache: true
+          docker-options: -e CI
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
-
-      - name: Create virtual environment
-        run: uv venv
-
-      - name: Install dependencies
+      - name: Test wheels
+        shell: bash
+        env:
+          AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
         run: |
-          uv pip install maturin numpy
-
-      - name: Build package
-        run: uv run maturin develop --release
-
-      - name: Build package (macOS x86_64)
-        if: runner.os == 'macOS'
-        run: uv run maturin build --release --target x86_64-apple-darwin --out dist
-
-      - name: Run example
-        run: uv run python examples/basic.py
-        env:
-          AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
-
-      - name: Run async example
-        run: uv run python examples/basic_async.py
-        env:
-          AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+          for version in ${{ matrix.interpreters }}; do
+            echo "Testing Python $version"
+            uv venv --python $version .venv-$version
+            VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*.whl
+            uv run --python $version examples/basic.py
+            uv run --python $version examples/basic_async.py
+          done

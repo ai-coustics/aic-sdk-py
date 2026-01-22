@@ -9,70 +9,56 @@ permissions:
   contents: read
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      python-versions: ${{ steps.set-versions.outputs.versions }}
-    steps:
-      - id: set-versions
-        run: echo 'versions=["3.10", "3.11", "3.12", "3.13", "3.14"]' >> $GITHUB_OUTPUT
-
   build:
-    needs: setup
-    name: Build on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: Build wheels for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, ubuntu-22.04-arm, macos-latest, windows-latest, windows-11-arm ]
-        python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
-        exclude:
-          # Python 3.10 doesn't have a Windows ARM release
-          - os: windows-11-arm
-            python-version: "3.10"
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            manylinux: auto
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+            manylinux: auto
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
-
       - name: Build wheels
-        run: uvx maturin build --release --out dist
-
-      - name: Build wheels (macOS x86_64)
-        if: runner.os == 'macOS'
-        run: uvx maturin build --release --target x86_64-apple-darwin --out dist
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out dist --interpreter '3.10 3.11 3.12 3.13 3.14'
+          rust-toolchain: stable
+          sccache: true
+          docker-options: -e CI
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: aic_sdk-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: wheels-${{ matrix.target }}
           path: dist
 
   sdist:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-
       - name: Build sdist
-        run: uvx maturin sdist --out dist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4
@@ -82,7 +68,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build, sdist]
     environment: publish
     permissions:
