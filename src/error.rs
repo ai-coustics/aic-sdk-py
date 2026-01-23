@@ -86,9 +86,12 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
             aic_sdk::AicError::ParameterOutOfRange => PyErr::new::<ParameterOutOfRangeError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),
-            aic_sdk::AicError::ModelNotInitialized => PyErr::new::<ModelNotInitializedError, _>(
-                err_msg.into_pyobject(py).unwrap().unbind(),
-            ),
+            // Maps to ProcessorNotInitialized in aic-sdk, kept as ModelNotInitializedError for backward compatibility
+            aic_sdk::AicError::ProcessorNotInitialized => {
+                PyErr::new::<ModelNotInitializedError, _>(
+                    err_msg.into_pyobject(py).unwrap().unbind(),
+                )
+            }
             aic_sdk::AicError::AudioConfigUnsupported => {
                 PyErr::new::<AudioConfigUnsupportedError, _>(
                     err_msg.into_pyobject(py).unwrap().unbind(),
