@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## Unreleased
+
+### Changed
+
+- Updated aic-sdk dependency to 0.13.1.
+- Optimized GitHub Actions build workflows:
+  - Consolidated build matrix from 6 jobs to 4 jobs.
+  - Linux: Cross-compile x86_64 and aarch64 from single `ubuntu-latest` runner using `maturin[zig]`.
+  - macOS: Cross-compile x86_64 and aarch64 from single `macos-latest` runner.
+  - Windows: Separate runners for x86_64 (`windows-latest`) and ARM64 (`windows-11-arm`).
+  - Build all Python versions (3.10-3.14) in one step per target using `--interpreter` flag.
+  - Replaced `maturin-action` with direct `uvx maturin` calls.
+
 ## 2.0.0 – 2026-01-14
 
 Version 2.0.0 represents a complete rewrite of the Python SDK, now built on PyO3 for a safer, faster, and more Pythonic interface. This rewrite includes a new async runtime for non-blocking audio processing, improved thread safety, and better memory management. This release comes with a number of new features and several breaking changes. Most notably, the C library no longer includes any models, which significantly reduces the library's binary size. The models are now available separately for download at https://artifacts.ai-coustics.io.
