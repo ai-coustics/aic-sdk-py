@@ -41,4 +41,21 @@ impl VadContext {
         let value = self.inner.parameter(parameter.into()).map_err(to_py_err)?;
         Ok(value)
     }
+
+    /// Deprecated: Use get_parameter instead
+    #[pyo3(name = "parameter")]
+    fn parameter_deprecated(&self, parameter: VadParameter) -> PyResult<f32> {
+        Python::attach(|py| {
+            let warnings = py.import("warnings")?;
+            warnings.call_method1(
+                "warn",
+                (
+                    "parameter() is deprecated, use get_parameter() instead",
+                    py.import("builtins")?.getattr("DeprecationWarning")?,
+                ),
+            )?;
+            Ok::<(), PyErr>(())
+        })?;
+        self.get_parameter(parameter)
+    }
 }

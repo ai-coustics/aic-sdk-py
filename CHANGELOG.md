@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.0.1 – 2026-01-23
+
+### Important Changes
+
+- Updated aic-sdk dependency to 0.14.0:
+  - Increased the maximum speech hold duration of the VAD from 20 to 100x the model's window size.
+  - Fixed an issue causing the VAD's state to be reset on every `Processor.process` and `ProcessorAsync.process_async` call.
+- Optimized GitHub Actions build workflows:
+  - Consolidated build matrix from 6 jobs to 3 jobs.
+  - Linux: Cross-compile x86_64 and aarch64 from single `ubuntu-latest` runner using `maturin[zig]`.
+  - macOS: Cross-compile x86_64 and aarch64 from single `macos-latest` runner.
+  - Windows: Cross-compile x86_64 and aarch64 from single `windows-latest` runner (Python 3.10 excluded for ARM64).
+  - Build all Python versions (3.10-3.14) in one step per target using `--interpreter` flag.
+  - Replaced `maturin-action` with direct `uvx maturin` calls.
+
+### Deprecated
+
+- `ProcessorContext.parameter()` is deprecated; use `ProcessorContext.get_parameter()` instead.
+- `VadContext.parameter()` is deprecated; use `VadContext.get_parameter()` instead.
+
 ## 2.0.0 – 2026-01-14
 
 Version 2.0.0 represents a complete rewrite of the Python SDK, now built on PyO3 for a safer, faster, and more Pythonic interface. This rewrite includes a new async runtime for non-blocking audio processing, improved thread safety, and better memory management. This release comes with a number of new features and several breaking changes. Most notably, the C library no longer includes any models, which significantly reduces the library's binary size. The models are now available separately for download at https://artifacts.ai-coustics.io.

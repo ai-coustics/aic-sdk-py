@@ -124,6 +124,23 @@ impl ProcessorContext {
         Ok(value)
     }
 
+    /// Deprecated: Use get_parameter instead
+    #[pyo3(name = "parameter")]
+    fn parameter_deprecated(&self, parameter: ProcessorParameter) -> PyResult<f32> {
+        Python::attach(|py| {
+            let warnings = py.import("warnings")?;
+            warnings.call_method1(
+                "warn",
+                (
+                    "parameter() is deprecated, use get_parameter() instead",
+                    py.import("builtins")?.getattr("DeprecationWarning")?,
+                ),
+            )?;
+            Ok::<(), PyErr>(())
+        })?;
+        self.get_parameter(parameter)
+    }
+
     fn get_output_delay(&self) -> usize {
         self.inner.output_delay()
     }

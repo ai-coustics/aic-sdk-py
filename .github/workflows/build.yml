@@ -7,27 +7,28 @@ on:
     branches: [ main ]
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      python-versions: ${{ steps.set-versions.outputs.versions }}
-    steps:
-      - id: set-versions
-        run: echo 'versions=["3.10", "3.11", "3.12", "3.13", "3.14"]' >> $GITHUB_OUTPUT
-
-  test:
-    needs: setup
-    name: Test on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+  build:
+    name: Build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, ubuntu-22.04-arm, macos-latest, windows-latest, windows-11-arm ]
-        python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
-        exclude:
-          # Python 3.10 doesn't have a Windows ARM release
-          - os: windows-11-arm
-            python-version: "3.10"
+        include:
+          - os: ubuntu-latest
+            targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+            test-arch: x86_64
+            use-zig: true
+          - os: macos-latest
+            targets: x86_64-apple-darwin aarch64-apple-darwin
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+            test-arch: arm64
+            use-zig: false
+          - os: windows-latest
+            targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+            test-arch: amd64
+            use-zig: false
 
     steps:
       - uses: actions/checkout@v4
@@ -37,36 +38,36 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
+          targets: ${{ matrix.targets }}
 
-      - name: Create virtual environment
-        run: uv venv
+      - name: Install Python interpreters
+        shell: bash
+        run: uv python install ${{ matrix.interpreters }}
 
-      - name: Install dependencies
+      - name: Build wheels
+        shell: bash
         run: |
-          uv pip install maturin numpy
+          for target in ${{ matrix.targets }}; do
+            echo "Building for $target"
+            if [ "${{ matrix.use-zig }}" = "true" ]; then
+              uvx --from maturin[zig] maturin build --zig --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+            else
+              uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+            fi
+          done
 
-      - name: Build package
-        run: uv run maturin develop --release
-
-      - name: Build package (macOS x86_64)
-        if: runner.os == 'macOS'
-        run: uv run maturin build --release --target x86_64-apple-darwin --out dist
-
-      - name: Run example
-        run: uv run python examples/basic.py
+      - name: Test wheels
+        shell: bash
         env:
           AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
-
-      - name: Run async example
-        run: uv run python examples/basic_async.py
-        env:
-          AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+        run: |
+          for version in ${{ matrix.interpreters }}; do
+            echo "Testing Python $version"
+            uv venv --python $version .venv-$version
+            VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
+            uv run --python $version examples/basic.py
+            uv run --python $version examples/basic_async.py
+          done
