@@ -10,43 +10,46 @@ permissions:
 
 jobs:
   build:
-    name: Build wheels for ${{ matrix.target }}
+    name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
-            manylinux: auto
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04-arm
-            manylinux: auto
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-          - target: aarch64-pc-windows-msvc
-            os: windows-11-arm
+          - os: ubuntu-22.04
+            targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+          - os: macos-latest
+            targets: x86_64-apple-darwin aarch64-apple-darwin
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+          - os: windows-latest
+            targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          target: ${{ matrix.target }}
-          manylinux: ${{ matrix.manylinux }}
-          args: --release --out dist --interpreter '3.10 3.11 3.12 3.13 3.14'
-          rust-toolchain: stable
-          sccache: true
-          docker-options: -e CI
+          enable-cache: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+
+      - name: Build wheels
+        shell: bash
+        run: |
+          for target in ${{ matrix.targets }}; do
+            echo "Building for $target"
+            uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }} --zig
+          done
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.target }}
+          name: wheels-${{ matrix.os }}
           path: dist
 
   sdist:
@@ -54,11 +57,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          command: sdist
-          args: --out dist
+          enable-cache: true
+
+      - name: Build sdist
+        run: uvx maturin sdist --out dist
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4

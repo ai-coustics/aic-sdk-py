@@ -8,32 +8,24 @@ on:
 
 jobs:
   build:
-    name: Build and test on ${{ matrix.target }}
+    name: Build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
-            manylinux: auto
+          - os: ubuntu-22.04
+            targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
             interpreters: '3.10 3.11 3.12 3.13 3.14'
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04-arm
-            manylinux: auto
+            test-arch: x86_64
+          - os: macos-latest
+            targets: x86_64-apple-darwin aarch64-apple-darwin
             interpreters: '3.10 3.11 3.12 3.13 3.14'
-          - target: x86_64-apple-darwin
-            os: macos-latest
+            test-arch: arm64
+          - os: windows-latest
+            targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             interpreters: '3.10 3.11 3.12 3.13 3.14'
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            interpreters: '3.10 3.11 3.12 3.13 3.14'
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            interpreters: '3.10 3.11 3.12 3.13 3.14'
-          - target: aarch64-pc-windows-msvc
-            os: windows-11-arm
-            interpreters: '3.11 3.12 3.13 3.14'
+            test-arch: amd64
 
     steps:
       - uses: actions/checkout@v4
@@ -43,15 +35,18 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          target: ${{ matrix.target }}
-          manylinux: ${{ matrix.manylinux }}
-          args: --release --out dist --interpreter ${{ matrix.interpreters }}
-          rust-toolchain: stable
-          sccache: true
-          docker-options: -e CI
+          targets: ${{ matrix.targets }}
+
+      - name: Build wheels
+        shell: bash
+        run: |
+          for target in ${{ matrix.targets }}; do
+            echo "Building for $target"
+            uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }} --zig
+          done
 
       - name: Test wheels
         shell: bash
@@ -61,7 +56,7 @@ jobs:
           for version in ${{ matrix.interpreters }}; do
             echo "Testing Python $version"
             uv venv --python $version .venv-$version
-            VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*.whl
+            VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
             uv run --python $version examples/basic.py
             uv run --python $version examples/basic_async.py
           done
