@@ -25,12 +25,8 @@ jobs:
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: false
           - os: windows-latest
-            targets: x86_64-pc-windows-msvc
+            targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             interpreters: '3.10 3.11 3.12 3.13 3.14'
-            use-zig: false
-          - os: windows-11-arm
-            targets: aarch64-pc-windows-msvc
-            interpreters: '3.11 3.12 3.13 3.14'
             use-zig: false
     steps:
       - uses: actions/checkout@v4
