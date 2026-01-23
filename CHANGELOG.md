@@ -10,7 +10,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
 
 - Updated aic-sdk dependency to 0.14.0:
   - Increased the maximum speech hold duration of the VAD from 20 to 100x the model's window size.
-  - Fixed an issue causing the VAD's state to be reset on every Processor::process_* call.
+  - Fixed an issue causing the VAD's state to be reset on every `Processor.process` and `ProcessorAsync.process_async` call.
 - Optimized GitHub Actions build workflows:
   - Consolidated build matrix from 6 jobs to 3 jobs.
   - Linux: Cross-compile x86_64 and aarch64 from single `ubuntu-latest` runner using `maturin[zig]`.
