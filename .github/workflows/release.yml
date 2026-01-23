@@ -43,7 +43,7 @@ jobs:
         run: |
           for target in ${{ matrix.targets }}; do
             echo "Building for $target"
-            uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }} --zig
+            uvx --from 'maturin[zig]' maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }} --zig
           done
 
       - name: Upload wheels
