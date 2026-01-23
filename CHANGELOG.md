@@ -8,7 +8,7 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
 
 ### Changed
 
-- Updated aic-sdk dependency to 0.13.1.
+- Updated aic-sdk dependency to 0.14.0.
 - Optimized GitHub Actions build workflows:
   - Consolidated build matrix from 6 jobs to 4 jobs.
   - Linux: Cross-compile x86_64 and aarch64 from single `ubuntu-latest` runner using `maturin[zig]`.
