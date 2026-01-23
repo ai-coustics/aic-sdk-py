@@ -25,9 +25,11 @@ jobs:
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: false
           - os: windows-latest
+            targets: x86_64-pc-windows-msvc
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: false
           - os: windows-11-arm
+            targets: aarch64-pc-windows-msvc
             interpreters: '3.11 3.12 3.13 3.14'
             use-zig: false
     steps:
@@ -43,23 +45,21 @@ jobs:
         with:
           targets: ${{ matrix.targets }}
 
+      - name: Install Python interpreters
+        shell: bash
+        run: uv python install ${{ matrix.interpreters }}
+
       - name: Build wheels
         shell: bash
         run: |
-          if [ "${{ matrix.use-zig }}" = "true" ]; then
-            MATURIN="uvx --from maturin[zig] maturin build --zig"
-          else
-            MATURIN="uvx maturin build"
-          fi
-          if [ -n "${{ matrix.targets }}" ]; then
-            for target in ${{ matrix.targets }}; do
-              echo "Building for $target"
-              $MATURIN --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
-            done
-          else
-            echo "Building for native target"
-            $MATURIN --release --out dist --interpreter ${{ matrix.interpreters }}
-          fi
+          for target in ${{ matrix.targets }}; do
+            echo "Building for $target"
+            if [ "${{ matrix.use-zig }}" = "true" ]; then
+              uvx --from maturin[zig] maturin build --zig --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+            else
+              uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+            fi
+          done
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
