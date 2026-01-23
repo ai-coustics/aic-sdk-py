@@ -16,15 +16,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
             interpreters: '3.10 3.11 3.12 3.13 3.14'
+            use-zig: true
           - os: macos-latest
             targets: x86_64-apple-darwin aarch64-apple-darwin
             interpreters: '3.10 3.11 3.12 3.13 3.14'
+            use-zig: false
           - os: windows-latest
             targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             interpreters: '3.10 3.11 3.12 3.13 3.14'
+            use-zig: false
     steps:
       - uses: actions/checkout@v4
 
@@ -41,9 +44,14 @@ jobs:
       - name: Build wheels
         shell: bash
         run: |
+          if [ "${{ matrix.use-zig }}" = "true" ]; then
+            MATURIN="uvx --from maturin[zig] maturin build --zig"
+          else
+            MATURIN="uvx maturin build"
+          fi
           for target in ${{ matrix.targets }}; do
             echo "Building for $target"
-            uvx --from 'maturin[zig]' maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }} --zig
+            $MATURIN --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
           done
 
       - name: Upload wheels
@@ -53,7 +61,7 @@ jobs:
           path: dist
 
   sdist:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -73,7 +81,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: [build, sdist]
     environment: publish
     permissions:

@@ -14,18 +14,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             test-arch: x86_64
+            use-zig: true
           - os: macos-latest
             targets: x86_64-apple-darwin aarch64-apple-darwin
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             test-arch: arm64
+            use-zig: false
           - os: windows-latest
             targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             test-arch: amd64
+            use-zig: false
 
     steps:
       - uses: actions/checkout@v4
@@ -43,9 +46,14 @@ jobs:
       - name: Build wheels
         shell: bash
         run: |
+          if [ "${{ matrix.use-zig }}" = "true" ]; then
+            MATURIN="uvx --from maturin[zig] maturin build --zig"
+          else
+            MATURIN="uvx maturin build"
+          fi
           for target in ${{ matrix.targets }}; do
             echo "Building for $target"
-            uvx --from 'maturin[zig]' maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }} --zig
+            $MATURIN --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
           done
 
       - name: Test wheels
