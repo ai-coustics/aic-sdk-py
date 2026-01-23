@@ -248,7 +248,7 @@ class VadParameter(IntEnum):
         length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
         Because of this, this parameter may return a different value than the one it was last set to.
 
-    Range: 0.0 to 20x model window length (value in seconds)
+    Range: 0.0 to 100x model window length (value in seconds)
 
     Default: 0.05 (50 ms)
     """
@@ -326,26 +326,29 @@ class Model:
     def download(model_id: str, download_dir: str) -> str:
         """Downloads a model file from the ai-coustics artifact CDN.
 
-        This method fetches the model manifest, checks whether the requested model
+        This method fetches the model manifest, verifies that the requested model
         exists in a version compatible with this library, and downloads the model
-        file into the provided directory.
+        file to the specified directory. If the model file already exists, it will not
+        be re-downloaded. If the existing file's checksum does not match, the model will
+        be downloaded and the existing file will be replaced.
+
+        The manifest file is not cached and will always be downloaded on every call
+        to ensure the latest model versions are always used.
+
+        Available models can be browsed at [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io/).
 
         Note:
-            This is a blocking operation.
+            This is a blocking operation that performs network I/O.
 
         Args:
-            model_id: The model identifier as listed in the manifest (e.g. "sparrow-l-16khz").
-                Find available model IDs at https://artifacts.ai-coustics.io
-            download_dir: Directory where the downloaded model file should be stored
+            model_id: The model identifier (e.g., `"quail-l-16khz"`).
+            download_dir: Directory where the model file will be stored.
 
         Returns:
-            The full path to the downloaded model file.
+            The full path to the model file.
 
         Raises:
-            RuntimeError: If the download operation fails.
-
-        See Also:
-            https://artifacts.ai-coustics.io for available model IDs.
+            RuntimeError: If the operation fails.
 
         Example:
             >>> # Find model IDs at https://artifacts.ai-coustics.io
@@ -358,23 +361,29 @@ class Model:
     async def download_async(model_id: str, download_dir: str) -> str:
         """Downloads a model file asynchronously from the ai-coustics artifact CDN.
 
-        This method fetches the model manifest, checks whether the requested model
+        This method fetches the model manifest, verifies that the requested model
         exists in a version compatible with this library, and downloads the model
-        file into the provided directory in a background thread.
+        file to the specified directory. If the model file already exists, it will not
+        be re-downloaded. If the existing file's checksum does not match, the model will
+        be downloaded and the existing file will be replaced.
+
+        The manifest file is not cached and will always be downloaded on every call
+        to ensure the latest model versions are always used.
+
+        Available models can be browsed at [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io/).
+
+        Note:
+            This is a blocking operation that performs network I/O.
 
         Args:
-            model_id: The model identifier as listed in the manifest (e.g. "sparrow-l-16khz").
-                Find available model IDs at https://artifacts.ai-coustics.io
-            download_dir: Directory where the downloaded model file should be stored
+            model_id: The model identifier (e.g., `"quail-l-16khz"`).
+            download_dir: Directory where the model file will be stored.
 
         Returns:
-            The full path to the downloaded model file.
+            The full path to the model file.
 
         Raises:
-            RuntimeError: If the download operation fails.
-
-        See Also:
-            https://artifacts.ai-coustics.io for available model IDs.
+            RuntimeError: If the operation fails.
 
         Example:
             >>> # Find model IDs at https://artifacts.ai-coustics.io
