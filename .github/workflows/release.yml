@@ -51,7 +51,13 @@ jobs:
           fi
           for target in ${{ matrix.targets }}; do
             echo "Building for $target"
-            $MATURIN --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+            # Python 3.10 doesn't support Windows ARM64
+            if [ "$target" = "aarch64-pc-windows-msvc" ]; then
+              INTERPRETERS="3.11 3.12 3.13 3.14"
+            else
+              INTERPRETERS="${{ matrix.interpreters }}"
+            fi
+            $MATURIN --release --target $target --out dist --interpreter $INTERPRETERS
           done
 
       - name: Upload wheels
