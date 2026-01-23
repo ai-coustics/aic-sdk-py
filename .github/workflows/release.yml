@@ -25,8 +25,10 @@ jobs:
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: false
           - os: windows-latest
-            targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             interpreters: '3.10 3.11 3.12 3.13 3.14'
+            use-zig: false
+          - os: windows-11-arm
+            interpreters: '3.11 3.12 3.13 3.14'
             use-zig: false
     steps:
       - uses: actions/checkout@v4
@@ -49,16 +51,15 @@ jobs:
           else
             MATURIN="uvx maturin build"
           fi
-          for target in ${{ matrix.targets }}; do
-            echo "Building for $target"
-            # Python 3.10 doesn't support Windows ARM64
-            if [ "$target" = "aarch64-pc-windows-msvc" ]; then
-              INTERPRETERS="3.11 3.12 3.13 3.14"
-            else
-              INTERPRETERS="${{ matrix.interpreters }}"
-            fi
-            $MATURIN --release --target $target --out dist --interpreter $INTERPRETERS
-          done
+          if [ -n "${{ matrix.targets }}" ]; then
+            for target in ${{ matrix.targets }}; do
+              echo "Building for $target"
+              $MATURIN --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+            done
+          else
+            echo "Building for native target"
+            $MATURIN --release --out dist --interpreter ${{ matrix.interpreters }}
+          fi
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
