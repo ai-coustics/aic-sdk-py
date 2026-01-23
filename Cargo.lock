@@ -30,9 +30,9 @@ dependencies = [
 
 [[package]]
 name = "aic-sdk"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "452a2a6c769a4c7e6a559fcc1fe7c7f691eb310084e1087a9fed225625bd42a5"
+checksum = "bdd074f028bbb6d372a82c0ee0ec41a378288f4ac5b9b8acab6aef0c8d6e6a65"
 dependencies = [
  "aic-sdk-sys",
  "serde",
@@ -55,9 +55,9 @@ dependencies = [
 
 [[package]]
 name = "aic-sdk-sys"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd7f377f71919d2cc3265fa0c678bb08ff6c6cf71ce03cbd6122eeca9e70c6dc"
+checksum = "d6651aee6bc7c042ad870f7fded482d83dc242d15320427a1cb6e70820677a2e"
 dependencies = [
  "bindgen",
  "flate2",
