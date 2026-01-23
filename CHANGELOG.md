@@ -4,18 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
-## Unreleased
+## 2.0.1 – 2026-01-23
 
 ### Changed
 
 - Updated aic-sdk dependency to 0.14.0.
 - Optimized GitHub Actions build workflows:
-  - Consolidated build matrix from 6 jobs to 4 jobs.
+  - Consolidated build matrix from 6 jobs to 3 jobs.
   - Linux: Cross-compile x86_64 and aarch64 from single `ubuntu-latest` runner using `maturin[zig]`.
   - macOS: Cross-compile x86_64 and aarch64 from single `macos-latest` runner.
-  - Windows: Separate runners for x86_64 (`windows-latest`) and ARM64 (`windows-11-arm`).
+  - Windows: Cross-compile x86_64 and aarch64 from single `windows-latest` runner (Python 3.10 excluded for ARM64).
   - Build all Python versions (3.10-3.14) in one step per target using `--interpreter` flag.
   - Replaced `maturin-action` with direct `uvx maturin` calls.
+
+### Deprecated
+
+- `ProcessorContext.parameter()` is deprecated; use `ProcessorContext.get_parameter()` instead.
+- `VadContext.parameter()` is deprecated; use `VadContext.get_parameter()` instead.
 
 ## 2.0.0 – 2026-01-14
 
