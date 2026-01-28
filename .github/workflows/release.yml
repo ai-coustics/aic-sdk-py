@@ -3,10 +3,9 @@ name: Release
 on:
   release:
     types: [published]
-  push:
+  push:  # TODO: remove before merging
     branches:
-      - main
-      - goekmengoergen/sys-583-pypi-publish-invalid-publisher  # TODO: remove before merging
+      - goekmengoergen/sys-583-pypi-publish-invalid-publisher
   workflow_dispatch:
 
 permissions:
@@ -90,7 +89,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs: [build, sdist]
-    environment: ${{ github.event_name == 'release' && 'publish' || 'publish-test' }}
+    environment: 'publish-test'  # TODO: fix before merging
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -101,18 +100,10 @@ jobs:
       - name: List artifacts
         run: ls -la dist/
 
-      - name: Publish to TestPyPI
-        if: github.event_name != 'release'
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
-          repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip-existing: true
-
       - name: Publish to PyPI
-        if: github.event_name == 'release'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
           password: ${{ secrets.PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/    # TODO: remove before merging
+          skip-existing: true  # TODO: remove before merging
