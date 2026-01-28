@@ -86,7 +86,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs: [build, sdist]
-    environment: 'publish'
+    environment: publish
     steps:
       - uses: actions/download-artifact@v4
         with:
