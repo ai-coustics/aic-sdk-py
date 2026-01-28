@@ -3,9 +3,6 @@ name: Release
 on:
   release:
     types: [published]
-  push:  # TODO: remove before merging
-    branches:
-      - goekmengoergen/sys-583-pypi-publish-invalid-publisher
   workflow_dispatch:
 
 permissions:
@@ -89,7 +86,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs: [build, sdist]
-    environment: 'publish-test'  # TODO: fix before merging
+    environment: 'publish'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -105,5 +102,3 @@ jobs:
         with:
           packages-dir: dist/
           password: ${{ secrets.PYPI_API_TOKEN }}
-          repository-url: https://test.pypi.org/legacy/    # TODO: remove before merging
-          skip-existing: true  # TODO: remove before merging
