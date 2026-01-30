@@ -127,8 +127,8 @@ def test_real_sdk_vad_detection_runs(processor):
     # set VAD parameters to reasonable defaults
     vad.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.05)
     vad.set_parameter(aic.VadParameter.Sensitivity, 6.0)
-    shd = vad.parameter(aic.VadParameter.SpeechHoldDuration)
-    se = vad.parameter(aic.VadParameter.Sensitivity)
+    shd = vad.get_parameter(aic.VadParameter.SpeechHoldDuration)
+    se = vad.get_parameter(aic.VadParameter.Sensitivity)
     assert isinstance(shd, float)
     assert 0.0 <= shd <= 0.4  # 20x 10ms window = 0.2s, but allow some margin
     assert isinstance(se, float)
