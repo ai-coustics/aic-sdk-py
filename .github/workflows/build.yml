@@ -7,7 +7,36 @@ on:
     branches: [ main ]
 
 jobs:
+  pre-commit:
+    uses: ./.github/workflows/pre-commit.yml
+    secrets: inherit
+
+  test:
+    needs: pre-commit
+    runs-on: ubuntu-latest
+    env:
+      AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies and build
+        run: |
+          uv sync --group dev
+          uvx maturin develop
+
+      - name: Run tests
+        run: uv run pytest
+
   build:
+    needs: test
     name: Build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
