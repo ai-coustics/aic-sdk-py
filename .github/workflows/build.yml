@@ -7,12 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  pre-commit:
-    uses: ./.github/workflows/pre-commit.yml
-    secrets: inherit
-
   test:
-    needs: pre-commit
     runs-on: ubuntu-latest
     env:
       AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
