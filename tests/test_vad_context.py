@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import aic_sdk as aic
 from conftest import create_processor_or_skip
@@ -27,7 +28,7 @@ def test_vad_context_set_sensitivity(model, license_key):
     processor.initialize(config)
     vad = processor.get_vad_context()
     vad.set_parameter(aic.VadParameter.Sensitivity, 8.0)
-    value = vad.parameter(aic.VadParameter.Sensitivity)
+    value = vad.get_parameter(aic.VadParameter.Sensitivity)
     assert abs(value - 8.0) < 0.1
 
 
@@ -37,7 +38,7 @@ def test_vad_context_set_speech_hold_duration(model, license_key):
     processor.initialize(config)
     vad = processor.get_vad_context()
     vad.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.1)
-    value = vad.parameter(aic.VadParameter.SpeechHoldDuration)
+    value = vad.get_parameter(aic.VadParameter.SpeechHoldDuration)
     assert 0.0 <= value <= 0.5
 
 
@@ -47,7 +48,7 @@ def test_vad_context_set_minimum_speech_duration(model, license_key):
     processor.initialize(config)
     vad = processor.get_vad_context()
     vad.set_parameter(aic.VadParameter.MinimumSpeechDuration, 0.05)
-    value = vad.parameter(aic.VadParameter.MinimumSpeechDuration)
+    value = vad.get_parameter(aic.VadParameter.MinimumSpeechDuration)
     assert 0.0 <= value <= 1.0
 
 
@@ -57,7 +58,7 @@ def test_vad_context_sensitivity_min_value(model, license_key):
     processor.initialize(config)
     vad = processor.get_vad_context()
     vad.set_parameter(aic.VadParameter.Sensitivity, 1.0)
-    value = vad.parameter(aic.VadParameter.Sensitivity)
+    value = vad.get_parameter(aic.VadParameter.Sensitivity)
     assert value >= 1.0
 
 
@@ -67,7 +68,7 @@ def test_vad_context_sensitivity_max_value(model, license_key):
     processor.initialize(config)
     vad = processor.get_vad_context()
     vad.set_parameter(aic.VadParameter.Sensitivity, 15.0)
-    value = vad.parameter(aic.VadParameter.Sensitivity)
+    value = vad.get_parameter(aic.VadParameter.Sensitivity)
     assert value <= 15.0
 
 
@@ -93,3 +94,12 @@ def test_vad_context_updates_after_each_process_call(model, license_key):
         processor.process(audio)
         results.append(vad.is_speech_detected())
     assert all(isinstance(r, bool) for r in results)
+
+
+def test_vad_context_parameter_deprecated_warning(model, license_key):
+    processor = create_processor_or_skip(model, license_key)
+    config = aic.ProcessorConfig(48000, 1, 480, False)
+    processor.initialize(config)
+    vad = processor.get_vad_context()
+    with pytest.warns(DeprecationWarning, match="parameter\\(\\) is deprecated"):
+        vad.parameter(aic.VadParameter.Sensitivity)

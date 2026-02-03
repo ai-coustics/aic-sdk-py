@@ -114,7 +114,7 @@ async def test_sync_methods_work(model):
 
     # Test parameter get/set
     proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
-    value = proc_ctx.parameter(aic.ProcessorParameter.EnhancementLevel)
+    value = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
     assert abs(value - 0.8) < 0.01
 
 
