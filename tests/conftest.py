@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -65,3 +67,19 @@ def chunks(total: int, size: int):
     while start < total:
         yield start, min(start + size, total)
         start += size
+
+
+@pytest.fixture
+def test_audio_path():
+    return Path(__file__).parent / "data" / "test_signal.wav"
+
+
+@pytest.fixture
+def test_audio_enhanced_path():
+    return Path(__file__).parent / "data" / "test_signal_enhanced.wav"
+
+
+@pytest.fixture
+def expected_vad_results():
+    with (Path(__file__).parent / "data" / "vad_results.json").open() as f:
+        return json.load(f)
