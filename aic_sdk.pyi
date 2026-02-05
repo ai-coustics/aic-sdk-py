@@ -2,7 +2,6 @@
 
 import os
 from enum import IntEnum
-from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -321,7 +320,7 @@ class Model:
 
         Example:
             >>> model = Model.from_file("/path/to/model.aicmodel")
-            >>> model = Model.from_file(Path("/path/to/model.aicmodel"))
+            >>> model = Model.from_file(Path.cwd() / "model.aicmodel"))
         """
         ...
 
@@ -356,14 +355,18 @@ class Model:
         Example:
             >>> # Find model IDs at https://artifacts.ai-coustics.io
             >>> path = Model.download("sparrow-l-16khz", "/tmp/models")
-            >>> model = Model.from_file(path)
+            >>>
             >>> # Or using pathlib.Path
-            >>> path = Model.download("sparrow-l-16khz", Path("/tmp/models"))
+            >>> path = Model.download("sparrow-l-16khz", Path(tempfile.gettempdir()) / "models"))
+            >>>
+            >>> model = Model.from_file(path)
         """
         ...
 
     @staticmethod
-    async def download_async(model_id: str, download_dir: str | os.PathLike[str]) -> str:
+    async def download_async(
+        model_id: str, download_dir: str | os.PathLike[str]
+    ) -> str:
         """Downloads a model file asynchronously from the ai-coustics artifact CDN.
 
         This method fetches the model manifest, verifies that the requested model
@@ -393,9 +396,11 @@ class Model:
         Example:
             >>> # Find model IDs at https://artifacts.ai-coustics.io
             >>> path = await Model.download_async("sparrow-l-16khz", "/tmp/models")
-            >>> model = Model.from_file(path)
+            >>>
             >>> # Or using pathlib.Path
-            >>> path = await Model.download_async("sparrow-l-16khz", Path("/tmp/models"))
+            >>> path = await Model.download_async("sparrow-l-16khz", Path(tempfile.gettempdir()) / "models"))
+            >>>
+            >>> model = Model.from_file(path)
         """
         ...
 
