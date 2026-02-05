@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -34,8 +35,22 @@ async def test_invalid_license_key_raises_license_format_invalid_error_async(mod
 
 
 def test_nonexistent_model_file_raises_filesystem_error():
+    path = "/nonexistent/path/to/model.aicmodel"
+
     with pytest.raises(aic.FileSystemError) as exc_info:
-        aic.Model.from_file("/nonexistent/path/to/model.aicmodel")
+        aic.Model.from_file(path)
+
+    assert exc_info.value.message
+    assert isinstance(exc_info.value.message, str)
+
+
+def test_nonexistent_model_file_raises_filesystem_error_with_path_object():
+    """Test that Model.from_file() raises FileSystemError when given a Path object pointing to a nonexistent file."""
+    path = Path("/nonexistent") / "path" / "to" / "model.aicmodel"
+
+    with pytest.raises(aic.FileSystemError) as exc_info:
+        aic.Model.from_file(path)
+
     assert exc_info.value.message
     assert isinstance(exc_info.value.message, str)
 
@@ -45,24 +60,38 @@ def test_directory_path_raises_filesystem_error(tmp_path):
         aic.Model.from_file(str(tmp_path))
 
 
-def test_empty_file_raises_model_invalid_or_unaligned_error(tmp_path):
+def test_directory_path_raises_filesystem_error_with_path_object(tmp_path):
+    """Test that Model.from_file() raises FileSystemError when given a Path object pointing to a directory."""
+    with pytest.raises(aic.FileSystemError):
+        aic.Model.from_file(Path(tmp_path))
+
+
+def test_empty_file_raises_model_invalid_error(tmp_path):
     fake_model = tmp_path / "empty.aicmodel"
     fake_model.write_bytes(b"")
-    with pytest.raises((aic.ModelInvalidError, aic.ModelDataUnalignedError)):
+    with pytest.raises(aic.ModelInvalidError):
         aic.Model.from_file(str(fake_model))
 
 
-def test_random_bytes_file_raises_model_invalid_or_unaligned_error(tmp_path):
+def test_empty_file_raises_model_invalid_error_with_path_object(tmp_path):
+    """Test that Model.from_file() raises ModelInvalidError when given a Path object pointing to an empty file."""
+    fake_model = tmp_path / "empty.aicmodel"
+    fake_model.write_bytes(b"")
+    with pytest.raises(aic.ModelInvalidError):
+        aic.Model.from_file(Path(fake_model))
+
+
+def test_random_bytes_file_raises_model_invalid_error(tmp_path):
     fake_model = tmp_path / "random.aicmodel"
     fake_model.write_bytes(os.urandom(1024))
-    with pytest.raises((aic.ModelInvalidError, aic.ModelDataUnalignedError)):
+    with pytest.raises(aic.ModelInvalidError):
         aic.Model.from_file(str(fake_model))
 
 
-def test_text_file_raises_model_invalid_or_unaligned_error(tmp_path):
+def test_text_file_raises_model_invalid_error(tmp_path):
     fake_model = tmp_path / "text.aicmodel"
     fake_model.write_text("This is not a model file")
-    with pytest.raises((aic.ModelInvalidError, aic.ModelDataUnalignedError)):
+    with pytest.raises(aic.ModelInvalidError):
         aic.Model.from_file(str(fake_model))
 
 
@@ -89,10 +118,31 @@ def test_nonexistent_model_id_raises_model_download_error(tmp_path):
     assert isinstance(exc_info.value.details, str)
 
 
+def test_nonexistent_model_id_raises_model_download_error_with_path_object(tmp_path):
+    """Test that Model.download() raises ModelDownloadError when given a Path object for download_dir."""
+    with pytest.raises(aic.ModelDownloadError) as exc_info:
+        aic.Model.download("nonexistent-model-id-12345", Path(tmp_path))
+    assert exc_info.value.message
+    assert isinstance(exc_info.value.message, str)
+    assert exc_info.value.details
+    assert isinstance(exc_info.value.details, str)
+
+
 @pytest.mark.asyncio
 async def test_nonexistent_model_id_raises_model_download_error_async(tmp_path):
     with pytest.raises(aic.ModelDownloadError) as exc_info:
         await aic.Model.download_async("nonexistent-model-id-12345", str(tmp_path))
+    assert exc_info.value.message
+    assert exc_info.value.details
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_model_id_raises_model_download_error_async_with_path_object(
+    tmp_path,
+):
+    """Test that Model.download_async() raises ModelDownloadError when given a Path object for download_dir."""
+    with pytest.raises(aic.ModelDownloadError) as exc_info:
+        await aic.Model.download_async("nonexistent-model-id-12345", Path(tmp_path))
     assert exc_info.value.message
     assert exc_info.value.details
 
