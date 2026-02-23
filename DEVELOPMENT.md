@@ -7,11 +7,6 @@ uv sync
 uvx maturin develop
 ```
 
-For tests, install the dev extra (pytest/pytest-asyncio):
-```bash
-uv sync --extra dev
-```
-
 ## Run Examples
 
 ```bash
@@ -24,9 +19,6 @@ uv run examples/basic_async.py
 The `enhance_file.py` example requires additional dependencies (librosa, soundfile, tqdm):
 
 ```bash
-# Install with dev dependencies
-uv sync --extra dev
-
 # Set your license key
 export AIC_SDK_LICENSE="your-license-key"
 
@@ -49,7 +41,6 @@ uvx maturin build --release
 Set up your license key and aic lib path in `.env`:
 
 ```bash
-uv sync --extra dev
 uv run --env-file .env pytest
 ```
 
