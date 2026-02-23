@@ -24,7 +24,7 @@ import os
 license_key = os.environ["AIC_SDK_LICENSE"]
 
 # Download and load a model (or download manually at https://artifacts.ai-coustics.io/)
-model_path = aic.Model.download("sparrow-s-48khz", "./models")
+model_path = aic.Model.download("quail-vf-2.0-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 
 # Get optimal configuration
@@ -61,13 +61,13 @@ model = aic.Model.from_file("path/to/model.aicmodel")
 
 #### Download from CDN (Sync)
 ```python
-model_path = aic.Model.download("sparrow-s-48khz", "./models")
+model_path = aic.Model.download("quail-vf-2.0-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 ```
 
 #### Download from CDN (Async)
 ```python
-model_path = await aic.Model.download_async("sparrow-s-48khz", "./models")
+model_path = await aic.Model.download_async("quail-vf-2.0-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 ```
 
@@ -150,7 +150,7 @@ import aic_sdk as aic
 
 async def process_audio():
     # Download and load model (or download manually at https://artifacts.ai-coustics.io/)
-    model_path = await aic.Model.download_async("sparrow-s-48khz", "./models")
+    model_path = await aic.Model.download_async("quail-vf-2.0-l-16khz", "./models")
     model = aic.Model.from_file(model_path)
 
     # Get optimal config
