@@ -31,7 +31,7 @@ uv sync --extra dev
 export AIC_SDK_LICENSE="your-license-key"
 
 # Run the example
-uv run examples/enhance_file.py input.wav output.wav --strength 100 --model sparrow-xxs-48khz
+uv run examples/enhance_file.py input.wav output.wav --strength 100 --model sparrow-s-48khz
 ```
 
 ## Build

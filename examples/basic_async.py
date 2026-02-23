@@ -26,7 +26,7 @@ async def main():
     print("\nDownloading and loading model...")
 
     # Download the model asynchronously (using pathlib.Path for the download directory)
-    model_path = await aic.Model.download_async("sparrow-xxs-48khz", Path("./models"))
+    model_path = await aic.Model.download_async("sparrow-s-48khz", Path("./models"))
     print(f"  Model downloaded to: {model_path}")
 
     # Load the model
