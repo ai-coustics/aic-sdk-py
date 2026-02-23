@@ -108,9 +108,6 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
             aic_sdk::AicError::Internal => {
                 PyErr::new::<InternalError, _>(err_msg.into_pyobject(py).unwrap().unbind())
             }
-            aic_sdk::AicError::ParameterFixed => {
-                PyErr::new::<ParameterFixedError, _>(err_msg.into_pyobject(py).unwrap().unbind())
-            }
             aic_sdk::AicError::LicenseFormatInvalid => PyErr::new::<LicenseFormatInvalidError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),

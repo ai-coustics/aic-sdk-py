@@ -134,7 +134,6 @@ proc_ctx.reset()
 
 # Set enhancement parameters
 proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
-proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
 proc_ctx.set_parameter(aic.ProcessorParameter.Bypass, 0.0)
 
 # Get parameter values

@@ -2,14 +2,14 @@
 edition = "2024"
 name = "aic-sdk-py"
 rust-version = "1.87"
-version = "2.0.1"
+version = "2.1.0"
 
 [lib]
 crate-type = ["cdylib"]
 name = "aic_sdk"
 
 [dependencies]
-aic-sdk = { version = "0.14.0", features = ["download-lib", "download-model"] }
+aic-sdk = { git = "https://github.com/ai-coustics/aic-sdk-rs", branch = "next", features = ["download-model"] }
 numpy = "0.27"
 pyo3 = { version = "0.27", features = ["extension-module", "generate-import-lib"] }
 pyo3-async-runtimes = { version = "0.27", features = ["tokio-runtime"] }

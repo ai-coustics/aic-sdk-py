@@ -38,11 +38,6 @@ class InternalError(Exception):
 
     message: str
 
-class ParameterFixedError(Exception):
-    """The requested parameter is read-only for this model type and cannot be modified."""
-
-    message: str
-
 class LicenseFormatInvalidError(Exception):
     """License key format is invalid or corrupted. Verify the key was copied correctly."""
 
@@ -213,20 +208,6 @@ class ProcessorParameter(IntEnum):
     Range: 0.0 to 1.0
         - 0.0: Bypass mode - original signal passes through unchanged
         - 1.0: Full enhancement - maximum noise reduction but also more audible artifacts
-
-    Default: 1.0
-    """
-
-    VoiceGain = ...
-    """Compensates for perceived volume reduction after noise removal.
-
-    Range: 0.1 to 4.0 (linear amplitude multiplier)
-        - 0.1: Significant volume reduction (-20 dB)
-        - 1.0: No gain change (0 dB, default)
-        - 2.0: Double amplitude (+6 dB)
-        - 4.0: Maximum boost (+12 dB)
-
-    Formula: Gain (dB) = 20 × log₁₀(value)
 
     Default: 1.0
     """

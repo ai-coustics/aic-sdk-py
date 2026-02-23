@@ -10,7 +10,6 @@ use crate::vad::VadContext;
 pub enum ProcessorParameter {
     Bypass,
     EnhancementLevel,
-    VoiceGain,
 }
 
 impl From<ProcessorParameter> for aic_sdk::ProcessorParameter {
@@ -18,7 +17,6 @@ impl From<ProcessorParameter> for aic_sdk::ProcessorParameter {
         match val {
             ProcessorParameter::Bypass => aic_sdk::ProcessorParameter::Bypass,
             ProcessorParameter::EnhancementLevel => aic_sdk::ProcessorParameter::EnhancementLevel,
-            ProcessorParameter::VoiceGain => aic_sdk::ProcessorParameter::VoiceGain,
         }
     }
 }

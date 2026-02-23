@@ -96,11 +96,6 @@ def main():
         f"  New enhancement level: {proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)}"
     )
 
-    proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
-    print(
-        f"  Voice gain set to: {proc_ctx.get_parameter(aic.ProcessorParameter.VoiceGain)}"
-    )
-
     # Create VAD Context (Voice Activity Detection)
     print("\nVoice Activity Detection")
     vad_ctx = processor.get_vad_context()

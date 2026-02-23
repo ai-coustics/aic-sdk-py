@@ -81,10 +81,6 @@ async def main():
     level = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
     print(f"  Enhancement level set to: {level:.2f}")
 
-    proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
-    gain = proc_ctx.get_parameter(aic.ProcessorParameter.VoiceGain)
-    print(f"  Voice gain set to: {gain:.2f}")
-
     # Test VAD
     print("\nVoice Activity Detection...")
     vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)

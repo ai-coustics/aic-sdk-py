@@ -3,9 +3,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from conftest import create_processor_async_or_skip, create_processor_or_skip
 
 import aic_sdk as aic
-from conftest import create_processor_or_skip, create_processor_async_or_skip
 
 
 def test_empty_license_key_raises_license_format_invalid_error(model):
@@ -257,26 +257,6 @@ def test_enhancement_level_negative_raises_parameter_out_of_range_error(
     ctx = processor.get_processor_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
         ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, -0.5)
-    assert exc_info.value.message
-
-
-def test_voice_gain_above_max_raises_parameter_out_of_range_error(model, license_key):
-    processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    processor.initialize(config)
-    ctx = processor.get_processor_context()
-    with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
-        ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 10.0)
-    assert exc_info.value.message
-
-
-def test_voice_gain_below_min_raises_parameter_out_of_range_error(model, license_key):
-    processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    processor.initialize(config)
-    ctx = processor.get_processor_context()
-    with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
-        ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 0.01)
     assert exc_info.value.message
 
 
