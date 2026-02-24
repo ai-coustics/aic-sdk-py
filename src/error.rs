@@ -29,7 +29,7 @@ define_exception!(AudioConfigUnsupportedError);
 define_exception!(AudioConfigMismatchError);
 define_exception!(EnhancementNotAllowedError);
 define_exception!(InternalError);
-define_exception!(ParameterFixedError);
+define_exception!(ParameterFixedError); // deprecated
 define_exception!(LicenseFormatInvalidError);
 define_exception!(LicenseVersionUnsupportedError);
 define_exception!(LicenseExpiredError);
