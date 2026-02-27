@@ -5,7 +5,7 @@ Python wrapper for the ai-coustics Speech Enhancement SDK.
 For comprehensive documentation, visit [docs.ai-coustics.com](https://docs.ai-coustics.com).
 
 > [!NOTE]
-> This SDK requires a license key. Generate your key at [developers.ai-coustics.io](https://developers.ai-coustics.io).
+> This SDK requires a license key. Generate your key at [developers.ai-coustics.com](https://developers.ai-coustics.com).
 
 ## Installation
 
@@ -24,7 +24,7 @@ import os
 license_key = os.environ["AIC_SDK_LICENSE"]
 
 # Download and load a model (or download manually at https://artifacts.ai-coustics.io/)
-model_path = aic.Model.download("sparrow-xxs-48khz", "./models")
+model_path = aic.Model.download("quail-vf-2.0-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 
 # Get optimal configuration
@@ -61,13 +61,13 @@ model = aic.Model.from_file("path/to/model.aicmodel")
 
 #### Download from CDN (Sync)
 ```python
-model_path = aic.Model.download("sparrow-xxs-48khz", "./models")
+model_path = aic.Model.download("quail-vf-2.0-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 ```
 
 #### Download from CDN (Async)
 ```python
-model_path = await aic.Model.download_async("sparrow-xxs-48khz", "./models")
+model_path = await aic.Model.download_async("quail-vf-2.0-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 ```
 
@@ -134,7 +134,6 @@ proc_ctx.reset()
 
 # Set enhancement parameters
 proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
-proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
 proc_ctx.set_parameter(aic.ProcessorParameter.Bypass, 0.0)
 
 # Get parameter values
@@ -151,7 +150,7 @@ import aic_sdk as aic
 
 async def process_audio():
     # Download and load model (or download manually at https://artifacts.ai-coustics.io/)
-    model_path = await aic.Model.download_async("sparrow-xxs-48khz", "./models")
+    model_path = await aic.Model.download_async("quail-vf-2.0-l-16khz", "./models")
     model = aic.Model.from_file(model_path)
 
     # Get optimal config

@@ -24,7 +24,6 @@ def test_process_full_file_enhancement_match(
 
     proc_ctx = processor.get_processor_context()
     proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.9)
-    proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 0.9)
 
     actual_output = processor.process(audio.copy())
 

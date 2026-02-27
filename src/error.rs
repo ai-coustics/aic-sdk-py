@@ -29,7 +29,7 @@ define_exception!(AudioConfigUnsupportedError);
 define_exception!(AudioConfigMismatchError);
 define_exception!(EnhancementNotAllowedError);
 define_exception!(InternalError);
-define_exception!(ParameterFixedError);
+define_exception!(ParameterFixedError); // deprecated
 define_exception!(LicenseFormatInvalidError);
 define_exception!(LicenseVersionUnsupportedError);
 define_exception!(LicenseExpiredError);
@@ -107,9 +107,6 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
             }
             aic_sdk::AicError::Internal => {
                 PyErr::new::<InternalError, _>(err_msg.into_pyobject(py).unwrap().unbind())
-            }
-            aic_sdk::AicError::ParameterFixed => {
-                PyErr::new::<ParameterFixedError, _>(err_msg.into_pyobject(py).unwrap().unbind())
             }
             aic_sdk::AicError::LicenseFormatInvalid => PyErr::new::<LicenseFormatInvalidError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),

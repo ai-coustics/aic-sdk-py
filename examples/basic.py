@@ -26,7 +26,7 @@ def main():
     print("\nDownload model from CDN")
 
     # Download the model (using pathlib.Path for the download directory)
-    model_path = aic.Model.download("sparrow-xxs-48khz", Path("./models"))
+    model_path = aic.Model.download("sparrow-s-48khz", Path("./models"))
     print(f"  Model downloaded to: {model_path}")
 
     # Load the downloaded model
@@ -94,11 +94,6 @@ def main():
     proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
     print(
         f"  New enhancement level: {proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)}"
-    )
-
-    proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
-    print(
-        f"  Voice gain set to: {proc_ctx.get_parameter(aic.ProcessorParameter.VoiceGain)}"
     )
 
     # Create VAD Context (Voice Activity Detection)

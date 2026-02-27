@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
+from conftest import create_processor_or_skip
 
 import aic_sdk as aic
-from conftest import create_processor_or_skip
 
 
 def test_get_processor_context_returns_processor_context(model, license_key):
@@ -49,16 +49,6 @@ def test_processor_context_set_bypass(model, license_key):
     assert abs(value - 1.0) < 0.01
 
 
-def test_processor_context_set_voice_gain(model, license_key):
-    processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    processor.initialize(config)
-    ctx = processor.get_processor_context()
-    ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 2.0)
-    value = ctx.get_parameter(aic.ProcessorParameter.VoiceGain)
-    assert abs(value - 2.0) < 0.01
-
-
 def test_processor_context_enhancement_level_min_value(model, license_key):
     processor = create_processor_or_skip(model, license_key)
     config = aic.ProcessorConfig(48000, 1, 480, False)
@@ -87,26 +77,6 @@ def test_processor_context_bypass_min_value(model, license_key):
     ctx.set_parameter(aic.ProcessorParameter.Bypass, 0.0)
     value = ctx.get_parameter(aic.ProcessorParameter.Bypass)
     assert value == 0.0
-
-
-def test_processor_context_voice_gain_min_value(model, license_key):
-    processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    processor.initialize(config)
-    ctx = processor.get_processor_context()
-    ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 0.1)
-    value = ctx.get_parameter(aic.ProcessorParameter.VoiceGain)
-    assert abs(value - 0.1) < 0.01
-
-
-def test_processor_context_voice_gain_max_value(model, license_key):
-    processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    processor.initialize(config)
-    ctx = processor.get_processor_context()
-    ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 4.0)
-    value = ctx.get_parameter(aic.ProcessorParameter.VoiceGain)
-    assert abs(value - 4.0) < 0.01
 
 
 def test_processor_context_reset_after_processing(model, license_key):

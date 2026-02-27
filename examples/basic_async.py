@@ -26,7 +26,7 @@ async def main():
     print("\nDownloading and loading model...")
 
     # Download the model asynchronously (using pathlib.Path for the download directory)
-    model_path = await aic.Model.download_async("sparrow-xxs-48khz", Path("./models"))
+    model_path = await aic.Model.download_async("sparrow-s-48khz", Path("./models"))
     print(f"  Model downloaded to: {model_path}")
 
     # Load the model
@@ -80,10 +80,6 @@ async def main():
     proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.8)
     level = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
     print(f"  Enhancement level set to: {level:.2f}")
-
-    proc_ctx.set_parameter(aic.ProcessorParameter.VoiceGain, 1.5)
-    gain = proc_ctx.get_parameter(aic.ProcessorParameter.VoiceGain)
-    print(f"  Voice gain set to: {gain:.2f}")
 
     # Test VAD
     print("\nVoice Activity Detection...")

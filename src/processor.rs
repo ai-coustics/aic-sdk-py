@@ -18,7 +18,7 @@ impl From<ProcessorParameter> for aic_sdk::ProcessorParameter {
         match val {
             ProcessorParameter::Bypass => aic_sdk::ProcessorParameter::Bypass,
             ProcessorParameter::EnhancementLevel => aic_sdk::ProcessorParameter::EnhancementLevel,
-            ProcessorParameter::VoiceGain => aic_sdk::ProcessorParameter::VoiceGain,
+            ProcessorParameter::VoiceGain => panic!("VoiceGain is deprecated"),
         }
     }
 }
@@ -113,15 +113,43 @@ impl ProcessorContext {
     }
 
     fn set_parameter(&self, parameter: ProcessorParameter, value: f32) -> PyResult<()> {
+        // guard for deprecated parameters
+        if parameter == ProcessorParameter::VoiceGain {
+            Python::attach(|py| {
+                let warnings = py.import("warnings")?;
+                warnings.call_method1(
+                    "warn",
+                    (
+                        "ProcessorParameter.VoiceGain is deprecated and has no effect",
+                        py.import("builtins")?.getattr("DeprecationWarning")?,
+                    ),
+                )?;
+                Ok::<_, PyErr>(())
+            })?;
+            return Ok(());
+        }
         self.inner
             .set_parameter(parameter.into(), value)
-            .map_err(to_py_err)?;
-        Ok(())
+            .map_err(to_py_err)
     }
 
     fn get_parameter(&self, parameter: ProcessorParameter) -> PyResult<f32> {
-        let value = self.inner.parameter(parameter.into()).map_err(to_py_err)?;
-        Ok(value)
+        // guard for deprecated parameters
+        if parameter == ProcessorParameter::VoiceGain {
+            Python::attach(|py| {
+                let warnings = py.import("warnings")?;
+                warnings.call_method1(
+                    "warn",
+                    (
+                        "ProcessorParameter.VoiceGain is deprecated and has no effect",
+                        py.import("builtins")?.getattr("DeprecationWarning")?,
+                    ),
+                )?;
+                Ok::<_, PyErr>(())
+            })?;
+            return Ok(1.0); // former default value of voice gain
+        }
+        self.inner.parameter(parameter.into()).map_err(to_py_err)
     }
 
     /// Deprecated: Use get_parameter instead
