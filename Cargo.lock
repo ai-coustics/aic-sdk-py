@@ -31,7 +31,8 @@ dependencies = [
 [[package]]
 name = "aic-sdk"
 version = "0.15.0"
-source = "git+https://github.com/ai-coustics/aic-sdk-rs?branch=next#74f08f1e327837110e254acf5b53244628d93dd0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f4bb9f79dc2660c9258421e5878fdbb4711b7c45f6bd38b47ec254228a2dbe9"
 dependencies = [
  "aic-sdk-sys",
  "serde",
@@ -55,7 +56,8 @@ dependencies = [
 [[package]]
 name = "aic-sdk-sys"
 version = "0.15.0"
-source = "git+https://github.com/ai-coustics/aic-sdk-rs?branch=next#74f08f1e327837110e254acf5b53244628d93dd0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "016b44273e8370a6fb94885d06480f4a729b68212aba49e8b30d90814e5f5f02"
 dependencies = [
  "bindgen",
  "flate2",
