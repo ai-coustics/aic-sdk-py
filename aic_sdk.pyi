@@ -245,10 +245,16 @@ class VadParameter(IntEnum):
     """Controls for how long the VAD continues to detect speech after the audio signal
     no longer contains speech.
 
-    The VAD reports speech detected if the audio signal contained speech in at least 50%
-    of the frames processed in the last speech_hold_duration seconds.
-
     This affects the stability of speech detected -> not detected transitions.
+
+    The VAD reports speech detected if the audio signal contained speech in at least 50%
+    of the frames processed in the last speech_hold_duration * 2 seconds.
+
+    For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting speech
+    in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming the
+    VAD does not detect speech again during that period. If a few frames of speech are detected
+    during that period, those frames will be included in the 50% calculation, which will extend
+    the speech detection period until the 50% threshold is no longer met.
 
     Note:
         The VAD returns a value per processed buffer, so this duration is rounded
@@ -258,7 +264,7 @@ class VadParameter(IntEnum):
 
     Range: 0.0 to 100x model window length (value in seconds)
 
-    Default: 0.05 (50 ms)
+    Default: 0.03 (30 ms)
     """
 
     Sensitivity = ...
