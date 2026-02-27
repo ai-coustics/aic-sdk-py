@@ -114,22 +114,19 @@ impl ProcessorContext {
 
     fn set_parameter(&self, parameter: ProcessorParameter, value: f32) -> PyResult<()> {
         // guard for deprecated parameters
-        match parameter {
-            ProcessorParameter::VoiceGain => {
-                Python::attach(|py| {
-                    let warnings = py.import("warnings")?;
-                    warnings.call_method1(
-                        "warn",
-                        (
-                            "ProcessorParameter.VoiceGain is deprecated and has no effect",
-                            py.import("builtins")?.getattr("DeprecationWarning")?,
-                        ),
-                    )?;
-                    Ok::<_, PyErr>(())
-                })?;
-                return Ok(());
-            }
-            _ => (),
+        if parameter == ProcessorParameter::VoiceGain {
+            Python::attach(|py| {
+                let warnings = py.import("warnings")?;
+                warnings.call_method1(
+                    "warn",
+                    (
+                        "ProcessorParameter.VoiceGain is deprecated and has no effect",
+                        py.import("builtins")?.getattr("DeprecationWarning")?,
+                    ),
+                )?;
+                Ok::<_, PyErr>(())
+            })?;
+            return Ok(());
         }
         self.inner
             .set_parameter(parameter.into(), value)
@@ -138,22 +135,19 @@ impl ProcessorContext {
 
     fn get_parameter(&self, parameter: ProcessorParameter) -> PyResult<f32> {
         // guard for deprecated parameters
-        match parameter {
-            ProcessorParameter::VoiceGain => {
-                Python::attach(|py| {
-                    let warnings = py.import("warnings")?;
-                    warnings.call_method1(
-                        "warn",
-                        (
-                            "ProcessorParameter.VoiceGain is deprecated and has no effect",
-                            py.import("builtins")?.getattr("DeprecationWarning")?,
-                        ),
-                    )?;
-                    Ok::<_, PyErr>(())
-                })?;
-                return Ok(1.0); // former default value of voice gain
-            }
-            _ => (),
+        if parameter == ProcessorParameter::VoiceGain {
+            Python::attach(|py| {
+                let warnings = py.import("warnings")?;
+                warnings.call_method1(
+                    "warn",
+                    (
+                        "ProcessorParameter.VoiceGain is deprecated and has no effect",
+                        py.import("builtins")?.getattr("DeprecationWarning")?,
+                    ),
+                )?;
+                Ok::<_, PyErr>(())
+            })?;
+            return Ok(1.0); // former default value of voice gain
         }
         self.inner.parameter(parameter.into()).map_err(to_py_err)
     }
