@@ -94,15 +94,9 @@ async def process_single_file(
 
     # Set Enhancement Parameter if provided
     if enhancement_level is not None:
-        try:
-            proc_ctx.set_parameter(
-                aic.ProcessorParameter.EnhancementLevel, enhancement_level
-            )
-        except aic.ParameterFixedError as e:
-            raise ValueError(
-                "Error: Enhancement level cannot be adjusted for this model. "
-                "This model has a fixed enhancement level. Please run without specifying --enhancement-level."
-            ) from e
+        proc_ctx.set_parameter(
+            aic.ProcessorParameter.EnhancementLevel, enhancement_level
+        )
     else:
         # Use model's default enhancement level
         enhancement_level = proc_ctx.get_parameter(
@@ -168,20 +162,10 @@ async def process_multiple_files(
 
     # Validate and get the actual enhancement level that will be used
     if enhancement_level is not None:
-        try:
-            temp_ctx.set_parameter(
-                aic.ProcessorParameter.EnhancementLevel, enhancement_level
-            )
-            display_level = enhancement_level
-        except aic.ParameterFixedError:
-            # Model has fixed enhancement level, use that instead
-            display_level = temp_ctx.get_parameter(
-                aic.ProcessorParameter.EnhancementLevel
-            )
-            print(
-                f"Warning: Enhancement level cannot be adjusted for model '{model_name}'."
-            )
-            print(f"Using model's fixed enhancement level: {display_level:.2f}\n")
+        temp_ctx.set_parameter(
+            aic.ProcessorParameter.EnhancementLevel, enhancement_level
+        )
+        display_level = enhancement_level
     else:
         display_level = temp_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
 
