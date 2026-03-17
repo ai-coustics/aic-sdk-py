@@ -17,9 +17,4 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
       - uses: pre-commit/action@v3.0.1
