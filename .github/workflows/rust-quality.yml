@@ -82,3 +82,15 @@ jobs:
           toolchain: 1.87.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --all-targets
+
+  stubs:
+    name: Stubs Up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@beta
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v7
+      - run: make stubs
+      - run: git diff --exit-code aic_sdk.pyi
+
