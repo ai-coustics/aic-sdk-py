@@ -30,7 +30,7 @@ dev = ["pytest-asyncio>=1.3.0", "pytest>=9.0.2"]
 asyncio_mode = "auto"
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["extension-module"]
 include = ["aic_sdk.pyi"]
 
 [build-system]
