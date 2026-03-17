@@ -1,4 +1,6 @@
 use pyo3::prelude::*;
+use pyo3_stub_gen::define_stub_info_gatherer;
+use pyo3_stub_gen::derive::gen_stub_pyfunction;
 
 mod error;
 mod model;
@@ -9,16 +11,34 @@ mod vad;
 // Re-export the to_py_err function for use in other modules
 pub(crate) use error::to_py_err;
 
+/// Returns the version of the ai-coustics core SDK library used by this package.
+///
+/// Note:
+///     This is not necessarily the same as this package's version.
+///
+/// Returns:
+///     The library version as a string.
+///
+/// Example:
+///     >>> version = aic.get_sdk_version()
+///     >>> print(f"ai-coustics SDK version: {version}")
+#[gen_stub_pyfunction(module = "aic_sdk")]
 #[pyfunction]
 fn get_sdk_version() -> &'static str {
     aic_sdk::get_sdk_version()
 }
 
+/// Returns the model version number compatible with this SDK build.
+///
+/// Returns:
+///     The compatible model version number.
+#[gen_stub_pyfunction(module = "aic_sdk")]
 #[pyfunction]
 fn get_compatible_model_version() -> u32 {
     aic_sdk::get_compatible_model_version()
 }
 
+#[gen_stub_pyfunction(module = "aic_sdk")]
 #[pyfunction]
 fn set_sdk_id(id: u32) {
     // SAFETY:
@@ -64,3 +84,5 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     Ok(())
 }
+
+define_stub_info_gatherer!(stub_info);
