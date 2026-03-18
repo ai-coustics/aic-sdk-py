@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.1.1 - 2026-03-18
+
+## Improvements
+
+- Improved performance of telemetry when using multiple processors.
+
+## Fixes
+
+- The scaling factor of the STFT now changes depending on the sample rate.
+
 ## 2.1.0 - 2026-02-27
 
 ### New features

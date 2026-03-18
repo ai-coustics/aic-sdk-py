@@ -1,12 +1,13 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "aic-sdk @ file:///${PROJECT_ROOT}",
+#     "aic-sdk",
 #     "numpy>=2.3.5",
 #     "soundfile>=0.13.1",
 #     "tqdm>=4.67.1",
 # ]
 # ///
+# To run with a local build instead: uv run --with "aic-sdk @ ." examples/enhance_files.py ...
 
 import argparse
 import asyncio

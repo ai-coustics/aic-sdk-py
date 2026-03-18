@@ -212,30 +212,16 @@ class ProcessorParameter(IntEnum):
     """
 
     EnhancementLevel = ...
-    """Controls the intensity of speech enhancement processing.
+    """ A tunable parameter to optimize for specific STT engines, deployment environments,
+    and user experience requirements.
 
-    Range: 0.0 to 1.0
-        - 0.0: Bypass mode - original signal passes through unchanged
-        - 1.0: Full enhancement - maximum noise reduction but also more audible artifacts
+    The exact behavior depends on the active model:
+    - **Quail Models:** Controls how aggressively the model suppresses noise. When used
+      with Quail Voice Focus, it also suppresses background and competing speech.
+    - **Sparrow Models:** Controls the mixback and therefore the intensity of the
+      enhancement.
 
-    Default: 1.0
-    """
-
-    VoiceGain = ...
-    """Compensates for perceived volume reduction after noise removal.
-
-    .. deprecated::
-        This parameter has no effect and will be removed in a future version.
-
-    Range: 0.1 to 4.0 (linear amplitude multiplier)
-        - 0.1: Significant volume reduction (-20 dB)
-        - 1.0: No gain change (0 dB, default)
-        - 2.0: Double amplitude (+6 dB)
-        - 4.0: Maximum boost (+12 dB)
-
-    Formula: Gain (dB) = 20 × log₁₀(value)
-
-    Default: 1.0
+    **Range:** 0.0 to 1.0
     """
 
 class VadParameter(IntEnum):
