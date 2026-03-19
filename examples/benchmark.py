@@ -1,9 +1,10 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "aic-sdk @ file:///${PROJECT_ROOT}",
+#     "aic-sdk",
 # ]
 # ///
+# To run with a local build instead: uv run --with "aic-sdk @ ." examples/benchmark.py
 """Benchmark real-time processing throughput for ai-coustics SDK."""
 
 from dataclasses import dataclass
