@@ -115,6 +115,11 @@ async def main() -> None:
     print(f"Period: {period_seconds * 1000:.0f} ms")
     print(f"Safety margin: {safety_margin_seconds * 1000:.0f} ms\n")
 
+    _warmup = aic.ProcessorAsync(model, license_key, config)
+    await _warmup.process_async(
+        np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
+    )
+
     print(
         f"Starting benchmark: spawning a simulated audio session every {SPAWN_INTERVAL_SECONDS} seconds until a deadline is missed...\n"
     )
