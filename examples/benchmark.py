@@ -7,21 +7,20 @@
 # To run with a local build instead: uv run --with "aic-sdk @ ." examples/benchmark.py
 """Benchmark real-time processing throughput for ai-coustics SDK."""
 
-from dataclasses import dataclass
 import multiprocessing as mp
 import os
 import queue
 import sys
 import time
+from dataclasses import dataclass
 
 import numpy as np
 
 import aic_sdk as aic
 
-
 # Specify the model to benchmark.
-MODEL = "quail-vf-l-16khz"
-SPAWN_INTERVAL_SECONDS = 3.0
+MODEL = "quail-vf-2.0-l-16khz"
+SPAWN_INTERVAL_SECONDS = 1.0
 # Safety margin to account for system variability.
 # e.g. 0.3 means 30% of the period is reserved as a safety margin.
 SAFETY_MARGIN = 0.0
