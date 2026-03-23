@@ -7,9 +7,8 @@
 # To run with a local build instead: uv run --with "aic-sdk @ ." examples/benchmark.py
 """Benchmark real-time processing throughput for ai-coustics SDK."""
 
-import multiprocessing as mp
+import asyncio
 import os
-import queue
 import sys
 import time
 from dataclasses import dataclass
@@ -33,28 +32,20 @@ class SessionReport:
     error: str | None
 
 
-def session_worker(
+async def session_worker(
     session_id: int,
-    model_path: str,
+    model: aic.Model,
     license_key: str,
-    config_data: tuple[int, int, int, bool],
+    config: aic.ProcessorConfig,
     period_seconds: float,
     safety_margin_seconds: float,
-    stop_event: mp.Event,
-    report_queue: "mp.Queue[SessionReport]",
+    stop_event: asyncio.Event,
+    report_queue: "asyncio.Queue[SessionReport]",
 ) -> None:
-    # Use processes to avoid GIL contention and show best possible throughput.
     try:
-        model = aic.Model.from_file(model_path)
-        config = aic.ProcessorConfig(
-            sample_rate=config_data[0],
-            num_channels=config_data[1],
-            num_frames=config_data[2],
-            allow_variable_frames=config_data[3],
-        )
-        processor = aic.Processor(model, license_key, config)
+        processor = aic.ProcessorAsync(model, license_key, config)
     except Exception as exc:  # noqa: BLE001 - surface init errors from SDK
-        report_queue.put(
+        await report_queue.put(
             SessionReport(
                 session_id=session_id,
                 max_execution_seconds=0.0,
@@ -75,7 +66,7 @@ def session_worker(
         # Process the audio buffer
         start = time.monotonic()
         try:
-            processor.process(buffer)
+            await processor.process_async(buffer)
         except Exception as exc:  # noqa: BLE001 - propagate SDK error
             error = f"process error: {exc}"
             break
@@ -94,9 +85,9 @@ def session_worker(
         deadline = start + period_seconds
         sleep_for = deadline - time.monotonic()
         if sleep_for > 0:
-            time.sleep(sleep_for)
+            await asyncio.sleep(sleep_for)
 
-    report_queue.put(
+    await report_queue.put(
         SessionReport(
             session_id=session_id,
             max_execution_seconds=max_execution_seconds,
@@ -105,35 +96,7 @@ def session_worker(
     )
 
 
-def spawn_session(
-    session_id: int,
-    model_path: str,
-    license_key: str,
-    config_data: tuple[int, int, int, bool],
-    period_seconds: float,
-    safety_margin_seconds: float,
-    stop_event: mp.Event,
-    report_queue: "mp.Queue[SessionReport]",
-) -> mp.Process:
-    process = mp.Process(
-        target=session_worker,
-        name=f"benchmark-session-{session_id}",
-        args=(
-            session_id,
-            model_path,
-            license_key,
-            config_data,
-            period_seconds,
-            safety_margin_seconds,
-            stop_event,
-            report_queue,
-        ),
-    )
-    process.start()
-    return process
-
-
-def main() -> None:
+async def main() -> None:
     print(f"ai-coustics SDK version: {aic.get_sdk_version()}")
 
     license_key = os.environ["AIC_SDK_LICENSE"]
@@ -143,12 +106,6 @@ def main() -> None:
     print(f"Model loaded from {model_path}\n")
 
     config = aic.ProcessorConfig.optimal(model)
-    config_data = (
-        config.sample_rate,
-        config.num_channels,
-        config.num_frames,
-        config.allow_variable_frames,
-    )
     period_seconds = config.num_frames / config.sample_rate
     safety_margin_seconds = period_seconds * SAFETY_MARGIN
 
@@ -159,59 +116,46 @@ def main() -> None:
     print(f"Safety margin: {safety_margin_seconds * 1000:.0f} ms\n")
 
     print(
-        f"Starting benchmark: spawning a simulated audio process every {SPAWN_INTERVAL_SECONDS} seconds until a deadline is missed...\n"
+        f"Starting benchmark: spawning a simulated audio session every {SPAWN_INTERVAL_SECONDS} seconds until a deadline is missed...\n"
     )
 
-    stop_event = mp.Event()
-    report_queue: "mp.Queue[SessionReport]" = mp.Queue()
+    stop_event = asyncio.Event()
+    report_queue: "asyncio.Queue[SessionReport]" = asyncio.Queue()
     reports: list[SessionReport] = []
-    processes: list[mp.Process] = []
+    tasks: list[asyncio.Task] = []
 
-    process_id = 1
-    processes.append(
-        spawn_session(
-            process_id,
-            model_path,
-            license_key,
-            config_data,
-            period_seconds,
-            safety_margin_seconds,
-            stop_event,
-            report_queue,
-        )
-    )
-    active_processes = 1
-    _print_progress(active_processes)
-
-    next_spawn = time.monotonic() + SPAWN_INTERVAL_SECONDS
+    session_id = 0
+    next_spawn = time.monotonic()
 
     first_session_report: SessionReport | None = None
     while True:
         timeout = max(0.0, next_spawn - time.monotonic())
         try:
-            report = report_queue.get(timeout=timeout)
-        except queue.Empty:
+            report = await asyncio.wait_for(report_queue.get(), timeout=timeout)
+        except asyncio.TimeoutError:
             # Spawn a new session at regular intervals.
-            process_id += 1
-            processes.append(
-                spawn_session(
-                    process_id,
-                    model_path,
-                    license_key,
-                    config_data,
-                    period_seconds,
-                    safety_margin_seconds,
-                    stop_event,
-                    report_queue,
+            session_id += 1
+            tasks.append(
+                asyncio.create_task(
+                    session_worker(
+                        session_id,
+                        model,
+                        license_key,
+                        config,
+                        period_seconds,
+                        safety_margin_seconds,
+                        stop_event,
+                        report_queue,
+                    ),
+                    name=f"benchmark-session-{session_id}",
                 )
             )
-            active_processes += 1
-            _print_progress(active_processes)
+            _print_progress(session_id)
             next_spawn += SPAWN_INTERVAL_SECONDS
             continue
 
         # Check for deadline misses and break the loop if one occurs
-        _print_progress_end(active_processes)
+        _print_progress_end(session_id)
         reports.append(report)
         if report.error is not None:
             first_session_report = report
@@ -220,14 +164,10 @@ def main() -> None:
     print("Benchmark complete\n")
 
     stop_event.set()
-    for process in processes:
-        process.join()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
-    while True:
-        try:
-            reports.append(report_queue.get_nowait())
-        except queue.Empty:
-            break
+    while not report_queue.empty():
+        reports.append(report_queue.get_nowait())
 
     reports.sort(key=lambda report: report.session_id)
 
@@ -250,7 +190,7 @@ def main() -> None:
 
     print()
 
-    max_ok = max(active_processes - 1, 0)
+    max_ok = max(session_id - 1, 0)
 
     print(
         "System can run "
@@ -261,30 +201,29 @@ def main() -> None:
         reason = first_session_report.error or "unknown"
         print(
             "After spawning the "
-            f"{active_processes}{number_suffix(active_processes)} process, process "
+            f"{session_id}{number_suffix(session_id)} session, session "
             f"#{first_session_report.session_id} missed its deadline ({reason})"
         )
         if number_of_missed_deadlines > 1:
             print(
-                "Other processes also missed deadlines after process "
+                "Other sessions also missed deadlines after session "
                 f"#{first_session_report.session_id}"
             )
     else:
-        print("Missed deadline in process unknown (no report)")
+        print("Missed deadline in session unknown (no report)")
 
 
-def _print_progress(active_processes: int) -> None:
+def _print_progress(n: int) -> None:
     sys.stdout.write("*")
-    if active_processes % 50 == 0:
+    if n % 50 == 0:
         sys.stdout.write("\n")
     sys.stdout.flush()
 
 
-def _print_progress_end(active_processes: int) -> None:
-    if active_processes % 50 == 0:
-        print()
-    else:
-        print("\n")
+def _print_progress_end(n: int) -> None:
+    if n % 50 != 0:
+        print()  # end the current asterisk line
+    print()  # blank line before output
 
 
 def number_suffix(value: int) -> str:
@@ -300,4 +239,4 @@ def number_suffix(value: int) -> str:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
