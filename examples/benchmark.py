@@ -121,7 +121,7 @@ async def main() -> None:
     )
 
     print(
-        f"Starting benchmark: spawning a simulated audio session every {SPAWN_INTERVAL_SECONDS} seconds until a deadline is missed...\n"
+        f"Starting benchmark: spawning a simulated audio session every {SPAWN_INTERVAL_SECONDS} second(s) until a deadline is missed...\n"
     )
 
     stop_event = asyncio.Event()
