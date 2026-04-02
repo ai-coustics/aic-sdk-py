@@ -1,18 +1,25 @@
+[workspace]
+members = ["stub-gen"]
+
 [package]
 edition = "2024"
 name = "aic-sdk-py"
-rust-version = "1.87"
+rust-version = "1.88"
 version = "2.1.1"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 name = "aic_sdk"
+
+[features]
+extension-module = ["pyo3/extension-module"]
 
 [dependencies]
 aic-sdk = { version = "0.15.1", features = ["download-lib", "download-model"] }
 numpy = "0.27"
-pyo3 = { version = "0.27", features = ["extension-module", "generate-import-lib"] }
+pyo3 = { version = "0.27", features = ["generate-import-lib", "multiple-pymethods"] }
 pyo3-async-runtimes = { version = "0.27", features = ["tokio-runtime"] }
+pyo3-stub-gen = { version = "0.20", default-features = false, features = ["infer_signature"] }
 tokio = { version = "1.49", features = ["rt", "rt-multi-thread"] }
 
 [profile.release]

@@ -1,0 +1,8 @@
+[package]
+edition = "2024"
+name = "stub-gen"
+version = "0.0.0"
+
+[dependencies]
+aic-sdk-py = { path = ".." }
+pyo3-stub-gen = { version = "0.20", default-features = false }

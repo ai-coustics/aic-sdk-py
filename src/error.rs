@@ -1,15 +1,20 @@
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 
-// Macro to define simple exception types with just a message field
+// Macro to define simple exception types with just a message field.
+// Accepts leading doc-comment attributes so each variant can carry its own docstring.
 macro_rules! define_exception {
-    ($name:ident) => {
-        #[pyclass(extends=PyException)]
+    ($(#[$meta:meta])* $name:ident) => {
+        $(#[$meta])*
+        #[gen_stub_pyclass]
+        #[pyclass(module = "aic_sdk", extends=PyException)]
         pub struct $name {
             #[pyo3(get)]
             pub message: String,
         }
 
+        #[gen_stub_pymethods]
         #[pymethods]
         impl $name {
             #[new]
@@ -22,24 +27,73 @@ macro_rules! define_exception {
     };
 }
 
-// Define all simple exception types
-define_exception!(ParameterOutOfRangeError);
-define_exception!(ModelNotInitializedError);
-define_exception!(AudioConfigUnsupportedError);
-define_exception!(AudioConfigMismatchError);
-define_exception!(EnhancementNotAllowedError);
-define_exception!(InternalError);
-define_exception!(ParameterFixedError); // deprecated
-define_exception!(LicenseFormatInvalidError);
-define_exception!(LicenseVersionUnsupportedError);
-define_exception!(LicenseExpiredError);
-define_exception!(ModelInvalidError);
-define_exception!(ModelVersionUnsupportedError);
-define_exception!(ModelFilePathInvalidError);
-define_exception!(FileSystemError);
-define_exception!(ModelDataUnalignedError);
+define_exception!(
+    /// Parameter value is outside the acceptable range. Check documentation for valid values.
+    ParameterOutOfRangeError
+);
+define_exception!(
+    /// Model must be initialized before calling this operation. Call `Processor.initialize` first.
+    ModelNotInitializedError
+);
+define_exception!(
+    /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
+    AudioConfigUnsupportedError
+);
+define_exception!(
+    /// Audio buffer configuration differs from the one provided during initialization.
+    AudioConfigMismatchError
+);
+define_exception!(
+    /// SDK key was not authorized or process failed to report usage. Check if you have internet connection.
+    EnhancementNotAllowedError
+);
+define_exception!(
+    /// Internal error occurred. Contact support.
+    InternalError
+);
+define_exception!(
+    /// The requested parameter is read-only for this model type and cannot be modified.
+    ///
+    /// .. deprecated::
+    ///     This error is no longer raised by the SDK.
+    ParameterFixedError
+);
+define_exception!(
+    /// License key format is invalid or corrupted. Verify the key was copied correctly.
+    LicenseFormatInvalidError
+);
+define_exception!(
+    /// License version is not compatible with the SDK version. Update SDK or contact support.
+    LicenseVersionUnsupportedError
+);
+define_exception!(
+    /// License key has expired. Renew your license to continue.
+    LicenseExpiredError
+);
+define_exception!(
+    /// The model file is invalid or corrupted. Verify the file is correct.
+    ModelInvalidError
+);
+define_exception!(
+    /// The model file version is not compatible with this SDK version.
+    ModelVersionUnsupportedError
+);
+define_exception!(
+    /// The path to the model file is invalid.
+    ModelFilePathInvalidError
+);
+define_exception!(
+    /// The model file cannot be opened due to a filesystem error. Verify that the file exists.
+    FileSystemError
+);
+define_exception!(
+    /// The model data is not aligned to 64 bytes.
+    ModelDataUnalignedError
+);
 
-#[pyclass(extends=PyException)]
+/// Model download error occurred.
+#[gen_stub_pyclass]
+#[pyclass(module = "aic_sdk", extends=PyException)]
 pub struct ModelDownloadError {
     #[pyo3(get)]
     pub message: String,
@@ -47,6 +101,7 @@ pub struct ModelDownloadError {
     pub details: String,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl ModelDownloadError {
     #[new]
@@ -58,7 +113,9 @@ impl ModelDownloadError {
     }
 }
 
-#[pyclass(extends=PyException)]
+/// Unknown error code encountered.
+#[gen_stub_pyclass]
+#[pyclass(module = "aic_sdk", extends=PyException)]
 pub struct UnknownError {
     #[pyo3(get)]
     pub message: String,
@@ -66,6 +123,7 @@ pub struct UnknownError {
     pub error_code: i32,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl UnknownError {
     #[new]
