@@ -5,4 +5,4 @@ version = "0.0.0"
 
 [dependencies]
 aic-sdk-py = { path = ".." }
-pyo3-stub-gen = { version = "0.19", default-features = false }
+pyo3-stub-gen = { version = "0.20", default-features = false }
