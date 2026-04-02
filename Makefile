@@ -1,6 +1,6 @@
 .PHONY: stubs
 
 stubs:
-	cargo run -p stub-gen
-	uvx pre-commit run ruff-format --files aic_sdk.pyi || true
-	uvx pre-commit run ruff-check --files aic_sdk.pyi || true
+	cargo run -q -p stub-gen
+	uvx ruff format aic_sdk.pyi --quiet
+	uvx ruff check --fix --quiet aic_sdk.pyi

@@ -116,6 +116,15 @@ fn patch_numpy_methods(path: &std::path::Path) {
         &format!("{processor_async_anchor_prefix}{process_async_stub}    def get_processor_context(self) -> ProcessorContext:", processor_async_anchor_prefix = "            >>> await processor.initialize_async(config)\n        \"\"\"\n"),
     );
 
+    // Strip trailing whitespace from every line (ruff won't touch whitespace
+    // inside string literals, so docstring blank lines must be cleaned here).
+    let content: String = content
+        .lines()
+        .map(|l| l.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+
     std::fs::File::create(path)
         .unwrap()
         .write_all(content.as_bytes())
