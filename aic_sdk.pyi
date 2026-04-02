@@ -136,7 +136,7 @@ class Model:
 
         Args:
             path: Path to the model file (.aicmodel). You can download models manually
-                from https://artifacts.ai-coustics.io or use Model.download() to fetch
+                from <https://artifacts.ai-coustics.io> or use Model.download() to fetch
                 them programmatically. Accepts both string paths and pathlib.Path objects.
 
         Returns:
@@ -146,7 +146,7 @@ class Model:
             RuntimeError: If model creation fails.
 
         See Also:
-            https://artifacts.ai-coustics.io for available model IDs and downloads.
+            <https://artifacts.ai-coustics.io> for available model IDs and downloads.
 
         Example:
             >>> model = Model.from_file("/path/to/model.aicmodel")
@@ -184,7 +184,7 @@ class Model:
             RuntimeError: If the operation fails.
 
         Example:
-            >>> # Find model IDs at https://artifacts.ai-coustics.io
+            >>> # Find model IDs at <https://artifacts.ai-coustics.io>
             >>> path = Model.download("sparrow-l-16khz", "/tmp/models")
             >>>
             >>> # Or using pathlib.Path
@@ -224,7 +224,7 @@ class Model:
             RuntimeError: If the operation fails.
 
         Example:
-            >>> # Find model IDs at https://artifacts.ai-coustics.io
+            >>> # Find model IDs at <https://artifacts.ai-coustics.io>
             >>> path = await Model.download_async("sparrow-l-16khz", "/tmp/models")
             >>>
             >>> # Or using pathlib.Path
@@ -417,7 +417,7 @@ class Processor:
         Args:
             model: The loaded model instance
             license_key: License key for the ai-coustics SDK
-                (generate your key at https://developers.ai-coustics.com/)
+                (generate your key at <https://developers.ai-coustics.com/>)
             config: Optional audio processing configuration. If provided, the processor
                 will be initialized immediately with this configuration.
 
@@ -544,7 +544,7 @@ class ProcessorAsync:
         Args:
             model: The loaded model instance
             license_key: License key for the ai-coustics SDK
-                (generate your key at https://developers.ai-coustics.io/)
+                (generate your key at <https://developers.ai-coustics.io/>)
             config: Optional audio processing configuration. If provided, the processor
                 will be initialized immediately with this configuration.
 
