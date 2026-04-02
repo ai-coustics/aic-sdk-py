@@ -185,10 +185,10 @@ class Model:
 
         Example:
             >>> # Find model IDs at <https://artifacts.ai-coustics.io>
-            >>> path = Model.download("sparrow-l-16khz", "/tmp/models")
+            >>> path = Model.download("rook-l-16khz", "/tmp/models")
             >>>
             >>> # Or using pathlib.Path
-            >>> path = Model.download("sparrow-l-16khz", Path(tempfile.gettempdir()) / "models"))
+            >>> path = Model.download("rook-l-16khz", Path(tempfile.gettempdir()) / "models"))
             >>>
             >>> model = Model.from_file(path)
         """
@@ -225,10 +225,10 @@ class Model:
 
         Example:
             >>> # Find model IDs at <https://artifacts.ai-coustics.io>
-            >>> path = await Model.download_async("sparrow-l-16khz", "/tmp/models")
+            >>> path = await Model.download_async("rook-l-16khz", "/tmp/models")
             >>>
             >>> # Or using pathlib.Path
-            >>> path = await Model.download_async("sparrow-l-16khz", Path(tempfile.gettempdir()) / "models"))
+            >>> path = await Model.download_async("rook-l-16khz", Path(tempfile.gettempdir()) / "models"))
             >>>
             >>> model = Model.from_file(path)
         """
@@ -931,13 +931,16 @@ class ProcessorParameter(enum.Enum):
     """
     EnhancementLevel = ...
     r"""
-    Controls the intensity of speech enhancement processing.
+    A tunable parameter to optimize for specific STT engines, deployment environments,
+    and user experience requirements.
 
-    Range: 0.0 to 1.0
-        - 0.0: Bypass mode - original signal passes through unchanged
-        - 1.0: Full enhancement - maximum noise reduction but also more audible artifacts
+    The exact behavior depends on the active model:
+    - **Quail Models:** Controls how aggressively the model suppresses noise. When used
+      with Quail Voice Focus, it also suppresses background and competing speech.
+    - **Rook Models:** Controls the mixback and therefore the intensity of the
+      enhancement.
 
-    Default: 1.0
+    **Range:** 0.0 to 1.0
     """
     VoiceGain = ...
     r"""

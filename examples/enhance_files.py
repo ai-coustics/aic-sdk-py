@@ -256,7 +256,7 @@ if __name__ == "__main__":
         "--model",
         help="The model to download",
         type=str,
-        default="sparrow-l-48khz",
+        default="rook-l-48khz",
         required=False,
     )
     parser.add_argument(

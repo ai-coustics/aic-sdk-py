@@ -27,7 +27,7 @@ def main():
     print("\nDownload model from CDN")
 
     # Download the model (using pathlib.Path for the download directory)
-    model_path = aic.Model.download("sparrow-s-48khz", Path("./models"))
+    model_path = aic.Model.download("rook-s-48khz", Path("./models"))
     print(f"  Model downloaded to: {model_path}")
 
     # Load the downloaded model
