@@ -918,42 +918,42 @@ class ProcessorParameter(enum.Enum):
     Bypass = ...
     r"""
     Controls whether audio processing is bypassed while preserving algorithmic delay.
-    
+
     When enabled, the input audio passes through unmodified, but the output is still
     delayed by the same amount as during normal processing. This ensures seamless
     transitions when toggling enhancement on/off without audible clicks or timing shifts.
-    
+
     Range: 0.0 to 1.0
         - 0.0: Enhancement active (normal processing)
         - 1.0: Bypass enabled (latency-compensated passthrough)
-    
+
     Default: 0.0
     """
     EnhancementLevel = ...
     r"""
     Controls the intensity of speech enhancement processing.
-    
+
     Range: 0.0 to 1.0
         - 0.0: Bypass mode - original signal passes through unchanged
         - 1.0: Full enhancement - maximum noise reduction but also more audible artifacts
-    
+
     Default: 1.0
     """
     VoiceGain = ...
     r"""
     Compensates for perceived volume reduction after noise removal.
-    
+
     .. deprecated::
         This parameter has no effect and will be removed in a future version.
-    
+
     Range: 0.1 to 4.0 (linear amplitude multiplier)
         - 0.1: Significant volume reduction (-20 dB)
         - 1.0: No gain change (0 dB, default)
         - 2.0: Double amplitude (+6 dB)
         - 4.0: Maximum boost (+12 dB)
-    
+
     Formula: Gain (dB) = 20 × log₁₀(value)
-    
+
     Default: 1.0
     """
 
@@ -967,56 +967,56 @@ class VadParameter(enum.Enum):
     r"""
     Controls for how long the VAD continues to detect speech after the audio signal
     no longer contains speech.
-    
+
     This affects the stability of speech detected -> not detected transitions.
-    
+
     The VAD reports speech detected if the audio signal contained speech in at least 50%
     of the frames processed in the last speech_hold_duration * 2 seconds.
-    
+
     For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting speech
     in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming the
     VAD does not detect speech again during that period. If a few frames of speech are detected
     during that period, those frames will be included in the 50% calculation, which will extend
     the speech detection period until the 50% threshold is no longer met.
-    
+
     Note:
         The VAD returns a value per processed buffer, so this duration is rounded
         to the closest model window length. For example, if the model has a processing window
         length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
         Because of this, this parameter may return a different value than the one it was last set to.
-    
+
     Range: 0.0 to 100x model window length (value in seconds)
-    
+
     Default: 0.03 (30 ms)
     """
     Sensitivity = ...
     r"""
     Controls the sensitivity (energy threshold) of the VAD.
-    
+
     This value is used by the VAD as the threshold a speech audio signal's energy
     has to exceed in order to be considered speech.
-    
+
     Range: 1.0 to 15.0
-    
+
     Formula: Energy threshold = 10 ^ (-sensitivity)
-    
+
     Default: 6.0
     """
     MinimumSpeechDuration = ...
     r"""
     Controls for how long speech needs to be present in the audio signal before
     the VAD considers it speech.
-    
+
     This affects the stability of speech not detected -> detected transitions.
-    
+
     Note:
         The VAD returns a value per processed buffer, so this duration is rounded
         to the closest model window length. For example, if the model has a processing window
         length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
         Because of this, this parameter may return a different value than the one it was last set to.
-    
+
     Range: 0.0 to 1.0 (value in seconds)
-    
+
     Default: 0.0
     """
 
