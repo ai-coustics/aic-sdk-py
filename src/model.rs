@@ -79,10 +79,10 @@ impl Model {
     ///
     /// Example:
     ///     >>> # Find model IDs at <https://artifacts.ai-coustics.io>
-    ///     >>> path = Model.download("sparrow-l-16khz", "/tmp/models")
+    ///     >>> path = Model.download("rook-l-16khz", "/tmp/models")
     ///     >>>
     ///     >>> # Or using pathlib.Path
-    ///     >>> path = Model.download("sparrow-l-16khz", Path(tempfile.gettempdir()) / "models"))
+    ///     >>> path = Model.download("rook-l-16khz", Path(tempfile.gettempdir()) / "models"))
     ///     >>>
     ///     >>> model = Model.from_file(path)
     #[staticmethod]
@@ -119,10 +119,10 @@ impl Model {
     ///
     /// Example:
     ///     >>> # Find model IDs at <https://artifacts.ai-coustics.io>
-    ///     >>> path = await Model.download_async("sparrow-l-16khz", "/tmp/models")
+    ///     >>> path = await Model.download_async("rook-l-16khz", "/tmp/models")
     ///     >>>
     ///     >>> # Or using pathlib.Path
-    ///     >>> path = await Model.download_async("sparrow-l-16khz", Path(tempfile.gettempdir()) / "models"))
+    ///     >>> path = await Model.download_async("rook-l-16khz", Path(tempfile.gettempdir()) / "models"))
     ///     >>>
     ///     >>> model = Model.from_file(path)
     #[staticmethod]
