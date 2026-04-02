@@ -42,7 +42,7 @@ impl ProcessorAsync {
     /// Args:
     ///     model: The loaded model instance
     ///     license_key: License key for the ai-coustics SDK
-    ///         (generate your key at https://developers.ai-coustics.io/)
+    ///         (generate your key at <https://developers.ai-coustics.io/>)
     ///     config: Optional audio processing configuration. If provided, the processor
     ///         will be initialized immediately with this configuration.
     ///
