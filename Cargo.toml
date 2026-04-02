@@ -4,7 +4,7 @@ members = ["stub-gen"]
 [package]
 edition = "2024"
 name = "aic-sdk-py"
-rust-version = "1.87"
+rust-version = "1.88"
 version = "2.1.1"
 
 [lib]
