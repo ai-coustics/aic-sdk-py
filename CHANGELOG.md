@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.1.2 - 2026-04-16
+
+Update to core library version 0.16.0.
+
+## New features
+
+This release adds an **experimental** feature to export real-time audio processing metrics via OpenTelemetry (OTel).
+The new feature is currently disabled by default and available for testing on early access only.
+
 ## 2.1.1 - 2026-03-18
 
 ## Improvements
