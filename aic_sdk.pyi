@@ -6,6 +6,7 @@ import enum
 import os
 import pathlib
 import typing
+
 import numpy as np
 import numpy.typing as npt
 
@@ -469,6 +470,10 @@ class Processor:
         The input uses sequential channel layout where all samples for each
         channel are stored contiguously.
 
+        # Note
+        All channels are mixed to mono for processing. To process channels
+        independently, create separate processor instances.,
+
         Args:
             buffer: 2D NumPy array with shape (num_channels, num_frames) containing
                    audio data to be enhanced
@@ -502,6 +507,7 @@ class Processor:
     def get_vad_context(self) -> VadContext:
         r"""
         Creates a Voice Activity Detector Context instance.
+        All instances created from a given processor reference the same VAD instance.
 
         Returns:
             A new VadContext instance.
@@ -596,6 +602,10 @@ class ProcessorAsync:
         The input uses sequential channel layout where all samples for each
         channel are stored contiguously.
 
+        # Note
+        All channels are mixed to mono for processing. To process channels
+        independently, create separate processor instances.,
+
         Args:
             buffer: 2D NumPy array with shape (num_channels, num_frames) containing
                    audio data to be enhanced
@@ -629,6 +639,7 @@ class ProcessorAsync:
     def get_vad_context(self) -> VadContext:
         r"""
         Creates a Voice Activity Detector Context instance.
+        All instances created from a given processor reference the same VAD instance.
 
         Returns:
             A new VadContext instance.
@@ -747,7 +758,7 @@ class ProcessorContext:
     """
     def reset(self) -> None:
         r"""
-        Clears all internal state and buffers.
+        Clears all internal state and buffers. This also resets the VAD state associated with this processor.
 
         Call this when the audio stream is interrupted or when seeking
         to prevent artifacts from previous audio content.

@@ -122,6 +122,7 @@ impl ProcessorAsync {
     }
 
     /// Creates a Voice Activity Detector Context instance.
+    /// All instances created from a given processor reference the same VAD instance.
     ///
     /// Returns:
     ///     A new VadContext instance.

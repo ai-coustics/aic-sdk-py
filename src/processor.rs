@@ -192,7 +192,7 @@ pub struct ProcessorContext {
 #[gen_stub_pymethods]
 #[pymethods]
 impl ProcessorContext {
-    /// Clears all internal state and buffers.
+    /// Clears all internal state and buffers. This also resets the VAD state associated with this processor.
     ///
     /// Call this when the audio stream is interrupted or when seeking
     /// to prevent artifacts from previous audio content.
@@ -441,6 +441,7 @@ impl Processor {
     }
 
     /// Creates a Voice Activity Detector Context instance.
+    /// All instances created from a given processor reference the same VAD instance.
     ///
     /// Returns:
     ///     A new VadContext instance.
