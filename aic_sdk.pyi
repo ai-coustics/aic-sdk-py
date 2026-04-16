@@ -8,6 +8,7 @@ import pathlib
 import typing
 import numpy as np
 import numpy.typing as npt
+
 __all__ = [
     "AudioConfigMismatchError",
     "AudioConfigUnsupportedError",
@@ -152,7 +153,9 @@ class Model:
             >>> model = Model.from_file(Path.cwd() / "model.aicmodel"))
         """
     @staticmethod
-    def download(model_id: builtins.str, download_dir: builtins.str | os.PathLike | pathlib.Path) -> builtins.str:
+    def download(
+        model_id: builtins.str, download_dir: builtins.str | os.PathLike | pathlib.Path
+    ) -> builtins.str:
         r"""
         Downloads a model file from the ai-coustics artifact CDN.
 
@@ -190,7 +193,9 @@ class Model:
             >>> model = Model.from_file(path)
         """
     @staticmethod
-    def download_async(model_id: builtins.str, download_dir: builtins.str | os.PathLike | pathlib.Path) -> typing.Any:
+    def download_async(
+        model_id: builtins.str, download_dir: builtins.str | os.PathLike | pathlib.Path
+    ) -> typing.Any:
         r"""
         Downloads a model file asynchronously from the ai-coustics artifact CDN.
 
@@ -317,7 +322,9 @@ class ModelDownloadError(builtins.Exception):
     def message(self) -> builtins.str: ...
     @property
     def details(self) -> builtins.str: ...
-    def __new__(cls, message: builtins.str, details: builtins.str) -> ModelDownloadError: ...
+    def __new__(
+        cls, message: builtins.str, details: builtins.str
+    ) -> ModelDownloadError: ...
 
 @typing.final
 class ModelFilePathInvalidError(builtins.Exception):
@@ -392,7 +399,12 @@ class Processor:
         >>> audio = np.zeros((2, config.num_frames), dtype=np.float32)
         >>> enhanced = processor.process(audio)
     """
-    def __new__(cls, model: Model, license_key: builtins.str, config: typing.Optional[ProcessorConfig] = None) -> Processor:
+    def __new__(
+        cls,
+        model: Model,
+        license_key: builtins.str,
+        config: typing.Optional[ProcessorConfig] = None,
+    ) -> Processor:
         r"""
         Creates a new audio enhancement processor instance.
 
@@ -519,7 +531,12 @@ class ProcessorAsync:
         >>> audio = np.zeros((2, config.num_frames), dtype=np.float32)
         >>> enhanced = await processor.process_async(audio)
     """
-    def __new__(cls, model: Model, license_key: builtins.str, config: typing.Optional[ProcessorConfig] = None) -> ProcessorAsync:
+    def __new__(
+        cls,
+        model: Model,
+        license_key: builtins.str,
+        config: typing.Optional[ProcessorConfig] = None,
+    ) -> ProcessorAsync:
         r"""
         Creates a new async audio enhancement processor instance.
 
@@ -680,7 +697,13 @@ class ProcessorConfig:
         r"""
         Allows frame counts below num_frames at the cost of added latency
         """
-    def __new__(cls, sample_rate: builtins.int, num_channels: builtins.int, num_frames: builtins.int, allow_variable_frames: builtins.bool = False) -> ProcessorConfig:
+    def __new__(
+        cls,
+        sample_rate: builtins.int,
+        num_channels: builtins.int,
+        num_frames: builtins.int,
+        allow_variable_frames: builtins.bool = False,
+    ) -> ProcessorConfig:
         r"""
         Create a new ProcessorConfig instance.
 
@@ -692,7 +715,13 @@ class ProcessorConfig:
         """
     def __repr__(self) -> builtins.str: ...
     @staticmethod
-    def optimal(model: Model, sample_rate: typing.Optional[builtins.int] = None, num_channels: builtins.int = 1, num_frames: typing.Optional[builtins.int] = None, allow_variable_frames: builtins.bool = False) -> ProcessorConfig:
+    def optimal(
+        model: Model,
+        sample_rate: typing.Optional[builtins.int] = None,
+        num_channels: builtins.int = 1,
+        num_frames: typing.Optional[builtins.int] = None,
+        allow_variable_frames: builtins.bool = False,
+    ) -> ProcessorConfig:
         r"""
         Returns a ProcessorConfig pre-filled with the model's optimal settings.
 
@@ -741,7 +770,9 @@ class ProcessorContext:
         Example:
             >>> processor_context.reset()
         """
-    def set_parameter(self, parameter: ProcessorParameter, value: builtins.float) -> None:
+    def set_parameter(
+        self, parameter: ProcessorParameter, value: builtins.float
+    ) -> None:
         r"""
         Modifies a processor parameter.
 
@@ -819,7 +850,9 @@ class UnknownError(builtins.Exception):
     def message(self) -> builtins.str: ...
     @property
     def error_code(self) -> builtins.int: ...
-    def __new__(cls, message: builtins.str, error_code: builtins.int) -> UnknownError: ...
+    def __new__(
+        cls, message: builtins.str, error_code: builtins.int
+    ) -> UnknownError: ...
 
 @typing.final
 class VadContext:
@@ -891,6 +924,7 @@ class ProcessorParameter(enum.Enum):
     r"""
     Configurable parameters for audio enhancement.
     """
+
     Bypass = ...
     r"""
     Controls whether audio processing is bypassed while preserving algorithmic delay.
@@ -941,6 +975,7 @@ class VadParameter(enum.Enum):
     r"""
     Configurable parameters for Voice Activity Detection.
     """
+
     SpeechHoldDuration = ...
     r"""
     Controls for how long the VAD continues to detect speech after the audio signal
@@ -1022,4 +1057,3 @@ def get_sdk_version() -> builtins.str:
     """
 
 def set_sdk_id(id: builtins.int) -> None: ...
-
