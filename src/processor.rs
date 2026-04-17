@@ -466,10 +466,13 @@ impl Processor {
     ) -> PyResult<Bound<'py, numpy::PyArray2<f32>>> {
         let mut array = buffer.as_array().as_standard_layout().into_owned();
 
-        // Process using sequential format (channel-contiguous)
-        self.processor
-            .process_sequential(array.as_slice_mut().expect("Array is in standard layout"))
-            .map_err(to_py_err)?;
+        // We release the GIL here so any other Python threads get a chance to run
+        py.detach(|| {
+            // Process using sequential format (channel-contiguous)
+            self.processor
+                .process_sequential(array.as_slice_mut().expect("Array is in standard layout"))
+                .map_err(to_py_err)
+        })?;
 
         // Convert back to numpy array
         use numpy::ToPyArray;
