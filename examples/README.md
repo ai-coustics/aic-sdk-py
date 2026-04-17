@@ -18,6 +18,12 @@ It supports:
 - `Processor.process()` + `run_in_executor()` path (`--mode sync-executor`)
 - Shared model vs separate model instances (`--separate-models`)
 - Bursty scheduling (`--cadence bursty`) with configurable burst interval
+- Two burst dispatch modes:
+  - `--bursty-dispatch batch`: one global scheduler tick dispatches all workers at once
+  - `--bursty-dispatch independent`: each worker runs its own burst loop
+- Optional CPU pinning on Linux to emulate smaller machines:
+  - `--cpu-limit N` (first `N` available CPUs)
+  - `--cpu-affinity 0-3` or `--cpu-affinity 0,1,2,3`
 
 ### Prerequisites
 
@@ -84,6 +90,52 @@ uv run --with "aic-sdk @ ." examples/latency_spike_repro.py \
   --enhancement-level 0.5 \
   --duration-s 90 \
   --separate-models
+```
+
+### 4-vCPU Emulation
+
+If your dev machine has many CPUs, emulate a smaller host (for example AWS `c6i.xlarge`) with:
+
+```bash
+--cpu-limit 4
+```
+
+Example baseline on 4 CPUs:
+
+```bash
+uv run --with "aic-sdk @ ." examples/latency_spike_repro.py \
+  --model-path models/quail_vf_2_0_l_16khz_d42jls1e_v18.aicmodel \
+  --cpu-limit 4 \
+  --mode async \
+  --cadence bursty \
+  --bursty-dispatch batch \
+  --workers 3 \
+  --burst-interval-ms 20 \
+  --calls-per-burst 2 \
+  --num-frames 160 \
+  --sample-rate 16000 \
+  --enhancement-level 0.5 \
+  --duration-s 45
+```
+
+High-pressure sync case that can produce large spikes on constrained CPUs:
+
+```bash
+uv run --with "aic-sdk @ ." examples/latency_spike_repro.py \
+  --model-path models/quail_vf_2_0_l_16khz_d42jls1e_v18.aicmodel \
+  --cpu-limit 4 \
+  --mode sync-executor \
+  --cadence bursty \
+  --bursty-dispatch independent \
+  --workers 16 \
+  --burst-interval-ms 20 \
+  --calls-per-burst 8 \
+  --num-frames 160 \
+  --sample-rate 16000 \
+  --enhancement-level 0.5 \
+  --duration-s 20 \
+  --warmup-calls 20 \
+  --spike-threshold-ms 80
 ```
 
 ### Interpreting Output

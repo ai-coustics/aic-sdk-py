@@ -32,6 +32,54 @@ class WorkerResult:
     top_spikes: list[tuple[int, float, float]]
 
 
+def parse_cpu_affinity_arg(value: str) -> list[int]:
+    cpus: list[int] = []
+    for token in value.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if "-" in token:
+            start_s, end_s = token.split("-", maxsplit=1)
+            start = int(start_s)
+            end = int(end_s)
+            if end < start:
+                raise ValueError(f"Invalid CPU range '{token}' (end < start)")
+            cpus.extend(range(start, end + 1))
+        else:
+            cpus.append(int(token))
+    if not cpus:
+        raise ValueError("CPU affinity list is empty")
+    # Preserve order while removing duplicates.
+    return list(dict.fromkeys(cpus))
+
+
+def apply_cpu_affinity(args: argparse.Namespace) -> None:
+    if args.cpu_affinity is None and args.cpu_limit is None:
+        return
+
+    if not hasattr(os, "sched_setaffinity"):
+        print("cpu affinity:         unsupported on this platform (ignoring)")
+        return
+
+    available = sorted(os.sched_getaffinity(0))
+    if not available:
+        raise RuntimeError("No CPUs available in current affinity mask")
+
+    if args.cpu_affinity is not None:
+        requested = parse_cpu_affinity_arg(args.cpu_affinity)
+    else:
+        requested = available[: args.cpu_limit]
+
+    allowed = sorted(set(requested).intersection(available))
+    if not allowed:
+        raise ValueError(
+            f"Requested CPUs {requested} are not available. Current allowed CPUs: {available}"
+        )
+
+    os.sched_setaffinity(0, allowed)
+    print(f"cpu affinity:         {allowed} (available before set: {available})")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -128,6 +176,16 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--bursty-dispatch",
+        choices=("batch", "independent"),
+        default="batch",
+        help=(
+            "For --cadence=bursty: batch dispatch launches all workers from one global "
+            "scheduler tick (closer to synchronized RTP fan-in); independent keeps one loop "
+            "per worker."
+        ),
+    )
+    parser.add_argument(
         "--warmup-calls",
         type=int,
         default=50,
@@ -150,6 +208,25 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=7,
         help="PRNG seed for deterministic pseudo-noise buffers.",
+    )
+    parser.add_argument(
+        "--cpu-limit",
+        type=int,
+        default=None,
+        help=(
+            "Limit the process to the first N currently-available CPUs using "
+            "sched_setaffinity (Linux). Useful to emulate smaller instances "
+            "(e.g. --cpu-limit 4)."
+        ),
+    )
+    parser.add_argument(
+        "--cpu-affinity",
+        type=str,
+        default=None,
+        help=(
+            "Explicit CPU list/ranges for sched_setaffinity (Linux), e.g. "
+            "'0,1,2,3' or '0-3'. Takes precedence over --cpu-limit."
+        ),
     )
     return parser.parse_args()
 
@@ -346,6 +423,168 @@ async def worker_sync_executor(
     return WorkerResult(worker_id, latencies_ms, over_period, spikes[:20])
 
 
+async def run_bursty_batch_async(
+    processors: list[aic.ProcessorAsync],
+    buffers: list[np.ndarray],
+    runtime_seconds: float,
+    period_ms: float,
+    burst_interval_ms: float,
+    calls_per_burst: int,
+    warmup_calls: int,
+    spike_threshold_ms: float,
+) -> list[WorkerResult]:
+    workers = len(processors)
+    worker_latencies: list[list[float]] = [[] for _ in range(workers)]
+    worker_over_period = [0 for _ in range(workers)]
+    worker_spikes: list[list[tuple[int, float, float]]] = [[] for _ in range(workers)]
+    worker_frame_index = [0 for _ in range(workers)]
+
+    async def warmup_call(worker_id: int) -> None:
+        await processors[worker_id].process_async(buffers[worker_id])
+
+    async def timed_call(worker_id: int) -> tuple[int, float, float]:
+        call_start = time.monotonic()
+        await processors[worker_id].process_async(buffers[worker_id])
+        call_end = time.monotonic()
+        return worker_id, call_start, (call_end - call_start) * 1000.0
+
+    for _ in range(warmup_calls):
+        await asyncio.gather(*(warmup_call(worker_id) for worker_id in range(workers)))
+
+    start = time.monotonic() + 0.25
+    sleep_for = start - time.monotonic()
+    if sleep_for > 0:
+        await asyncio.sleep(sleep_for)
+
+    burst_index = 0
+    while True:
+        now = time.monotonic()
+        if now - start >= runtime_seconds:
+            break
+
+        burst_deadline = start + (burst_index * burst_interval_ms / 1000.0)
+        sleep_for = burst_deadline - now
+        if sleep_for > 0:
+            await asyncio.sleep(sleep_for)
+
+        for _ in range(calls_per_burst):
+            now = time.monotonic()
+            if now - start >= runtime_seconds:
+                break
+
+            results = await asyncio.gather(
+                *(timed_call(worker_id) for worker_id in range(workers))
+            )
+            for worker_id, call_start, latency_ms in results:
+                rel_start_s = call_start - start
+                worker_latencies[worker_id].append(latency_ms)
+                if latency_ms > period_ms:
+                    worker_over_period[worker_id] += 1
+                if latency_ms >= spike_threshold_ms:
+                    worker_spikes[worker_id].append(
+                        (worker_frame_index[worker_id], rel_start_s, latency_ms)
+                    )
+                worker_frame_index[worker_id] += 1
+        burst_index += 1
+
+    output: list[WorkerResult] = []
+    for worker_id in range(workers):
+        spikes = sorted(worker_spikes[worker_id], key=lambda item: item[2], reverse=True)
+        output.append(
+            WorkerResult(
+                worker_id=worker_id,
+                latencies_ms=worker_latencies[worker_id],
+                durations_over_period=worker_over_period[worker_id],
+                top_spikes=spikes[:20],
+            )
+        )
+    return output
+
+
+async def run_bursty_batch_sync_executor(
+    processors: list[aic.Processor],
+    executors: list[ThreadPoolExecutor],
+    buffers: list[np.ndarray],
+    runtime_seconds: float,
+    period_ms: float,
+    burst_interval_ms: float,
+    calls_per_burst: int,
+    warmup_calls: int,
+    spike_threshold_ms: float,
+) -> list[WorkerResult]:
+    workers = len(processors)
+    loop = asyncio.get_running_loop()
+    worker_latencies: list[list[float]] = [[] for _ in range(workers)]
+    worker_over_period = [0 for _ in range(workers)]
+    worker_spikes: list[list[tuple[int, float, float]]] = [[] for _ in range(workers)]
+    worker_frame_index = [0 for _ in range(workers)]
+
+    async def warmup_call(worker_id: int) -> None:
+        await loop.run_in_executor(
+            executors[worker_id], processors[worker_id].process, buffers[worker_id]
+        )
+
+    async def timed_call(worker_id: int) -> tuple[int, float, float]:
+        call_start = time.monotonic()
+        await loop.run_in_executor(
+            executors[worker_id], processors[worker_id].process, buffers[worker_id]
+        )
+        call_end = time.monotonic()
+        return worker_id, call_start, (call_end - call_start) * 1000.0
+
+    for _ in range(warmup_calls):
+        await asyncio.gather(*(warmup_call(worker_id) for worker_id in range(workers)))
+
+    start = time.monotonic() + 0.25
+    sleep_for = start - time.monotonic()
+    if sleep_for > 0:
+        await asyncio.sleep(sleep_for)
+
+    burst_index = 0
+    while True:
+        now = time.monotonic()
+        if now - start >= runtime_seconds:
+            break
+
+        burst_deadline = start + (burst_index * burst_interval_ms / 1000.0)
+        sleep_for = burst_deadline - now
+        if sleep_for > 0:
+            await asyncio.sleep(sleep_for)
+
+        for _ in range(calls_per_burst):
+            now = time.monotonic()
+            if now - start >= runtime_seconds:
+                break
+
+            results = await asyncio.gather(
+                *(timed_call(worker_id) for worker_id in range(workers))
+            )
+            for worker_id, call_start, latency_ms in results:
+                rel_start_s = call_start - start
+                worker_latencies[worker_id].append(latency_ms)
+                if latency_ms > period_ms:
+                    worker_over_period[worker_id] += 1
+                if latency_ms >= spike_threshold_ms:
+                    worker_spikes[worker_id].append(
+                        (worker_frame_index[worker_id], rel_start_s, latency_ms)
+                    )
+                worker_frame_index[worker_id] += 1
+        burst_index += 1
+
+    output: list[WorkerResult] = []
+    for worker_id in range(workers):
+        spikes = sorted(worker_spikes[worker_id], key=lambda item: item[2], reverse=True)
+        output.append(
+            WorkerResult(
+                worker_id=worker_id,
+                latencies_ms=worker_latencies[worker_id],
+                durations_over_period=worker_over_period[worker_id],
+                top_spikes=spikes[:20],
+            )
+        )
+    return output
+
+
 def percentile(values: np.ndarray, p: float) -> float:
     return float(np.percentile(values, p, method="linear"))
 
@@ -412,6 +651,11 @@ def print_summary(
 
 
 async def run(args: argparse.Namespace) -> None:
+    if args.cpu_limit is not None and args.cpu_limit < 1:
+        raise ValueError("--cpu-limit must be >= 1")
+
+    apply_cpu_affinity(args)
+
     license_key = os.environ["AIC_SDK_LICENSE"]
     period_ms = (args.num_frames * 1000.0) / args.sample_rate
     if args.calls_per_burst < 1:
@@ -439,6 +683,7 @@ async def run(args: argparse.Namespace) -> None:
     if args.cadence == "bursty":
         print(f"burst interval:       {args.burst_interval_ms:.3f} ms")
         print(f"calls per burst:      {args.calls_per_burst}")
+        print(f"bursty dispatch:      {args.bursty_dispatch}")
     print(f"spike threshold:      {args.spike_threshold_ms:.1f} ms")
 
     if args.separate_models:
@@ -458,46 +703,32 @@ async def run(args: argparse.Namespace) -> None:
     start_at = time.monotonic() + 0.25
 
     if args.mode == "async":
-        tasks: list[asyncio.Task[WorkerResult]] = []
-        for worker_id, model in enumerate(models):
+        processors_async: list[aic.ProcessorAsync] = []
+        for model in models:
             config = build_config(model, args)
             processor = aic.ProcessorAsync(model, license_key, config)
             configure_processor_level(processor, args.enhancement_level)
-            tasks.append(
-                asyncio.create_task(
-                    worker_async(
-                        worker_id=worker_id,
-                        processor=processor,
-                        buffer=buffers[worker_id],
-                        runtime_seconds=args.duration_s,
-                        period_ms=period_ms,
-                        cadence=args.cadence,
-                        burst_interval_ms=args.burst_interval_ms,
-                        calls_per_burst=args.calls_per_burst,
-                        start_at=start_at,
-                        warmup_calls=args.warmup_calls,
-                        spike_threshold_ms=args.spike_threshold_ms,
-                    )
-                )
+            processors_async.append(processor)
+
+        if args.cadence == "bursty" and args.bursty_dispatch == "batch":
+            results = await run_bursty_batch_async(
+                processors=processors_async,
+                buffers=buffers,
+                runtime_seconds=args.duration_s,
+                period_ms=period_ms,
+                burst_interval_ms=args.burst_interval_ms,
+                calls_per_burst=args.calls_per_burst,
+                warmup_calls=args.warmup_calls,
+                spike_threshold_ms=args.spike_threshold_ms,
             )
-        results = await asyncio.gather(*tasks)
-    else:
-        executors = [
-            ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"aic-worker-{worker_id}")
-            for worker_id in range(args.workers)
-        ]
-        try:
-            tasks = []
-            for worker_id, model in enumerate(models):
-                config = build_config(model, args)
-                processor = aic.Processor(model, license_key, config)
-                configure_processor_level(processor, args.enhancement_level)
+        else:
+            tasks: list[asyncio.Task[WorkerResult]] = []
+            for worker_id, processor in enumerate(processors_async):
                 tasks.append(
                     asyncio.create_task(
-                        worker_sync_executor(
+                        worker_async(
                             worker_id=worker_id,
                             processor=processor,
-                            executor=executors[worker_id],
                             buffer=buffers[worker_id],
                             runtime_seconds=args.duration_s,
                             period_ms=period_ms,
@@ -511,6 +742,53 @@ async def run(args: argparse.Namespace) -> None:
                     )
                 )
             results = await asyncio.gather(*tasks)
+    else:
+        executors = [
+            ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"aic-worker-{worker_id}")
+            for worker_id in range(args.workers)
+        ]
+        try:
+            processors_sync: list[aic.Processor] = []
+            for model in models:
+                config = build_config(model, args)
+                processor = aic.Processor(model, license_key, config)
+                configure_processor_level(processor, args.enhancement_level)
+                processors_sync.append(processor)
+
+            if args.cadence == "bursty" and args.bursty_dispatch == "batch":
+                results = await run_bursty_batch_sync_executor(
+                    processors=processors_sync,
+                    executors=executors,
+                    buffers=buffers,
+                    runtime_seconds=args.duration_s,
+                    period_ms=period_ms,
+                    burst_interval_ms=args.burst_interval_ms,
+                    calls_per_burst=args.calls_per_burst,
+                    warmup_calls=args.warmup_calls,
+                    spike_threshold_ms=args.spike_threshold_ms,
+                )
+            else:
+                tasks = []
+                for worker_id, processor in enumerate(processors_sync):
+                    tasks.append(
+                        asyncio.create_task(
+                            worker_sync_executor(
+                                worker_id=worker_id,
+                                processor=processor,
+                                executor=executors[worker_id],
+                                buffer=buffers[worker_id],
+                                runtime_seconds=args.duration_s,
+                                period_ms=period_ms,
+                                cadence=args.cadence,
+                                burst_interval_ms=args.burst_interval_ms,
+                                calls_per_burst=args.calls_per_burst,
+                                start_at=start_at,
+                                warmup_calls=args.warmup_calls,
+                                spike_threshold_ms=args.spike_threshold_ms,
+                            )
+                        )
+                    )
+                results = await asyncio.gather(*tasks)
         finally:
             for executor in executors:
                 executor.shutdown(wait=True)
