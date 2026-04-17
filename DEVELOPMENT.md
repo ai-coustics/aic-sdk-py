@@ -49,7 +49,7 @@ uv run --env-file .env pytest
 ## Release Process
 
 1. Create a new branch
-2. Update version in `pyproject.toml` and `Cargo.toml`
+2. Update version in `pyproject.toml` and run `uv lock` to update `uv.lock` file.
 3. Run `cargo build` to update the `Cargo.lock` file
 4. Create a PR and merge it into `main`
 5. Create a GitHub release with a new tag of the version number `x.x.x` - the workflow will automatically build and publish to PyPI
