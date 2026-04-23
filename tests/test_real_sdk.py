@@ -212,8 +212,8 @@ def test_real_sdk_model_processing(model, license_key):
 
 
 def test_real_sdk_auto_model_selection(model, license_key):
-    sample_rate = 48000
-    num_frames = 480
+    sample_rate = 16000
+    num_frames = 240
     processor = aic.Processor(model, license_key)
     config = aic.ProcessorConfig(sample_rate, 1, num_frames, False)
     processor.initialize(config)

@@ -24,7 +24,7 @@ async def test_initialize_async(model):
     await processor.initialize_async(config)
 
     # Verify sync getters work
-    assert model.get_optimal_sample_rate() == 48000
+    assert model.get_optimal_sample_rate() == 16000
 
 
 @pytest.mark.asyncio
@@ -103,10 +103,10 @@ async def test_sync_methods_work(model):
 
     # Test sync getters
     rate = model.get_optimal_sample_rate()
-    assert rate == 48000
+    assert rate == 16000
 
-    frames = model.get_optimal_num_frames(48000)
-    assert frames == 480
+    frames = model.get_optimal_num_frames(16000)
+    assert frames == 240
 
     proc_ctx = processor.get_processor_context()
     delay = proc_ctx.get_output_delay()
