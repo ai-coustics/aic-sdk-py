@@ -25,7 +25,7 @@ The `enhance_files.py` example requires additional dependencies (numpy, soundfil
 export AIC_SDK_LICENSE="your-license-key"
 
 # Run the example
-uv run --with "aic-sdk @ ." examples/enhance_files.py input.wav output.wav --strength 100 --model rook-s-48khz
+uv run --with "aic-sdk @ ." examples/enhance_files.py input.wav output.wav --strength 100 --model quail-vf-2.1-s-16khz
 ```
 
 ## Build

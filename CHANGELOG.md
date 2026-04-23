@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.2.0 - 2026-04-23
+
+Update to core library version 0.17.0.
+
+## New Features
+
+- Added support for Quail Voice Focus 2.1 models.
+
+## Breaking Changes
+
+- Quail Voice Focus 2.0 is no longer supported.
+- Compatible model file version was bumped to 3.
+
 ## 2.1.2 - 2026-04-16
 
 Update to core library version 0.16.0.

@@ -10,7 +10,7 @@ def test_vad_bypass_mode(model, license_key, test_audio_path, expected_vad_resul
 
     audio, sr = load_wav_pcm(test_audio_path)
 
-    config = aic.ProcessorConfig.optimal(model, num_channels=2)
+    config = aic.ProcessorConfig.optimal(model, num_channels=2, sample_rate=sr)
     assert config.sample_rate == sr
 
     processor.initialize(config)
@@ -41,7 +41,7 @@ def test_vad_with_enhancement(
 
     audio, sr = load_wav_pcm(test_audio_path)
 
-    config = aic.ProcessorConfig.optimal(model, num_channels=2)
+    config = aic.ProcessorConfig.optimal(model, num_channels=2, sample_rate=sr)
     assert config.sample_rate == sr
 
     processor.initialize(config)

@@ -18,7 +18,7 @@ import numpy as np
 import aic_sdk as aic
 
 # Specify the model to benchmark.
-MODEL = "quail-vf-2.0-l-16khz"
+MODEL = "quail-vf-2.1-l-16khz"
 SPAWN_INTERVAL_SECONDS = 1.0
 # Safety margin to account for system variability.
 # e.g. 0.3 means 30% of the period is reserved as a safety margin.

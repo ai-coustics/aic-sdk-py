@@ -12,7 +12,7 @@ _LICENSE_KEY = os.environ.get("AIC_SDK_LICENSE")
 
 @pytest.fixture
 def model():
-    model_id = "rook-s-48khz"
+    model_id = "quail-vf-2.1-s-16khz"
     model_path = aic.Model.download(model_id, "./models")
     return aic.Model.from_file(model_path)
 
