@@ -518,10 +518,13 @@ class Processor:
 @typing.final
 class ProcessorAsync:
     r"""
-    Async wrapper for Processor that offloads processing to a thread pool.
+    Async wrapper for Processor that offloads work to background threads.
 
     This class provides the same functionality as Processor but with async methods
-    that don't block the event loop.
+    that don't block the event loop. `process_async` runs on a dedicated Rayon pool
+    sized by the `AIC_NUM_THREADS` environment variable, defaulting to the number
+    of logical cores available on the system. `initialize_async` runs on Tokio's
+    blocking pool since it is one-shot and may allocate.
 
     Example:
         >>> model = Model.from_file("/path/to/model.aicmodel")

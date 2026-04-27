@@ -7,13 +7,37 @@ use crate::{
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
-use std::sync::{Arc, Mutex};
-use tokio::task;
+use std::sync::{Arc, Mutex, OnceLock};
 
-/// Async wrapper for Processor that offloads processing to a thread pool.
+static RAYON_POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
+
+fn pool() -> &'static rayon::ThreadPool {
+    RAYON_POOL.get_or_init(|| {
+        let num_threads = std::env::var("AIC_NUM_THREADS")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .filter(|&n| n > 0)
+            .unwrap_or_else(|| {
+                std::thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(1)
+            });
+
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .thread_name(|i| format!("aic-rayon-{i}"))
+            .build()
+            .expect("failed to build aic rayon pool")
+    })
+}
+
+/// Async wrapper for Processor that offloads work to background threads.
 ///
 /// This class provides the same functionality as Processor but with async methods
-/// that don't block the event loop.
+/// that don't block the event loop. `process_async` runs on a dedicated Rayon pool
+/// sized by the `AIC_NUM_THREADS` environment variable, defaulting to the number
+/// of logical cores available on the system. `initialize_async` runs on Tokio's
+/// blocking pool since it is one-shot and may allocate.
 ///
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
@@ -98,7 +122,7 @@ impl ProcessorAsync {
         let model = Arc::clone(&self.inner);
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            task::spawn_blocking(move || {
+            tokio::task::spawn_blocking(move || {
                 let mut model = model.lock().unwrap();
                 model.initialize(&config)
             })
@@ -149,17 +173,24 @@ impl ProcessorAsync {
         let array = buffer.as_array().as_standard_layout().into_owned();
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let processed = task::spawn_blocking(move || {
-                let mut processor = processor.lock().unwrap();
-                let mut array = array;
-                processor
-                    .processor
-                    .process_sequential(array.as_slice_mut().expect("Array is in standard layout"))
-                    .map_err(to_py_err)?;
-                Ok::<numpy::ndarray::Array2<f32>, PyErr>(array)
-            })
-            .await
-            .map_err(|e| PyRuntimeError::new_err(format!("Task error: {}", e)))??;
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            pool().spawn(move || {
+                let result = (|| {
+                    let mut processor = processor.lock().unwrap();
+                    let mut array = array;
+                    processor
+                        .processor
+                        .process_sequential(
+                            array.as_slice_mut().expect("Array is in standard layout"),
+                        )
+                        .map_err(to_py_err)?;
+                    Ok::<numpy::ndarray::Array2<f32>, PyErr>(array)
+                })();
+                let _ = tx.send(result);
+            });
+            let processed = rx
+                .await
+                .map_err(|_| PyRuntimeError::new_err("rayon worker dropped"))??;
 
             let result_obj = Python::attach(|py| {
                 use numpy::ToPyArray;
