@@ -197,6 +197,11 @@ if vad_ctx.is_speech_detected():
 - **`Processor` (sync)**: Simple scripts, command-line tools, batch processing
 - **`ProcessorAsync` (async)**: Web servers, real-time applications, concurrent stream processing
 
+`ProcessorAsync` runs CPU-bound work on a dedicated [Rayon](https://docs.rs/rayon)
+thread pool. By default the pool is sized to the number of logical cores reported
+by the OS. Set the `AIC_NUM_THREADS` environment variable to override the worker
+count — for example `AIC_NUM_THREADS=2` caps concurrent processing at two threads.
+
 ### Error Handling
 
 The SDK provides specific exception types for different error conditions. All exceptions include a `message` attribute with details about the error.
