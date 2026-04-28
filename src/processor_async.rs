@@ -25,19 +25,17 @@ fn pool() -> &'static rayon::ThreadPool {
 
         rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
-            .thread_name(|i| format!("aic-rayon-{i}"))
+            .thread_name(|i| format!("aic-processing-thread-{i}"))
             .build()
-            .expect("failed to build aic rayon pool")
+            .expect("failed to build aic thread-pool")
     })
 }
 
 /// Async wrapper for Processor that offloads work to background threads.
 ///
 /// This class provides the same functionality as Processor but with async methods
-/// that don't block the event loop. `process_async` runs on a dedicated Rayon pool
-/// sized by the `AIC_NUM_THREADS` environment variable, defaulting to the number
-/// of logical cores available on the system. `initialize_async` runs on Tokio's
-/// blocking pool since it is one-shot and may allocate.
+/// that don't block the event loop. Processing thread count is controlled by the
+/// `AIC_NUM_THREADS` environment variable.
 ///
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
@@ -190,7 +188,7 @@ impl ProcessorAsync {
             });
             let processed = rx
                 .await
-                .map_err(|_| PyRuntimeError::new_err("rayon worker dropped"))??;
+                .map_err(|_| PyRuntimeError::new_err("Rayon worker dropped"))??;
 
             let result_obj = Python::attach(|py| {
                 use numpy::ToPyArray;
