@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::gen_stub_pyfunction;
 
+mod async_runtime;
 mod error;
 mod model;
 mod processor;
@@ -51,6 +52,8 @@ fn set_sdk_id(id: u32) {
 #[pymodule]
 #[pyo3(name = "aic_sdk")]
 fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    async_runtime::initialize()?;
+
     m.add_function(wrap_pyfunction!(get_sdk_version, m)?)?;
     m.add_function(wrap_pyfunction!(get_compatible_model_version, m)?)?;
     m.add_function(wrap_pyfunction!(set_sdk_id, m)?)?;
