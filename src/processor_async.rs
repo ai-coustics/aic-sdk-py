@@ -168,22 +168,17 @@ impl ProcessorAsync {
     ) -> PyResult<Bound<'py, pyo3::types::PyAny>> {
         let processor = Arc::clone(&self.inner);
 
-        let array = buffer.as_array().as_standard_layout().into_owned();
+        let mut array = buffer.as_array().as_standard_layout().into_owned();
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let (tx, rx) = tokio::sync::oneshot::channel();
             pool().spawn(move || {
-                let result = (|| {
-                    let mut processor = processor.lock().unwrap();
-                    let mut array = array;
-                    processor
-                        .processor
-                        .process_sequential(
-                            array.as_slice_mut().expect("Array is in standard layout"),
-                        )
-                        .map_err(to_py_err)?;
-                    Ok::<numpy::ndarray::Array2<f32>, PyErr>(array)
-                })();
+                let mut processor = processor.lock().unwrap();
+                let result = processor
+                    .processor
+                    .process_sequential(array.as_slice_mut().expect("Array is in standard layout"))
+                    .map_err(to_py_err)
+                    .map(|_| array);
                 let _ = tx.send(result);
             });
             let processed = rx
