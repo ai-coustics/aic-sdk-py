@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::gen_stub_pyfunction;
 
-mod async_runtime;
 mod error;
 mod model;
 mod processor;
@@ -52,7 +51,13 @@ fn set_sdk_id(id: u32) {
 #[pymodule]
 #[pyo3(name = "aic_sdk")]
 fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    async_runtime::initialize()?;
+    let mut builder = tokio::runtime::Builder::new_multi_thread();
+    builder.thread_name("aic-sdk-async-runtime").worker_threads(1).enable_all();
+    pyo3_async_runtimes::tokio::init(builder);
+    
+    // Ensure the Tokio runtime is initialized so that async functions
+    // can be used immediately after importing the module.
+    let _ = pyo3_async_runtimes::tokio::get_runtime();
 
     m.add_function(wrap_pyfunction!(get_sdk_version, m)?)?;
     m.add_function(wrap_pyfunction!(get_compatible_model_version, m)?)?;
