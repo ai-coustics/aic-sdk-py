@@ -3,6 +3,9 @@ column_width = 100
 reorder_arrays = true
 reorder_keys = true
 
+[schema]
+enabled = false
+
 [[rule]]
 formatting = { reorder_keys = true }
 keys = ["package.*"]

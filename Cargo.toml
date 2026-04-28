@@ -20,7 +20,8 @@ numpy = "0.27"
 pyo3 = { version = "0.27", features = ["generate-import-lib", "multiple-pymethods"] }
 pyo3-async-runtimes = { version = "0.27", features = ["tokio-runtime"] }
 pyo3-stub-gen = { version = "0.20", default-features = false, features = ["infer_signature"] }
-tokio = { version = "1.49", features = ["rt", "rt-multi-thread"] }
+rayon = "1"
+tokio = { version = "1.49", features = ["rt", "rt-multi-thread", "sync"] }
 
 [profile.release]
 codegen-units = 1

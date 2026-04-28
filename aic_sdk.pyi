@@ -518,10 +518,11 @@ class Processor:
 @typing.final
 class ProcessorAsync:
     r"""
-    Async wrapper for Processor that offloads processing to a thread pool.
+    Async wrapper for Processor that offloads work to background threads.
 
     This class provides the same functionality as Processor but with async methods
-    that don't block the event loop.
+    that don't block the event loop. Processing thread count is controlled by the
+    `AIC_NUM_THREADS` environment variable.
 
     Example:
         >>> model = Model.from_file("/path/to/model.aicmodel")
