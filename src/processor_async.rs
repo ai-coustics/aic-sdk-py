@@ -7,7 +7,8 @@ use crate::{
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
+use tokio::sync::Mutex;
 
 static RAYON_POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
 
@@ -117,15 +118,13 @@ impl ProcessorAsync {
         config: ProcessorConfig,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let model = Arc::clone(&self.inner);
+        let inner = Arc::clone(&self.inner);
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            tokio::task::spawn_blocking(move || {
-                let mut model = model.lock().unwrap();
-                model.initialize(&config)
-            })
-            .await
-            .map_err(|e| PyRuntimeError::new_err(format!("Task error: {}", e)))?
+            let mut model = inner.lock_owned().await;
+            tokio::task::spawn_blocking(move || model.initialize(&config))
+                .await
+                .map_err(|e| PyRuntimeError::new_err(format!("Task error: {}", e)))?
         })
     }
 
@@ -139,7 +138,7 @@ impl ProcessorAsync {
     /// Example:
     ///     >>> processor_context = processor.get_processor_context()
     pub fn get_processor_context(&self) -> ProcessorContext {
-        let processor = self.inner.lock().unwrap();
+        let processor = self.inner.blocking_lock();
         processor.get_processor_context()
     }
 
@@ -152,7 +151,7 @@ impl ProcessorAsync {
     /// Example:
     ///     >>> vad = processor.get_vad_context()
     pub fn get_vad_context(&self) -> VadContext {
-        let processor = self.inner.lock().unwrap();
+        let processor = self.inner.blocking_lock();
         processor.get_vad_context()
     }
 }
@@ -166,14 +165,14 @@ impl ProcessorAsync {
         buffer: numpy::PyReadonlyArray2<'py, f32>,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, pyo3::types::PyAny>> {
-        let processor = Arc::clone(&self.inner);
+        let inner = Arc::clone(&self.inner);
 
         let mut array = buffer.as_array().as_standard_layout().into_owned();
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let mut processor = inner.lock_owned().await;
             let (tx, rx) = tokio::sync::oneshot::channel();
             pool().spawn(move || {
-                let mut processor = processor.lock().unwrap();
                 let result = processor
                     .processor
                     .process_sequential(array.as_slice_mut().expect("Array is in standard layout"))
