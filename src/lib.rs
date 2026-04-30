@@ -51,10 +51,20 @@ fn set_sdk_id(id: u32) {
 #[pymodule]
 #[pyo3(name = "aic_sdk")]
 fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let num_runtime_threads = std::env::var("AIC_NUM_RUNTIME_THREADS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(1);
+
     let mut builder = tokio::runtime::Builder::new_multi_thread();
-    builder.thread_name("aic-sdk-async-runtime").worker_threads(1).enable_all();
+    builder
+        .thread_name("aic-sdk-async-runtime")
+        .worker_threads(num_runtime_threads)
+        .enable_all();
+
     pyo3_async_runtimes::tokio::init(builder);
-    
+
     // Ensure the Tokio runtime is initialized so that async functions
     // can be used immediately after importing the module.
     let _ = pyo3_async_runtimes::tokio::get_runtime();
