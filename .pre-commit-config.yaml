@@ -24,4 +24,6 @@ repos:
     rev: v0.9.3
     hooks:
       - id: taplo-format
+        args: [--config, taplo.toml]
       - id: taplo-lint
+        args: [--config, taplo.toml]
