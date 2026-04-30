@@ -14,7 +14,7 @@ static RAYON_POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
 
 fn pool() -> &'static rayon::ThreadPool {
     RAYON_POOL.get_or_init(|| {
-        let num_threads = std::env::var("AIC_NUM_THREADS")
+        let num_threads = std::env::var("AIC_NUM_PROCESSING_THREADS")
             .ok()
             .and_then(|s| s.parse::<usize>().ok())
             .filter(|&n| n > 0)
