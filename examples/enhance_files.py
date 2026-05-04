@@ -86,9 +86,9 @@ async def process_single_file(
 
     latency_samples = proc_ctx.get_output_delay()
 
-    # Pad the input audio with zeros at the beginning to compensate for algorithmic delay
+    # Pad the input audio with zeros at the end to account for the output delay
     padding = np.zeros((num_channels, latency_samples), dtype=np.float32)
-    audio_input = np.concatenate([padding, audio_input], axis=1)
+    audio_input = np.concatenate([audio_input, padding], axis=1)
 
     num_frames_model = config.num_frames
     num_frames_audio_input = audio_input.shape[1]
@@ -130,7 +130,7 @@ async def process_single_file(
             output[:, chunk_start : chunk_start + processed.shape[1]] = processed
             pbar.update(1)
 
-    # Remove the algorithmic delay padding from the beginning of the output
+    # Remove the delay from the beginning of the output
     output = output[:, latency_samples:]
 
     sf.write(output_wav, output.T, sample_rate)
