@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.2.1 - 2026-05-06
+
+Update to core library version 0.17.1.
+
+## Improvements
+
+- Increased maximum VAD speech hold duration from 100x to 300x the model's window size.
+
+## Bug Fixes
+
+- Removed zero-padding when the host frame size does not match the model frame size, which caused unexpected behavior for some models.
+
 ## 2.2.0 - 2026-04-23
 
 Update to core library version 0.17.0.

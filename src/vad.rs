@@ -27,7 +27,7 @@ pub enum VadParameter {
     ///     length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
     ///     Because of this, this parameter may return a different value than the one it was last set to.
     ///
-    /// Range: 0.0 to 100x model window length (value in seconds)
+    /// Range: 0.0 to 300x model window length (value in seconds)
     ///
     /// Default: 0.03 (30 ms)
     SpeechHoldDuration,
