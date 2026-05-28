@@ -64,7 +64,6 @@ dependencies = [
  "pyo3",
  "pyo3-async-runtimes",
  "pyo3-stub-gen",
- "rayon",
  "tokio",
 ]
 
