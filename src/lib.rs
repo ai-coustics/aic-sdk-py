@@ -100,7 +100,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<error::FileSystemError>()?;
     m.add_class::<error::ModelDataUnalignedError>()?;
     m.add_class::<error::ModelDownloadError>()?;
-    m.add_class::<error::TokenUnsupported>()?;
+    m.add_class::<error::TokenUnsupportedError>()?;
     m.add_class::<error::UnknownError>()?;
 
     Ok(())

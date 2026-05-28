@@ -92,7 +92,7 @@ define_exception!(
 );
 define_exception!(
     /// Updating the token is only supported when both the original and new keys are JWT-form licenses.
-    TokenUnsupported
+    TokenUnsupportedError
 );
 
 /// Model download error occurred.
@@ -202,7 +202,7 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
                 PyErr::new::<ModelDownloadError, _>(tuple)
             }
             aic_sdk::AicError::TokenUpdateUnsupported => {
-                PyErr::new::<TokenUnsupported, _>(err_msg.into_pyobject(py).unwrap().unbind())
+                PyErr::new::<TokenUnsupportedError, _>(err_msg.into_pyobject(py).unwrap().unbind())
             }
             aic_sdk::AicError::Unknown(code) => {
                 let tuple = (err_msg, code as i32).into_pyobject(py).unwrap().unbind();

@@ -33,7 +33,7 @@ __all__ = [
     "ProcessorConfig",
     "ProcessorContext",
     "ProcessorParameter",
-    "TokenUnsupported",
+    "TokenUnsupportedError",
     "UnknownError",
     "VadContext",
     "VadParameter",
@@ -912,13 +912,13 @@ class ProcessorContext:
         Use this when your license key is a JWT and needs to be refreshed before it expires.
         Audio processing continues uninterrupted and the new token is used for all subsequent
         authentication. Both the original key and the new token must be JWTs; otherwise a
-        `TokenUnsupported` error is raised and the existing token stays in use.
+        `TokenUnsupportedError` error is raised and the existing token stays in use.
 
         Args:
             token: The new JWT to install.
 
         Raises:
-            TokenUnsupported: If either the original or new token is not a JWT.
+            TokenUnsupportedError: If either the original or new token is not a JWT.
             LicenseFormatInvalidError: If the token string contains null bytes.
 
         Example:
@@ -926,13 +926,13 @@ class ProcessorContext:
         """
 
 @typing.final
-class TokenUnsupported(builtins.Exception):
+class TokenUnsupportedError(builtins.Exception):
     r"""
     Updating the token is only supported when both the original and new keys are JWT-form licenses.
     """
     @property
     def message(self) -> builtins.str: ...
-    def __new__(cls, message: builtins.str) -> TokenUnsupported: ...
+    def __new__(cls, message: builtins.str) -> TokenUnsupportedError: ...
 
 @typing.final
 class UnknownError(builtins.Exception):
