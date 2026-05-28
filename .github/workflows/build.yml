@@ -90,15 +90,7 @@ jobs:
         run: |
           for version in ${{ matrix.interpreters }}; do
             echo "Testing Python $version"
-            uv venv --python $version .venv-$version
-            VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
-
-            if [ -x ".venv-$version/bin/python" ]; then
-              python=".venv-$version/bin/python"
-            else
-              python=".venv-$version/Scripts/python.exe"
-            fi
-
-            "$python" examples/basic.py
-            "$python" examples/basic_async.py
+            flags="--no-project --python $version --with dist/*cp${version//.}*${{ matrix.test-arch }}*.whl"
+            uv run $flags examples/basic.py
+            uv run $flags examples/basic_async.py
           done
