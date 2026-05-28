@@ -84,6 +84,11 @@ async def process_single_file(
     # Reset processor state to clear any previous file's data
     proc_ctx.reset()
 
+    # Process two zero buffers before the actual file to test state dependency
+    zero_buffer = np.zeros((num_channels, config.num_frames), dtype=np.float32)
+    await processor.process_async(zero_buffer)
+    await processor.process_async(zero_buffer)
+
     latency_samples = proc_ctx.get_output_delay()
 
     # Pad the input audio with zeros at the end to account for the output delay
@@ -247,7 +252,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--enhancement-level",
-        help="Enhancement strength (0.0-1.0). If not specified, uses the model's default.",
+        help="Enhancement level (0.0-1.0). If not specified, uses the model's default.",
         type=float,
         default=None,
         required=False,

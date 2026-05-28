@@ -1,36 +1,13 @@
 use crate::{
     model::Model,
-    processor::{Processor, ProcessorConfig, ProcessorContext},
+    otel_config::OtelConfig,
+    processor::{ProcessorConfig, ProcessorContext},
     to_py_err,
     vad::VadContext,
 };
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
-use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
-
-static RAYON_POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
-
-fn pool() -> &'static rayon::ThreadPool {
-    RAYON_POOL.get_or_init(|| {
-        let num_threads = std::env::var("AIC_NUM_PROCESSING_THREADS")
-            .ok()
-            .and_then(|s| s.parse::<usize>().ok())
-            .filter(|&n| n > 0)
-            .unwrap_or_else(|| {
-                std::thread::available_parallelism()
-                    .map(|n| n.get())
-                    .unwrap_or(1)
-            });
-
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .thread_name(|i| format!("aic-processing-thread-{i}"))
-            .build()
-            .expect("failed to build aic thread-pool")
-    })
-}
+use std::sync::Arc;
 
 /// Async wrapper for Processor that offloads work to background threads.
 ///
@@ -48,7 +25,7 @@ fn pool() -> &'static rayon::ThreadPool {
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct ProcessorAsync {
-    inner: Arc<Mutex<Processor>>,
+    inner: Arc<aic_sdk::ProcessorAsync>,
 }
 
 #[gen_stub_pymethods]
@@ -82,15 +59,38 @@ impl ProcessorAsync {
     ///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
     ///     >>> processor = ProcessorAsync(model, license_key, config)
     #[new]
-    #[pyo3(signature = (model, license_key, config=None))]
+    #[pyo3(signature = (model, license_key, config=None, otel_config=None))]
     fn new(
         model: &Bound<'_, Model>,
         license_key: &str,
         config: Option<&ProcessorConfig>,
+        otel_config: Option<&OtelConfig>,
     ) -> PyResult<Self> {
-        let processor = Processor::new(model, license_key, config)?;
+        // SAFETY: This function has no safety requirements.
+        unsafe {
+            aic_sdk::set_sdk_id(3);
+        }
+
+        let processor = match otel_config {
+            Some(otel) => aic_sdk::ProcessorAsync::with_otel_config(
+                &model.borrow().inner,
+                license_key,
+                &otel.into(),
+            )
+            .map_err(to_py_err)?,
+            None => aic_sdk::ProcessorAsync::new(&model.borrow().inner, license_key)
+                .map_err(to_py_err)?,
+        };
+
+        if let Some(config) = config {
+            let aic_config = aic_sdk::ProcessorConfig::from(config);
+            pyo3_async_runtimes::tokio::get_runtime()
+                .block_on(processor.initialize(&aic_config))
+                .map_err(to_py_err)?;
+        }
+
         Ok(ProcessorAsync {
-            inner: Arc::new(Mutex::new(processor)),
+            inner: Arc::new(processor),
         })
     }
 
@@ -119,40 +119,43 @@ impl ProcessorAsync {
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
-
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let mut model = inner.lock_owned().await;
-            tokio::task::spawn_blocking(move || model.initialize(&config))
-                .await
-                .map_err(|e| PyRuntimeError::new_err(format!("Task error: {}", e)))?
+            let aic_config = aic_sdk::ProcessorConfig::from(&config);
+            inner.initialize(&aic_config).await.map_err(to_py_err)
         })
     }
 
-    /// Creates a ProcessorContext instance.
-    ///
-    /// This can be used to control all parameters and other settings of the processor.
+    /// Returns a ProcessorContext for real-time parameter control.
     ///
     /// Returns:
     ///     A new ProcessorContext instance.
     ///
     /// Example:
-    ///     >>> processor_context = processor.get_processor_context()
-    pub fn get_processor_context(&self) -> ProcessorContext {
-        let processor = self.inner.blocking_lock();
-        processor.get_processor_context()
+    ///     >>> processor_context = await processor.get_processor_context()
+    fn get_processor_context<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            Ok(ProcessorContext {
+                inner: inner.processor_context().await,
+            })
+        })
     }
 
-    /// Creates a Voice Activity Detector Context instance.
+    /// Returns a VadContext for voice activity detection.
     /// All instances created from a given processor reference the same VAD instance.
     ///
     /// Returns:
     ///     A new VadContext instance.
     ///
     /// Example:
-    ///     >>> vad = processor.get_vad_context()
-    pub fn get_vad_context(&self) -> VadContext {
-        let processor = self.inner.blocking_lock();
-        processor.get_vad_context()
+    ///     >>> vad = await processor.get_vad_context()
+    fn get_vad_context<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let inner = Arc::clone(&self.inner);
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            Ok(VadContext {
+                inner: inner.vad_context().await,
+            })
+        })
     }
 }
 
@@ -167,27 +170,20 @@ impl ProcessorAsync {
     ) -> PyResult<Bound<'py, pyo3::types::PyAny>> {
         let inner = Arc::clone(&self.inner);
 
-        let mut array = buffer.as_array().as_standard_layout().into_owned();
+        let array = buffer.as_array().as_standard_layout().into_owned();
+        let num_channels = array.shape()[0];
+        let num_frames = array.shape()[1];
+        let vec = array.as_slice().expect("standard layout").to_vec();
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let mut processor = inner.lock_owned().await;
-            let (tx, rx) = tokio::sync::oneshot::channel();
-            pool().spawn(move || {
-                let result = processor
-                    .processor
-                    .process_sequential(array.as_slice_mut().expect("Array is in standard layout"))
-                    .map_err(to_py_err)
-                    .map(|_| array);
-                let _ = tx.send(result);
-            });
-            let processed = rx
-                .await
-                .map_err(|_| PyRuntimeError::new_err("Rayon worker dropped"))??;
+            let processed = inner.process_sequential(vec).await.map_err(to_py_err)?;
 
             let result_obj = Python::attach(|py| {
                 use numpy::ToPyArray;
-                let np_array = processed.to_pyarray(py);
-                Ok::<pyo3::Py<numpy::PyArray2<f32>>, PyErr>(np_array.unbind())
+                let arr =
+                    numpy::ndarray::Array2::from_shape_vec((num_channels, num_frames), processed)
+                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+                Ok::<pyo3::Py<numpy::PyArray2<f32>>, PyErr>(arr.to_pyarray(py).unbind())
             })?;
 
             Ok(result_obj)

@@ -90,6 +90,10 @@ define_exception!(
     /// The model data is not aligned to 64 bytes.
     ModelDataUnalignedError
 );
+define_exception!(
+    /// Updating the token is only supported when both the original and new keys are JWT-form licenses.
+    TokenUnsupported
+);
 
 /// Model download error occurred.
 #[gen_stub_pyclass]
@@ -144,7 +148,6 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
             aic_sdk::AicError::ParameterOutOfRange => PyErr::new::<ParameterOutOfRangeError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),
-            // Maps to ProcessorNotInitialized in aic-sdk, kept as ModelNotInitializedError for backward compatibility
             aic_sdk::AicError::ProcessorNotInitialized => {
                 PyErr::new::<ModelNotInitializedError, _>(
                     err_msg.into_pyobject(py).unwrap().unbind(),
@@ -198,6 +201,11 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
                 let tuple = (err_msg, details).into_pyobject(py).unwrap().unbind();
                 PyErr::new::<ModelDownloadError, _>(tuple)
             }
+            aic_sdk::AicError::TokenUpdateUnsupported => {
+                PyErr::new::<TokenUnsupported, _>(
+                    err_msg.into_pyobject(py).unwrap().unbind(),
+                )
+            },
             aic_sdk::AicError::Unknown(code) => {
                 let tuple = (err_msg, code as i32).into_pyobject(py).unwrap().unbind();
                 PyErr::new::<UnknownError, _>(tuple)

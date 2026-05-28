@@ -29,12 +29,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "aic-sdk"
-version = "0.17.1"
+name = "aic-model-downloader"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3920075355fe29fb65620d3ebb1c2c720af9c84864d6f49556a825bd2603cf71"
+checksum = "be8fc3488f75a85532f88d696af6f591a0595f1f66ca2e617799be2c77a6c96c"
 dependencies = [
- "aic-sdk-sys",
  "serde",
  "serde_json",
  "sha2",
@@ -43,8 +42,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "aic-sdk"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7de1cd1e16fe9b904ec0b20c4f44df1d252c1cdba31b069f600a344ab0d2c83b"
+dependencies = [
+ "aic-model-downloader",
+ "aic-sdk-sys",
+ "async-lock",
+ "futures-channel",
+ "rayon",
+ "thiserror",
+]
+
+[[package]]
 name = "aic-sdk-py"
-version = "2.2.1"
+version = "2.3.0"
 dependencies = [
  "aic-sdk",
  "numpy",
@@ -57,9 +70,9 @@ dependencies = [
 
 [[package]]
 name = "aic-sdk-sys"
-version = "0.17.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f7b1b236aa7c2211633b487303e43411c5f9e72db3ecc272641b57c232db885"
+checksum = "e14ca50f0e2140bf6ebe49dfbbb7c4a250a52bab5ea5f3c7fb1a245c46afb8bf"
 dependencies = [
  "bindgen",
  "flate2",
@@ -83,6 +96,17 @@ name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+
+[[package]]
+name = "async-lock"
+version = "3.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290f7f2596bd5b78a9fec8088ccd89180d7f9f55b94b0576823bbbdc72ee8311"
+dependencies = [
+ "event-listener",
+ "event-listener-strategy",
+ "pin-project-lite",
+]
 
 [[package]]
 name = "autocfg"
@@ -211,6 +235,15 @@ dependencies = [
  "glob",
  "libc",
  "libloading",
+]
+
+[[package]]
+name = "concurrent-queue"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
+dependencies = [
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -345,6 +378,27 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "event-listener"
+version = "5.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e13b66accf52311f30a0db42147dadea9850cb48cd070028831ae5f5d4b856ab"
+dependencies = [
+ "concurrent-queue",
+ "parking",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "event-listener-strategy"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
+dependencies = [
+ "event-listener",
+ "pin-project-lite",
 ]
 
 [[package]]
@@ -874,6 +928,12 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+
+[[package]]
+name = "parking"
+version = "2.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
 
 [[package]]
 name = "pbkdf2"
