@@ -46,8 +46,8 @@ async def main():
     print(f"\nProcessor created and initialized: {config}")
 
     # Create processor and VAD contexts
-    proc_ctx = processor.get_processor_context()
-    vad_ctx = processor.get_vad_context()
+    proc_ctx = await processor.get_processor_context()
+    vad_ctx = await processor.get_vad_context()
     print(f"  Output delay: {proc_ctx.get_output_delay()} samples")
 
     # Process stereo audio
