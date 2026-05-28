@@ -633,7 +633,7 @@ class ProcessorAsync:
             >>> config = ProcessorConfig.optimal(model, num_channels=2)
             >>> processor = ProcessorAsync(model, license_key, config)
         """
-    def initialize_async(self, config: ProcessorConfig) -> typing.Any:
+    def initialize_async(self, config: ProcessorConfig) -> typing.Awaitable[None]:
         r"""
         Configures the processor asynchronously for specific audio settings.
 
@@ -655,7 +655,42 @@ class ProcessorAsync:
             >>> config = ProcessorConfig.optimal(model)
             >>> await processor.initialize_async(config)
         """
-    def get_processor_context(self) -> typing.Any:
+    async def process_async(
+        self,
+        buffer: npt.NDArray[np.float32],
+    ) -> npt.NDArray[np.float32]:
+        r"""
+        Processes audio asynchronously from a 2D NumPy array (channels × frames).
+
+        Enhances speech in the provided audio buffer and returns a new array
+        with the processed audio data. Processing happens in a background thread.
+
+        The input uses sequential channel layout where all samples for each
+        channel are stored contiguously.
+
+        # Note
+        All channels are mixed to mono for processing. To process channels
+        independently, create separate processor instances.,
+
+        Args:
+            buffer: 2D NumPy array with shape (num_channels, num_frames) containing
+                   audio data to be enhanced
+
+        Returns:
+            A new NumPy array with the same shape containing the enhanced audio.
+
+        Raises:
+            ModelNotInitializedError: If the processor has not been initialized.
+            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.
+            EnhancementNotAllowedError: If SDK key is not authorized or processing fails to report usage.
+            InternalError: If an internal processing error occurs.
+
+        Example:
+            >>> audio = np.random.randn(2, 1024).astype(np.float32)
+            >>> enhanced = await processor.process_async(audio)
+        """
+        ...
+    def get_processor_context(self) -> typing.Awaitable[ProcessorContext]:
         r"""
         Returns a ProcessorContext for real-time parameter control.
 
@@ -665,7 +700,7 @@ class ProcessorAsync:
         Example:
             >>> processor_context = await processor.get_processor_context()
         """
-    def get_vad_context(self) -> typing.Any:
+    def get_vad_context(self) -> typing.Awaitable[VadContext]:
         r"""
         Returns a VadContext for voice activity detection.
         All instances created from a given processor reference the same VAD instance.
