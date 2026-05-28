@@ -177,9 +177,9 @@ async def process_audio():
     # Create and initialize async processor in one step
     processor = aic.ProcessorAsync(model, "your-license-key", config)
 
-    # Get processor and VAD contexts (async on ProcessorAsync)
-    proc_ctx = await processor.get_processor_context()
-    vad_ctx = await processor.get_vad_context()
+    # Get processor and VAD contexts
+    proc_ctx = processor.get_processor_context()
+    vad_ctx = processor.get_vad_context()
 
     # Process audio
     audio = np.zeros((2, config.num_frames), dtype=np.float32)

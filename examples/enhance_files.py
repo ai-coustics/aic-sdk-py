@@ -79,7 +79,7 @@ async def process_single_file(
 
     # Re-initialize the processor with the new config for this file
     await processor.initialize_async(config)
-    proc_ctx = await processor.get_processor_context()
+    proc_ctx = processor.get_processor_context()
 
     # Reset processor state to clear any previous file's data
     proc_ctx.reset()
@@ -164,7 +164,7 @@ async def process_multiple_files(
     # Get the enhancement level (either provided or model default)
     temp_config = aic.ProcessorConfig.optimal(model, num_channels=1)
     await processors[0].initialize_async(temp_config)
-    temp_ctx = await processors[0].get_processor_context()
+    temp_ctx = processors[0].get_processor_context()
 
     # Validate and get the actual enhancement level that will be used
     if enhancement_level is not None:

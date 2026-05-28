@@ -107,7 +107,7 @@ async def test_context_methods_work(model):
     frames = model.get_optimal_num_frames(16000)
     assert frames == 240
 
-    proc_ctx = await processor.get_processor_context()
+    proc_ctx = processor.get_processor_context()
     delay = proc_ctx.get_output_delay()
     assert delay >= 0
 
