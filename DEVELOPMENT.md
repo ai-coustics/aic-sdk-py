@@ -52,5 +52,14 @@ uv run --env-file .env pytest
 2. Update version in `pyproject.toml` and run `uv lock` to update `uv.lock` file.
 3. Update version also in `Cargo.toml` and run `cargo build` to update the `Cargo.lock` file.
 4. Create new stubs: `make stubs`.
-5. Create a PR and merge it into `main`
-6. Create a GitHub release with a new tag of the version number `x.x.x` - the workflow will automatically build and publish to PyPI
+5. Create a PR and merge it into `main`.
+6. Create and push a version tag from `main`:
+
+```bash
+git checkout main
+git pull
+git tag x.x.x
+git push origin x.x.x
+```
+
+The release workflow will build the wheels and sdist, publish them to PyPI, and create the GitHub release automatically.

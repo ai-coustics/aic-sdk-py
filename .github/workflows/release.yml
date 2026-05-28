@@ -1,12 +1,12 @@
 name: Release
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch:
+  push:
+    tags:
+      - "*.*.*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -102,3 +102,9 @@ jobs:
         with:
           packages-dir: dist/
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
