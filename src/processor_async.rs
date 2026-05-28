@@ -135,9 +135,8 @@ impl ProcessorAsync {
     fn get_processor_context<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            Ok(ProcessorContext {
-                inner: inner.processor_context().await,
-            })
+            let ctx = inner.processor_context().await;
+            Python::attach(|py| Py::new(py, ProcessorContext { inner: ctx }))
         })
     }
 
@@ -152,9 +151,8 @@ impl ProcessorAsync {
     fn get_vad_context<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            Ok(VadContext {
-                inner: inner.vad_context().await,
-            })
+            let vad = inner.vad_context().await;
+            Python::attach(|py| Py::new(py, VadContext { inner: vad }))
         })
     }
 }
