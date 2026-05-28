@@ -374,7 +374,7 @@ class OtelConfig:
     environment (e.g. the AIC_SDK_OTEL_ENABLE environment variable).
 
     Example:
-        >>> processor = Processor(model, license_key, otel_config=OtelConfig.with_session_id("my-session"))
+        >>> processor = Processor(model, license_key, otel_config=OtelConfig(enable=True, session_id="my-session"))
     """
     @property
     def enable(self) -> builtins.bool:

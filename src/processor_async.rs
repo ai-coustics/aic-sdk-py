@@ -133,8 +133,8 @@ impl ProcessorAsync {
     /// Example:
     ///     >>> processor_context = processor.get_processor_context()
     fn get_processor_context(&self) -> PyResult<ProcessorContext> {
-        let ctx = pyo3_async_runtimes::tokio::get_runtime()
-            .block_on(self.inner.processor_context());
+        let ctx =
+            pyo3_async_runtimes::tokio::get_runtime().block_on(self.inner.processor_context());
         Ok(ProcessorContext { inner: ctx })
     }
 
@@ -147,8 +147,7 @@ impl ProcessorAsync {
     /// Example:
     ///     >>> vad = processor.get_vad_context()
     fn get_vad_context(&self) -> PyResult<VadContext> {
-        let vad = pyo3_async_runtimes::tokio::get_runtime()
-            .block_on(self.inner.vad_context());
+        let vad = pyo3_async_runtimes::tokio::get_runtime().block_on(self.inner.vad_context());
         Ok(VadContext { inner: vad })
     }
 }

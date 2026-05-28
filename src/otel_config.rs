@@ -8,7 +8,7 @@ use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 /// environment (e.g. the AIC_SDK_OTEL_ENABLE environment variable).
 ///
 /// Example:
-///     >>> processor = Processor(model, license_key, otel_config=OtelConfig.with_session_id("my-session"))
+///     >>> processor = Processor(model, license_key, otel_config=OtelConfig(enable=True, session_id="my-session"))
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk", get_all, set_all)]
 #[derive(Clone)]
