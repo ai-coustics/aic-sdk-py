@@ -202,10 +202,8 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
                 PyErr::new::<ModelDownloadError, _>(tuple)
             }
             aic_sdk::AicError::TokenUpdateUnsupported => {
-                PyErr::new::<TokenUnsupported, _>(
-                    err_msg.into_pyobject(py).unwrap().unbind(),
-                )
-            },
+                PyErr::new::<TokenUnsupported, _>(err_msg.into_pyobject(py).unwrap().unbind())
+            }
             aic_sdk::AicError::Unknown(code) => {
                 let tuple = (err_msg, code as i32).into_pyobject(py).unwrap().unbind();
                 PyErr::new::<UnknownError, _>(tuple)
