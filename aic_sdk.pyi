@@ -690,7 +690,7 @@ class ProcessorAsync:
             >>> enhanced = await processor.process_async(audio)
         """
         ...
-    def get_processor_context(self) -> typing.Awaitable[ProcessorContext]:
+    def get_processor_context(self) -> ProcessorContext:
         r"""
         Returns a ProcessorContext for real-time parameter control.
 
@@ -698,9 +698,9 @@ class ProcessorAsync:
             A new ProcessorContext instance.
 
         Example:
-            >>> processor_context = await processor.get_processor_context()
+            >>> processor_context = processor.get_processor_context()
         """
-    def get_vad_context(self) -> typing.Awaitable[VadContext]:
+    def get_vad_context(self) -> VadContext:
         r"""
         Returns a VadContext for voice activity detection.
         All instances created from a given processor reference the same VAD instance.
@@ -709,7 +709,7 @@ class ProcessorAsync:
             A new VadContext instance.
 
         Example:
-            >>> vad = await processor.get_vad_context()
+            >>> vad = processor.get_vad_context()
         """
 
 @typing.final

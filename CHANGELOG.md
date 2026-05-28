@@ -23,7 +23,7 @@ Update to core library version 0.19.0.
   ```
 
 - Added `ProcessorContext.update_bearer_token(token)` for refreshing a JWT license key without
-  interrupting audio processing. Raises `TokenUnsupported` if either the original key or the
+  interrupting audio processing. Raises `TokenUnsupportedError` if either the original key or the
   new token is not a JWT; the existing token remains in use in that case.
 
   ```python
@@ -36,14 +36,6 @@ Update to core library version 0.19.0.
   VADs continue to use the existing 1.0–15.0 range. The default is now model-specific.
 
 ### Breaking Changes
-
-- `ProcessorAsync.get_processor_context()` and `ProcessorAsync.get_vad_context()` are now
-  coroutines and must be awaited:
-
-  ```python
-  ctx = await processor.get_processor_context()
-  vad = await processor.get_vad_context()
-  ```
 
 - Compatible model file version was bumped to 4. Models built for earlier versions are no
   longer supported.

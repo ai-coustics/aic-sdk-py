@@ -131,13 +131,11 @@ impl ProcessorAsync {
     ///     A new ProcessorContext instance.
     ///
     /// Example:
-    ///     >>> processor_context = await processor.get_processor_context()
-    fn get_processor_context<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let inner = Arc::clone(&self.inner);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let ctx = inner.processor_context().await;
-            Python::attach(|py| Py::new(py, ProcessorContext { inner: ctx }))
-        })
+    ///     >>> processor_context = processor.get_processor_context()
+    fn get_processor_context(&self) -> PyResult<ProcessorContext> {
+        let ctx = pyo3_async_runtimes::tokio::get_runtime()
+            .block_on(self.inner.processor_context());
+        Ok(ProcessorContext { inner: ctx })
     }
 
     /// Returns a VadContext for voice activity detection.
@@ -147,13 +145,11 @@ impl ProcessorAsync {
     ///     A new VadContext instance.
     ///
     /// Example:
-    ///     >>> vad = await processor.get_vad_context()
-    fn get_vad_context<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let inner = Arc::clone(&self.inner);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let vad = inner.vad_context().await;
-            Python::attach(|py| Py::new(py, VadContext { inner: vad }))
-        })
+    ///     >>> vad = processor.get_vad_context()
+    fn get_vad_context(&self) -> PyResult<VadContext> {
+        let vad = pyo3_async_runtimes::tokio::get_runtime()
+            .block_on(self.inner.vad_context());
+        Ok(VadContext { inner: vad })
     }
 }
 

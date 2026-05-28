@@ -122,20 +122,12 @@ fn patch_numpy_methods(path: &std::path::Path) {
         "    def initialize_async(self, config: ProcessorConfig) -> typing.Any:",
         "    def initialize_async(self, config: ProcessorConfig) -> typing.Awaitable[None]:",
     );
-    let content = content.replace(
-        "    def get_processor_context(self) -> typing.Any:",
-        "    def get_processor_context(self) -> typing.Awaitable[ProcessorContext]:",
-    );
-    let content = content.replace(
-        "    def get_vad_context(self) -> typing.Any:",
-        "    def get_vad_context(self) -> typing.Awaitable[VadContext]:",
-    );
 
     // Unique anchor: end of ProcessorAsync.initialize_async() docstring + start of get_processor_context
-    let processor_async_anchor = "            >>> await processor.initialize_async(config)\n        \"\"\"\n    def get_processor_context(self) -> typing.Awaitable[ProcessorContext]:";
+    let processor_async_anchor = "            >>> await processor.initialize_async(config)\n        \"\"\"\n    def get_processor_context(self) -> ProcessorContext:";
     let content = content.replace(
         processor_async_anchor,
-        &format!("{processor_async_anchor_prefix}{process_async_stub}    def get_processor_context(self) -> typing.Awaitable[ProcessorContext]:", processor_async_anchor_prefix = "            >>> await processor.initialize_async(config)\n        \"\"\"\n"),
+        &format!("{processor_async_anchor_prefix}{process_async_stub}    def get_processor_context(self) -> ProcessorContext:", processor_async_anchor_prefix = "            >>> await processor.initialize_async(config)\n        \"\"\"\n"),
     );
 
     // Strip trailing whitespace from every line (ruff won't touch whitespace
