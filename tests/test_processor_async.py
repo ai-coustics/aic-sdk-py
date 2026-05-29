@@ -93,15 +93,14 @@ async def test_non_blocking(model):
 
 
 @pytest.mark.asyncio
-async def test_sync_methods_work(model):
-    """Test that sync methods work on ProcessorAsync"""
+async def test_context_methods_work(model):
+    """Test that context methods work on ProcessorAsync"""
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
 
     config = aic.ProcessorConfig(48000, 1, 480, False)
     await processor.initialize_async(config)
 
-    # Test sync getters
     rate = model.get_optimal_sample_rate()
     assert rate == 16000
 

@@ -1,12 +1,12 @@
 name: Release
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch:
+  push:
+    tags:
+      - "*.*.*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -29,10 +29,10 @@ jobs:
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
 
@@ -66,10 +66,10 @@ jobs:
   sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
 
@@ -102,3 +102,9 @@ jobs:
         with:
           packages-dir: dist/
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          generate_release_notes: true

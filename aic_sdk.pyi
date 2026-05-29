@@ -25,6 +25,7 @@ __all__ = [
     "ModelInvalidError",
     "ModelNotInitializedError",
     "ModelVersionUnsupportedError",
+    "OtelConfig",
     "ParameterFixedError",
     "ParameterOutOfRangeError",
     "Processor",
@@ -32,6 +33,7 @@ __all__ = [
     "ProcessorConfig",
     "ProcessorContext",
     "ProcessorParameter",
+    "TokenUnsupportedError",
     "UnknownError",
     "VadContext",
     "VadParameter",
@@ -363,6 +365,68 @@ class ModelVersionUnsupportedError(builtins.Exception):
     def __new__(cls, message: builtins.str) -> ModelVersionUnsupportedError: ...
 
 @typing.final
+class OtelConfig:
+    r"""
+    OpenTelemetry configuration for a Processor.
+
+    Pass to Processor or ProcessorAsync to control telemetry on a per-processor basis.
+    When no OtelConfig is provided, telemetry is configured according to the runtime
+    environment (e.g. the AIC_SDK_OTEL_ENABLE environment variable).
+
+    Example:
+        >>> processor = Processor(model, license_key, otel_config=OtelConfig(enable=True, session_id="my-session"))
+    """
+    @property
+    def enable(self) -> builtins.bool:
+        r"""
+        Whether to enable OpenTelemetry telemetry.
+        Overrides the AIC_SDK_OTEL_ENABLE environment variable.
+        """
+    @enable.setter
+    def enable(self, value: builtins.bool) -> None:
+        r"""
+        Whether to enable OpenTelemetry telemetry.
+        Overrides the AIC_SDK_OTEL_ENABLE environment variable.
+        """
+    @property
+    def session_id(self) -> typing.Optional[builtins.str]:
+        r"""
+        Optional session ID for telemetry. If None, a random session ID is generated.
+        """
+    @session_id.setter
+    def session_id(self, value: typing.Optional[builtins.str]) -> None:
+        r"""
+        Optional session ID for telemetry. If None, a random session ID is generated.
+        """
+    @property
+    def export_interval_ms(self) -> builtins.int:
+        r"""
+        OpenTelemetry metric export interval in milliseconds.
+        Set to 0 to use the SDK default of 60,000 ms.
+        """
+    @export_interval_ms.setter
+    def export_interval_ms(self, value: builtins.int) -> None:
+        r"""
+        OpenTelemetry metric export interval in milliseconds.
+        Set to 0 to use the SDK default of 60,000 ms.
+        """
+    def __new__(
+        cls,
+        enable: builtins.bool,
+        session_id: typing.Optional[builtins.str] = None,
+        export_interval_ms: builtins.int = 0,
+    ) -> OtelConfig:
+        r"""
+        Creates a new OtelConfig instance.
+
+        Args:
+            enable: Whether to enable OpenTelemetry telemetry
+            session_id: Optional session ID. If None, a random ID is generated.
+            export_interval_ms: Metric export interval in ms. 0 uses the SDK default (60,000 ms).
+        """
+    def __repr__(self) -> builtins.str: ...
+
+@typing.final
 class ParameterFixedError(builtins.Exception):
     r"""
     The requested parameter is read-only for this model type and cannot be modified.
@@ -404,6 +468,7 @@ class Processor:
         model: Model,
         license_key: builtins.str,
         config: typing.Optional[ProcessorConfig] = None,
+        otel_config: typing.Optional[OtelConfig] = None,
     ) -> Processor:
         r"""
         Creates a new audio enhancement processor instance.
@@ -537,6 +602,7 @@ class ProcessorAsync:
         model: Model,
         license_key: builtins.str,
         config: typing.Optional[ProcessorConfig] = None,
+        otel_config: typing.Optional[OtelConfig] = None,
     ) -> ProcessorAsync:
         r"""
         Creates a new async audio enhancement processor instance.
@@ -567,7 +633,7 @@ class ProcessorAsync:
             >>> config = ProcessorConfig.optimal(model, num_channels=2)
             >>> processor = ProcessorAsync(model, license_key, config)
         """
-    def initialize_async(self, config: ProcessorConfig) -> typing.Any:
+    def initialize_async(self, config: ProcessorConfig) -> typing.Awaitable[None]:
         r"""
         Configures the processor asynchronously for specific audio settings.
 
@@ -626,9 +692,7 @@ class ProcessorAsync:
         ...
     def get_processor_context(self) -> ProcessorContext:
         r"""
-        Creates a ProcessorContext instance.
-
-        This can be used to control all parameters and other settings of the processor.
+        Returns a ProcessorContext for real-time parameter control.
 
         Returns:
             A new ProcessorContext instance.
@@ -638,7 +702,7 @@ class ProcessorAsync:
         """
     def get_vad_context(self) -> VadContext:
         r"""
-        Creates a Voice Activity Detector Context instance.
+        Returns a VadContext for voice activity detection.
         All instances created from a given processor reference the same VAD instance.
 
         Returns:
@@ -841,6 +905,34 @@ class ProcessorContext:
             >>> delay = processor_context.get_output_delay()
             >>> print(f"Output delay: {delay} samples")
         """
+    def update_bearer_token(self, token: builtins.str) -> None:
+        r"""
+        Replaces the bearer token on the running processor.
+
+        Use this when your license key is a JWT and needs to be refreshed before it expires.
+        Audio processing continues uninterrupted and the new token is used for all subsequent
+        authentication. Both the original key and the new token must be JWTs; otherwise a
+        `TokenUnsupportedError` error is raised and the existing token stays in use.
+
+        Args:
+            token: The new JWT to install.
+
+        Raises:
+            TokenUnsupportedError: If either the original or new token is not a JWT.
+            LicenseFormatInvalidError: If the token string contains null bytes.
+
+        Example:
+            >>> processor_context.update_bearer_token(renewed_jwt)
+        """
+
+@typing.final
+class TokenUnsupportedError(builtins.Exception):
+    r"""
+    Updating the token is only supported when both the original and new keys are JWT-form licenses.
+    """
+    @property
+    def message(self) -> builtins.str: ...
+    def __new__(cls, message: builtins.str) -> TokenUnsupportedError: ...
 
 @typing.final
 class UnknownError(builtins.Exception):

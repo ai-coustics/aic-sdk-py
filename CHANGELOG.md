@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.3.0 - 2026-05-28
+
+Update to core library version 0.19.0.
+
+### New Features
+
+- Added `OtelConfig` to control OpenTelemetry telemetry per processor. Pass it to `Processor`
+  or `ProcessorAsync` to override the `AIC_SDK_OTEL_ENABLE` environment variable for a single
+  instance. The `export_interval_ms` field controls how often metrics are exported (0 uses the
+  SDK default of 60 000 ms).
+
+  ```python
+  processor = Processor(
+      model, license_key,
+      otel_config=OtelConfig(enable=True, session_id="my-session", export_interval_ms=5_000),
+  )
+  ```
+
+- Added `ProcessorContext.update_bearer_token(token)` for refreshing a JWT license key without
+  interrupting audio processing. Raises `TokenUnsupportedError` if either the original key or the
+  new token is not a JWT; the existing token remains in use in that case.
+
+  ```python
+  ctx = processor.get_processor_context()
+  ctx.update_bearer_token(renewed_jwt)
+  ```
+
+- `VadParameter.Sensitivity` is now supported on dedicated VAD models (e.g. Quail VAD), where
+  the value is interpreted as a speech probability threshold in the range 0.0–1.0. Energy-based
+  VADs continue to use the existing 1.0–15.0 range. The default is now model-specific.
+
+### Breaking Changes
+
+- Compatible model file version was bumped to 4. Models built for earlier versions are no
+  longer supported.
+
 ## 2.2.1 - 2026-05-06
 
 Update to core library version 0.17.1.

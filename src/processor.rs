@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_pymethods};
 
 use crate::model::Model;
+use crate::otel_config::OtelConfig;
 use crate::to_py_err;
 use crate::vad::VadContext;
 
@@ -323,6 +324,26 @@ impl ProcessorContext {
     fn get_output_delay(&self) -> usize {
         self.inner.output_delay()
     }
+
+    /// Replaces the bearer token on the running processor.
+    ///
+    /// Use this when your license key is a JWT and needs to be refreshed before it expires.
+    /// Audio processing continues uninterrupted and the new token is used for all subsequent
+    /// authentication. Both the original key and the new token must be JWTs; otherwise a
+    /// `TokenUnsupportedError` error is raised and the existing token stays in use.
+    ///
+    /// Args:
+    ///     token: The new JWT to install.
+    ///
+    /// Raises:
+    ///     TokenUnsupportedError: If either the original or new token is not a JWT.
+    ///     LicenseFormatInvalidError: If the token string contains null bytes.
+    ///
+    /// Example:
+    ///     >>> processor_context.update_bearer_token(renewed_jwt)
+    fn update_bearer_token(&self, token: &str) -> PyResult<()> {
+        self.inner.update_bearer_token(token).map_err(to_py_err)
+    }
 }
 
 /// High-level wrapper for the ai-coustics audio enhancement processor.
@@ -374,11 +395,12 @@ impl Processor {
     ///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
     ///     >>> processor = Processor(model, license_key, config)
     #[new]
-    #[pyo3(signature = (model, license_key, config=None))]
+    #[pyo3(signature = (model, license_key, config=None, otel_config=None))]
     pub fn new(
         model: &Bound<'_, Model>,
         license_key: &str,
         config: Option<&ProcessorConfig>,
+        otel_config: Option<&OtelConfig>,
     ) -> PyResult<Self> {
         // SAFETY:
         // - This function has no safety requirements.
@@ -386,8 +408,17 @@ impl Processor {
             aic_sdk::set_sdk_id(3);
         }
 
-        let mut processor =
-            aic_sdk::Processor::new(&model.borrow().inner, license_key).map_err(to_py_err)?;
+        let mut processor = match otel_config {
+            Some(otel) => aic_sdk::Processor::with_otel_config(
+                &model.borrow().inner,
+                license_key,
+                &otel.into(),
+            )
+            .map_err(to_py_err)?,
+            None => {
+                aic_sdk::Processor::new(&model.borrow().inner, license_key).map_err(to_py_err)?
+            }
+        };
 
         if let Some(config) = config {
             processor.initialize(&config.into()).map_err(to_py_err)?;

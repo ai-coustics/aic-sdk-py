@@ -12,10 +12,10 @@ jobs:
     env:
       AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
 
@@ -55,10 +55,10 @@ jobs:
             use-zig: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
 
@@ -92,6 +92,13 @@ jobs:
             echo "Testing Python $version"
             uv venv --python $version .venv-$version
             VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
-            uv run --python $version examples/basic.py
-            uv run --python $version examples/basic_async.py
+
+            if [ -x ".venv-$version/bin/python" ]; then
+              python=".venv-$version/bin/python"
+            else
+              python=".venv-$version/Scripts/python.exe"
+            fi
+
+            "$python" examples/basic.py
+            "$python" examples/basic_async.py
           done

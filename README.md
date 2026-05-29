@@ -107,6 +107,24 @@ processor = aic.Processor(model, license_key)
 processor.initialize(config)
 ```
 
+### OpenTelemetry Configuration
+
+Pass an `OtelConfig` to override telemetry settings for a single processor instance,
+independently of the `AIC_SDK_OTEL_ENABLE` environment variable:
+
+```python
+# Disable telemetry for this processor
+processor = aic.Processor(model, license_key, otel_config=aic.OtelConfig(enable=False))
+
+# Enable with a session ID and custom export interval
+processor = aic.Processor(
+    model, license_key,
+    otel_config=aic.OtelConfig(enable=True, session_id="my-session", export_interval_ms=5_000),
+)
+```
+
+The same `otel_config` parameter is available on `ProcessorAsync`.
+
 ### Processing Audio
 
 ```python
@@ -158,6 +176,10 @@ async def process_audio():
 
     # Create and initialize async processor in one step
     processor = aic.ProcessorAsync(model, "your-license-key", config)
+
+    # Get processor and VAD contexts
+    proc_ctx = processor.get_processor_context()
+    vad_ctx = processor.get_vad_context()
 
     # Process audio
     audio = np.zeros((2, config.num_frames), dtype=np.float32)

@@ -4,6 +4,7 @@ use pyo3_stub_gen::derive::gen_stub_pyfunction;
 
 mod error;
 mod model;
+mod otel_config;
 mod processor;
 mod processor_async;
 mod vad;
@@ -73,6 +74,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_compatible_model_version, m)?)?;
     m.add_function(wrap_pyfunction!(set_sdk_id, m)?)?;
     m.add_class::<model::Model>()?;
+    m.add_class::<otel_config::OtelConfig>()?;
     m.add_class::<processor::ProcessorContext>()?;
     m.add_class::<processor::ProcessorConfig>()?;
     m.add_class::<processor::ProcessorParameter>()?;
@@ -98,6 +100,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<error::FileSystemError>()?;
     m.add_class::<error::ModelDataUnalignedError>()?;
     m.add_class::<error::ModelDownloadError>()?;
+    m.add_class::<error::TokenUnsupportedError>()?;
     m.add_class::<error::UnknownError>()?;
 
     Ok(())
