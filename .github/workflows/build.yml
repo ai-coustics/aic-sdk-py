@@ -90,7 +90,7 @@ jobs:
         run: |
           for version in ${{ matrix.interpreters }}; do
             echo "Testing Python $version"
-            flags="--no-project --python $version --with dist/*cp${version//.}*${{ matrix.test-arch }}*.whl"
+            flags="--no-project --python $version --with aic-sdk@dist/*cp${version//.}*${{ matrix.test-arch }}*.whl"
             uv run $flags examples/basic.py
             uv run $flags examples/basic_async.py
           done
