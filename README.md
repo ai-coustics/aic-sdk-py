@@ -239,10 +239,10 @@ analyzer = aic.FileAnalyzer(model, license_key)
 sample_rate = 16000
 results = analyzer.analyze(audio, sample_rate)  # optional: step_samples=sample_rate * 5
 for result in results:
-    print(result.risk_score, result.noise, result.packet_loss)
+    print(f"Risk score: {result.risk_score}")
 ```
 
-#### Streaming / multi-channel analysis
+#### Streaming analysis
 
 For streaming use, `analyzer_pair()` returns a `Collector` (buffers audio, safe to call from the
 audio thread) and an `Analyzer` (runs the model off the audio thread):
@@ -258,7 +258,7 @@ collector.buffer(np.zeros((config.num_channels, config.num_frames), dtype=np.flo
 
 # Run the analysis off the audio thread.
 result = analyzer.analyze_buffered()
-print(result.risk_score)
+print(f"Risk score: {result.risk_score}")
 ```
 
 ### When to Use Sync vs Async
