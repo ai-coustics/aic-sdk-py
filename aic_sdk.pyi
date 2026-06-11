@@ -10,9 +10,13 @@ import numpy as np
 import numpy.typing as npt
 
 __all__ = [
+    "AnalysisResult",
+    "Analyzer",
     "AudioConfigMismatchError",
     "AudioConfigUnsupportedError",
+    "Collector",
     "EnhancementNotAllowedError",
+    "FileAnalyzer",
     "FileSystemError",
     "InternalError",
     "LicenseExpiredError",
@@ -37,10 +41,145 @@ __all__ = [
     "UnknownError",
     "VadContext",
     "VadParameter",
+    "analyzer_pair",
     "get_compatible_model_version",
     "get_sdk_version",
     "set_sdk_id",
 ]
+
+@typing.final
+class AnalysisResult:
+    r"""
+    The result of analyzing an audio signal with an Analyzer.
+
+    Scores are in the range 0.0 to 1.0. For all fields except speaker_loudness, lower values
+    indicate less problematic audio.
+    """
+    @property
+    def risk_score(self) -> builtins.float:
+        r"""
+        Headline audio score.
+
+        Predicts likelihood of failure of downstream models including speech-to-text,
+        voice activity detection or turn-taking or speech-to-speech models.
+        Lower indicates less problematic audio.
+
+        Range: 0.0 to 1.0
+        """
+    @property
+    def speaker_reverb(self) -> builtins.float:
+        r"""
+        Measure of speaker distance and reverberance.
+        Lower indicates less problematic audio.
+
+        Range: 0.0 to 1.0
+        """
+    @property
+    def speaker_loudness(self) -> builtins.float:
+        r"""
+        Measure of speaker loudness.
+
+        Range: 0.0 to 1.0
+        """
+    @property
+    def interfering_speech(self) -> builtins.float:
+        r"""
+        Measure of interference from additional speakers present in audio.
+        Lower indicates less problematic audio.
+
+        Range: 0.0 to 1.0
+        """
+    @property
+    def media_speech(self) -> builtins.float:
+        r"""
+        Measure of interfering speech content from media devices,
+        e.g. from TVs, radios, phones or else.
+        Lower indicates less problematic audio.
+
+        Range: 0.0 to 1.0
+        """
+    @property
+    def noise(self) -> builtins.float:
+        r"""
+        Measure of ambient or environmental noise.
+        Lower indicates less problematic audio.
+
+        Range: 0.0 to 1.0
+        """
+    @property
+    def packet_loss(self) -> builtins.float:
+        r"""
+        Measure of audio dropouts or discontinuities in the stream,
+        e.g. from packet loss, frame erasure, jitter or CPU overload.
+        Lower indicates less problematic audio.
+
+        Range: 0.0 to 1.0
+        """
+    def __repr__(self) -> builtins.str: ...
+
+@typing.final
+class Analyzer:
+    r"""
+    Runs an analysis model over the audio buffered by a Collector.
+
+    The analyzer is designed to be run in a non-audio thread. Analysis models are computationally
+    expensive and cannot run in the audio thread. The analyzer has access to the audio buffered by
+    the collector and can access it safely across threads.
+
+    Created via analyzer_pair().
+    """
+    def reset(self) -> None:
+        r"""
+        Clears all internal state and buffers.
+
+        Call this when the audio stream is interrupted or when seeking to prevent mispredictions
+        from previous audio content. This operates on both the analyzer and its collector. The
+        collector stays initialized to the configured settings.
+
+        Thread Safety:
+            Real-time safe. Can be called from audio processing threads.
+
+        Example:
+            >>> analyzer.reset()
+        """
+    def analyze_buffered(self) -> AnalysisResult:
+        r"""
+        Analyzes the buffered signal.
+
+        The analyzer runs a forward-pass of the analysis model with a fixed length of audio,
+        determined by the model. If this function is called before the collector has buffered
+        that length of audio, the analyzer runs the analysis with silence (zeros) in the tail of
+        the input.
+
+        Returns:
+            An AnalysisResult.
+
+        Note:
+            This function is not real-time safe. Avoid calling it from audio threads.
+
+        Example:
+            >>> result = analyzer.analyze_buffered()
+            >>> print(result.risk_score)
+        """
+    def update_bearer_token(self, token: builtins.str) -> None:
+        r"""
+        Replaces the bearer token on the analyzer.
+
+        Use this when your license key is a JWT and needs to be refreshed before it expires.
+        Audio processing continues uninterrupted and the new token is used for all subsequent
+        authentication. Both the original key and the new token must be JWTs; otherwise a
+        `TokenUnsupportedError` is raised and the existing token stays in use.
+
+        Args:
+            token: The new JWT to install.
+
+        Raises:
+            TokenUnsupportedError: If either the original or new token is not a JWT.
+            LicenseFormatInvalidError: If the token string contains null bytes.
+
+        Example:
+            >>> analyzer.update_bearer_token(renewed_jwt)
+        """
 
 @typing.final
 class AudioConfigMismatchError(builtins.Exception):
@@ -61,6 +200,70 @@ class AudioConfigUnsupportedError(builtins.Exception):
     def __new__(cls, message: builtins.str) -> AudioConfigUnsupportedError: ...
 
 @typing.final
+class Collector:
+    r"""
+    Buffers audio for later analysis.
+
+    The collector is designed to be placed in the audio thread, buffering audio chunks for the
+    Analyzer to analyze later.
+
+    Created via analyzer_pair().
+
+    Note:
+        All channels are mixed to mono for buffering. To buffer channels independently, create
+        separate analyzer pairs.
+    """
+    def initialize(self, config: ProcessorConfig) -> None:
+        r"""
+        Configures the collector for specific audio settings.
+
+        This function must be called before buffering any audio.
+        For the lowest delay use the sample rate and frame size returned by
+        Model.get_optimal_sample_rate() and Model.get_optimal_num_frames().
+
+        Args:
+            config: Audio buffering configuration
+
+        Raises:
+            ValueError: If the audio configuration is unsupported.
+
+        Warning:
+            Do not call from audio processing threads as this allocates memory.
+
+        Note:
+            All channels are mixed to mono for buffering. To buffer channels independently,
+            create separate analyzer pairs.
+
+        Example:
+            >>> config = aic.ProcessorConfig.optimal(model)
+            >>> collector.initialize(config)
+        """
+    def buffer(self, buffer: npt.NDArray[np.float32]) -> None:
+        r"""
+        Buffers audio from a 2D NumPy array (channels × frames) for later analysis.
+
+        The input uses sequential channel layout where all samples for each
+        channel are stored contiguously.
+
+        Note:
+            All channels are mixed to mono for buffering. To buffer channels
+            independently, create separate analyzer pairs.
+
+        Args:
+            buffer: 2D NumPy array with shape (num_channels, num_frames) containing
+                   audio data to be buffered.
+
+        Raises:
+            ModelNotInitializedError: If the collector has not been initialized.
+            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.
+
+        Example:
+            >>> audio = np.zeros((1, config.num_frames), dtype=np.float32)
+            >>> collector.buffer(audio)
+        """
+        ...
+
+@typing.final
 class EnhancementNotAllowedError(builtins.Exception):
     r"""
     SDK key was not authorized or process failed to report usage. Check if you have internet connection.
@@ -68,6 +271,80 @@ class EnhancementNotAllowedError(builtins.Exception):
     @property
     def message(self) -> builtins.str: ...
     def __new__(cls, message: builtins.str) -> EnhancementNotAllowedError: ...
+
+@typing.final
+class FileAnalyzer:
+    r"""
+    Analyzes complete mono audio buffers.
+
+    FileAnalyzer is a convenience wrapper around a Collector and Analyzer pair for non-real-time
+    analysis of audio that is already loaded in memory.
+
+    Each call to analyze() configures the collector for mono input with the model's optimal frame
+    size. It analyzes independent five-second windows, advancing the start of each window by
+    step_samples.
+
+    For streaming or multi-channel analysis, use analyzer_pair() directly.
+
+    Example:
+        >>> analyzer = aic.FileAnalyzer(model, license_key)
+        >>> results = analyzer.analyze(audio, 16000)
+        >>> print(results[0].risk_score)
+    """
+    def __new__(cls, model: Model, license_key: builtins.str) -> FileAnalyzer:
+        r"""
+        Creates a new file analyzer.
+
+        The collector is not initialized until analyze() is called. This lets the same FileAnalyzer
+        instance analyze mono buffers with different sample rates or step sizes.
+
+        Args:
+            model: The loaded model instance
+            license_key: License key for the ai-coustics SDK
+                (generate your key at <https://developers.ai-coustics.com/>)
+
+        Raises:
+            LicenseFormatInvalidError: If the license key string contains null bytes.
+            RuntimeError: If the analyzer pair cannot be created.
+
+        Example:
+            >>> analyzer = aic.FileAnalyzer(model, license_key)
+        """
+    def analyze(
+        self,
+        audio: npt.NDArray[np.float32],
+        sample_rate: builtins.int,
+        step_samples: typing.Optional[builtins.int] = None,
+    ) -> builtins.list[AnalysisResult]:
+        r"""
+        Analyzes a complete mono audio buffer.
+
+        The input must contain mono float32 samples at sample_rate. No channel mixing
+        or resampling is performed.
+
+        The analyzer evaluates five-second windows. FileAnalyzer buffers a window starting
+        at sample 0, runs the analyzer once, resets, then repeats with a window starting
+        step_samples later. If audio is shorter than or equal to five seconds, it is padded
+        with silence and a single result is returned. For longer signals, only complete
+        five-second windows are analyzed after the first window.
+
+        Args:
+            audio: 1D NumPy array of mono float32 samples to analyze.
+            sample_rate: Sample rate of audio in Hz.
+            step_samples: Number of samples to advance between analysis results. Defaults
+                   to the model's window size (no overlap) if None.
+
+        Returns:
+            A list of AnalysisResult values, one per analysis window.
+
+        Raises:
+            AudioConfigUnsupportedError: If the sample rate or step size is unsupported.
+
+        Example:
+            >>> results = analyzer.analyze(audio, 16000)
+            >>> print(results[0].risk_score)
+        """
+        ...
 
 @typing.final
 class FileSystemError(builtins.Exception):
@@ -1124,6 +1401,38 @@ class VadParameter(enum.Enum):
     Range: 0.0 to 1.0 (value in seconds)
 
     Default: 0.0
+    """
+
+def analyzer_pair(
+    model: Model, license_key: builtins.str
+) -> tuple[Collector, Analyzer]:
+    r"""
+    Creates a Collector/Analyzer pair for non-real-time analysis.
+
+    The collector is designed to be placed in the audio thread, buffering audio chunks for
+    later analysis. The analyzer is designed to be run separately, since analysis models are
+    computationally expensive and cannot run in the audio thread. The analyzer has access to
+    the audio buffered by the collector and can access it safely across threads.
+
+    The collector retains a span of audio determined by the analysis model. As more samples
+    get collected, old audio is discarded.
+
+    Args:
+        model: The loaded model instance
+        license_key: License key for the ai-coustics SDK
+            (generate your key at <https://developers.ai-coustics.com/>)
+
+    Returns:
+        A tuple of (Collector, Analyzer).
+
+    Raises:
+        LicenseFormatInvalidError: If the license key string contains null bytes.
+        RuntimeError: If the pair cannot be created.
+
+    Example:
+        >>> collector, analyzer = aic.analyzer_pair(model, license_key)
+        >>> config = aic.ProcessorConfig.optimal(model)
+        >>> collector.initialize(config)
     """
 
 def get_compatible_model_version() -> builtins.int:

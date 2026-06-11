@@ -130,6 +130,85 @@ fn patch_numpy_methods(path: &std::path::Path) {
         &format!("{processor_async_anchor_prefix}{process_async_stub}    def get_processor_context(self) -> ProcessorContext:", processor_async_anchor_prefix = "            >>> await processor.initialize_async(config)\n        \"\"\"\n"),
     );
 
+    // Inject buffer() into Collector right after initialize().
+    let buffer_stub = concat!(
+        "    def buffer(self, buffer: npt.NDArray[np.float32]) -> None:\n",
+        "        r\"\"\"\n",
+        "        Buffers audio from a 2D NumPy array (channels × frames) for later analysis.\n",
+        "\n",
+        "        The input uses sequential channel layout where all samples for each\n",
+        "        channel are stored contiguously.\n",
+        "\n",
+        "        Note:\n",
+        "            All channels are mixed to mono for buffering. To buffer channels\n",
+        "            independently, create separate analyzer pairs.\n",
+        "\n",
+        "        Args:\n",
+        "            buffer: 2D NumPy array with shape (num_channels, num_frames) containing\n",
+        "                   audio data to be buffered.\n",
+        "\n",
+        "        Raises:\n",
+        "            ModelNotInitializedError: If the collector has not been initialized.\n",
+        "            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.\n",
+        "\n",
+        "        Example:\n",
+        "            >>> audio = np.zeros((1, config.num_frames), dtype=np.float32)\n",
+        "            >>> collector.buffer(audio)\n",
+        "        \"\"\"\n",
+        "        ...\n",
+    );
+    // Unique anchor: end of Collector.initialize()'s docstring.
+    let collector_anchor = "            >>> collector.initialize(config)\n        \"\"\"\n";
+    let content = content.replace(
+        collector_anchor,
+        &format!("{collector_anchor}{buffer_stub}"),
+    );
+
+    // Inject analyze() into FileAnalyzer right after __new__().
+    let analyze_stub = concat!(
+        "    def analyze(\n",
+        "        self,\n",
+        "        audio: npt.NDArray[np.float32],\n",
+        "        sample_rate: builtins.int,\n",
+        "        step_samples: typing.Optional[builtins.int] = None,\n",
+        "    ) -> builtins.list[AnalysisResult]:\n",
+        "        r\"\"\"\n",
+        "        Analyzes a complete mono audio buffer.\n",
+        "\n",
+        "        The input must contain mono float32 samples at sample_rate. No channel mixing\n",
+        "        or resampling is performed.\n",
+        "\n",
+        "        The analyzer evaluates five-second windows. FileAnalyzer buffers a window starting\n",
+        "        at sample 0, runs the analyzer once, resets, then repeats with a window starting\n",
+        "        step_samples later. If audio is shorter than or equal to five seconds, it is padded\n",
+        "        with silence and a single result is returned. For longer signals, only complete\n",
+        "        five-second windows are analyzed after the first window.\n",
+        "\n",
+        "        Args:\n",
+        "            audio: 1D NumPy array of mono float32 samples to analyze.\n",
+        "            sample_rate: Sample rate of audio in Hz.\n",
+        "            step_samples: Number of samples to advance between analysis results. Defaults\n",
+        "                   to the model's window size (no overlap) if None.\n",
+        "\n",
+        "        Returns:\n",
+        "            A list of AnalysisResult values, one per analysis window.\n",
+        "\n",
+        "        Raises:\n",
+        "            AudioConfigUnsupportedError: If the sample rate or step size is unsupported.\n",
+        "\n",
+        "        Example:\n",
+        "            >>> results = analyzer.analyze(audio, 16000)\n",
+        "            >>> print(results[0].risk_score)\n",
+        "        \"\"\"\n",
+        "        ...\n",
+    );
+    // Unique anchor: end of FileAnalyzer.__new__()'s docstring.
+    let file_analyzer_anchor = "            >>> analyzer = aic.FileAnalyzer(model, license_key)\n        \"\"\"\n";
+    let content = content.replace(
+        file_analyzer_anchor,
+        &format!("{file_analyzer_anchor}{analyze_stub}"),
+    );
+
     // Strip trailing whitespace from every line (ruff won't touch whitespace
     // inside string literals, so docstring blank lines must be cleaned here).
     let content: String = content

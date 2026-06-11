@@ -18,6 +18,14 @@ def model():
 
 
 @pytest.fixture
+def analysis_model():
+    # The analyzer requires an analysis model (Tyto), not an enhancement model.
+    model_id = "tyto-l-16khz"
+    model_path = aic.Model.download(model_id, "./models")
+    return aic.Model.from_file(model_path)
+
+
+@pytest.fixture
 def processor(request):
     model = request.getfixturevalue("model")
     return aic.Processor(model, _LICENSE_KEY)
