@@ -192,11 +192,9 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
                     err_msg.into_pyobject(py).unwrap().unbind(),
                 )
             }
-            aic_sdk::AicError::ModelTypeUnsupported => {
-                PyErr::new::<ModelTypeUnsupportedError, _>(
-                    err_msg.into_pyobject(py).unwrap().unbind(),
-                )
-            }
+            aic_sdk::AicError::ModelTypeUnsupported => PyErr::new::<ModelTypeUnsupportedError, _>(
+                err_msg.into_pyobject(py).unwrap().unbind(),
+            ),
             aic_sdk::AicError::ModelFilePathInvalid => PyErr::new::<ModelFilePathInvalidError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),

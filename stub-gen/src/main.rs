@@ -203,7 +203,8 @@ fn patch_numpy_methods(path: &std::path::Path) {
         "        ...\n",
     );
     // Unique anchor: end of FileAnalyzer.__new__()'s docstring.
-    let file_analyzer_anchor = "            >>> analyzer = aic.FileAnalyzer(model, license_key)\n        \"\"\"\n";
+    let file_analyzer_anchor =
+        "            >>> analyzer = aic.FileAnalyzer(model, license_key)\n        \"\"\"\n";
     let content = content.replace(
         file_analyzer_anchor,
         &format!("{file_analyzer_anchor}{analyze_stub}"),
