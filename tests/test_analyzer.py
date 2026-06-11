@@ -62,7 +62,9 @@ def test_analyzer_reset_keeps_collector_initialized(analysis_model, license_key)
 
     analyzer.reset()
 
-    collector.buffer(np.zeros((config.num_channels, config.num_frames), dtype=np.float32))
+    collector.buffer(
+        np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
+    )
     result = analyzer.analyze_buffered()
 
     assert_scores_in_range(result)
