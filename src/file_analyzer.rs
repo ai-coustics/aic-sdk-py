@@ -31,7 +31,7 @@ pub struct FileAnalyzer {
     inner: aic_sdk::FileAnalyzer<'static, 'static>,
     // Strong reference to the Python Model. It keeps the underlying `aic_sdk::Model` (and its C
     // weights) alive and pinned for as long as this FileAnalyzer, which is what makes the `'static`
-    // borrow stored in `inner` sound. Never read directly — only held for keep-alive + drop order.
+    // borrow stored in `inner` sound. Never read directly, only held for keep-alive + drop order.
     #[allow(dead_code)]
     model: Py<Model>,
 }
@@ -70,7 +70,7 @@ impl FileAnalyzer {
 
         // SAFETY: We extend the borrow of the model to `'static`. This is sound because:
         // - `self.model` below holds a strong `Py<Model>` reference, keeping the Python Model
-        //   object — and therefore the `aic_sdk::Model` it owns — alive for at least as long as
+        //   object (and therefore the `aic_sdk::Model` it owns) alive for at least as long as
         //   this FileAnalyzer (and `inner`, which holds the borrow).
         // - pyo3 stores a pyclass's contents at a stable heap address and never relocates them
         //   while a reference is held, so the pointer stays valid for the object's lifetime.
