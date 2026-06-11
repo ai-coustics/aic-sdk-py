@@ -288,6 +288,7 @@ class FileAnalyzer:
     For streaming or multi-channel analysis, use analyzer_pair() directly.
 
     Example:
+
         >>> analyzer = aic.FileAnalyzer(model, license_key)
         >>> results = analyzer.analyze(audio, 16000)
         >>> print(results[0].risk_score)
