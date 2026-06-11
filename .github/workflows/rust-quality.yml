@@ -69,8 +69,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@beta
       - uses: taiki-e/install-action@cargo-hack
       - uses: Swatinem/rust-cache@v2
-      # Test runner is not supposed to work with every feature combination
-      - run: cargo hack --feature-powerset check --workspace --exclude test-runner
+      - run: cargo hack --feature-powerset check --workspace
 
   msrv:
     name: MSRV Check
