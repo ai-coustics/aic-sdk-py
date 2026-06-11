@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.4.0 - 2026-06-11
+
+Update to core library version 0.20.0.
+
+### New Features
+
+- Added an audio-analysis API for running the *Tyto* analysis model, which scores audio quality
+  to predict the likelihood of failure of downstream models (speech-to-text, VAD, turn-taking,
+  speech-to-speech). Each `AnalysisResult` exposes seven scores in the `0.0`–`1.0` range:
+  `risk_score`, `speaker_reverb`, `speaker_loudness`, `interfering_speech`, `media_speech`,
+  `noise`, and `packet_loss`.
+
+  For whole-buffer analysis, use `FileAnalyzer`:
+
+  ```python
+  analyzer = aic.FileAnalyzer(model, license_key)
+  results = analyzer.analyze(audio, sample_rate)  # audio: 1D mono float32 NumPy array
+  print(results[0].risk_score)
+  ```
+
+  For streaming or multi-channel analysis, use the lower-level `analyzer_pair()`, which returns a
+  `Collector` (buffers audio, audio-thread safe) and an `Analyzer` (runs the model off the audio
+  thread):
+
+  ```python
+  collector, analyzer = aic.analyzer_pair(model, license_key)
+  collector.initialize(aic.ProcessorConfig.optimal(model))
+  collector.buffer(audio)  # 2D (channels × frames) float32 NumPy array
+  result = analyzer.analyze_buffered()
+  ```
+
+  See [`analyze_file.py`](examples/analyze_file.py) for a complete example.
+
 ## 2.3.0 - 2026-05-28
 
 Update to core library version 0.19.0.

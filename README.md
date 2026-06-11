@@ -214,6 +214,53 @@ if vad_ctx.is_speech_detected():
     print("Speech detected!")
 ```
 
+### Audio Analysis
+
+The analysis API runs the *Tyto* analysis model to score audio quality, predicting the likelihood
+of failure of downstream models (speech-to-text, VAD, turn-taking, speech-to-speech). Each
+`AnalysisResult` exposes seven scores in the `0.0`–`1.0` range (lower is less problematic, except
+`speaker_loudness`): `risk_score`, `speaker_reverb`, `speaker_loudness`, `interfering_speech`,
+`media_speech`, `noise`, and `packet_loss`.
+
+#### Whole-file analysis
+
+`FileAnalyzer` analyzes a mono buffer that is already loaded in memory, returning one result per
+five-second window:
+
+```python
+import numpy as np
+import aic_sdk as aic
+
+# Use an analysis model (Tyto), not an enhancement model.
+model = aic.Model.from_file(aic.Model.download("tyto-l-16khz", "./models"))
+analyzer = aic.FileAnalyzer(model, license_key)
+
+# audio: 1D mono float32 NumPy array
+sample_rate = 16000
+results = analyzer.analyze(audio, sample_rate)  # optional: step_samples=sample_rate * 5
+for result in results:
+    print(f"Risk score: {result.risk_score}")
+```
+
+#### Streaming analysis
+
+For streaming use, `analyzer_pair()` returns a `Collector` (buffers audio, safe to call from the
+audio thread) and an `Analyzer` (runs the model off the audio thread):
+
+```python
+collector, analyzer = aic.analyzer_pair(model, license_key)
+
+config = aic.ProcessorConfig.optimal(model)
+collector.initialize(config)
+
+# Buffer audio (2D NumPy array: channels × frames) as it arrives.
+collector.buffer(np.zeros((config.num_channels, config.num_frames), dtype=np.float32))
+
+# Run the analysis off the audio thread.
+result = analyzer.analyze_buffered()
+print(f"Risk score: {result.risk_score}")
+```
+
 ### When to Use Sync vs Async
 
 - **`Processor` (sync)**: Simple scripts, command-line tools, batch processing
@@ -261,6 +308,8 @@ For a complete list of all available exception types and their descriptions, see
 See the [`basic.py`](examples/basic.py) or [`basic_async.py`](examples/basic_async.py) file for a complete working example.
 
 For a complete file enhancement example with parallel processing, see [`enhance_files.py`](examples/enhance_files.py).
+
+For an audio-analysis example that scores an audio file with the *Tyto* model, see [`analyze_file.py`](examples/analyze_file.py).
 
 For a benchmarking example that tests how many concurrent processing sessions your CPU can support, see [`benchmark.py`](examples/benchmark.py).
 

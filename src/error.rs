@@ -79,6 +79,10 @@ define_exception!(
     ModelVersionUnsupportedError
 );
 define_exception!(
+    /// The model type is not supported by this operation.
+    ModelTypeUnsupportedError
+);
+define_exception!(
     /// The path to the model file is invalid.
     ModelFilePathInvalidError
 );
@@ -188,6 +192,9 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
                     err_msg.into_pyobject(py).unwrap().unbind(),
                 )
             }
+            aic_sdk::AicError::ModelTypeUnsupported => PyErr::new::<ModelTypeUnsupportedError, _>(
+                err_msg.into_pyobject(py).unwrap().unbind(),
+            ),
             aic_sdk::AicError::ModelFilePathInvalid => PyErr::new::<ModelFilePathInvalidError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),

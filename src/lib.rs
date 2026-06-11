@@ -2,7 +2,9 @@ use pyo3::prelude::*;
 use pyo3_stub_gen::define_stub_info_gatherer;
 use pyo3_stub_gen::derive::gen_stub_pyfunction;
 
+mod analyzer;
 mod error;
+mod file_analyzer;
 mod model;
 mod otel_config;
 mod processor;
@@ -73,6 +75,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_sdk_version, m)?)?;
     m.add_function(wrap_pyfunction!(get_compatible_model_version, m)?)?;
     m.add_function(wrap_pyfunction!(set_sdk_id, m)?)?;
+    m.add_function(wrap_pyfunction!(analyzer::analyzer_pair, m)?)?;
     m.add_class::<model::Model>()?;
     m.add_class::<otel_config::OtelConfig>()?;
     m.add_class::<processor::ProcessorContext>()?;
@@ -82,6 +85,10 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<processor_async::ProcessorAsync>()?;
     m.add_class::<vad::VadParameter>()?;
     m.add_class::<vad::VadContext>()?;
+    m.add_class::<analyzer::AnalysisResult>()?;
+    m.add_class::<analyzer::Collector>()?;
+    m.add_class::<analyzer::Analyzer>()?;
+    m.add_class::<file_analyzer::FileAnalyzer>()?;
 
     // Register custom exception classes
     m.add_class::<error::ParameterOutOfRangeError>()?;
@@ -96,6 +103,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<error::LicenseExpiredError>()?;
     m.add_class::<error::ModelInvalidError>()?;
     m.add_class::<error::ModelVersionUnsupportedError>()?;
+    m.add_class::<error::ModelTypeUnsupportedError>()?;
     m.add_class::<error::ModelFilePathInvalidError>()?;
     m.add_class::<error::FileSystemError>()?;
     m.add_class::<error::ModelDataUnalignedError>()?;
