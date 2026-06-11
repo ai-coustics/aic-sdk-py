@@ -103,6 +103,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<error::LicenseExpiredError>()?;
     m.add_class::<error::ModelInvalidError>()?;
     m.add_class::<error::ModelVersionUnsupportedError>()?;
+    m.add_class::<error::ModelTypeUnsupportedError>()?;
     m.add_class::<error::ModelFilePathInvalidError>()?;
     m.add_class::<error::FileSystemError>()?;
     m.add_class::<error::ModelDataUnalignedError>()?;

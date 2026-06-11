@@ -28,6 +28,7 @@ __all__ = [
     "ModelFilePathInvalidError",
     "ModelInvalidError",
     "ModelNotInitializedError",
+    "ModelTypeUnsupportedError",
     "ModelVersionUnsupportedError",
     "OtelConfig",
     "ParameterFixedError",
@@ -631,6 +632,15 @@ class ModelNotInitializedError(builtins.Exception):
     @property
     def message(self) -> builtins.str: ...
     def __new__(cls, message: builtins.str) -> ModelNotInitializedError: ...
+
+@typing.final
+class ModelTypeUnsupportedError(builtins.Exception):
+    r"""
+    The model type is not supported by this operation.
+    """
+    @property
+    def message(self) -> builtins.str: ...
+    def __new__(cls, message: builtins.str) -> ModelTypeUnsupportedError: ...
 
 @typing.final
 class ModelVersionUnsupportedError(builtins.Exception):
