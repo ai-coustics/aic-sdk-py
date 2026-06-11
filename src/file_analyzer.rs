@@ -5,10 +5,6 @@ use crate::analyzer::AnalysisResult;
 use crate::model::Model;
 use crate::to_py_err;
 
-// The analysis model consumes a fixed five-second context.
-// TODO: This should be queried from the model once the SDK exposes an API for it.
-const ANALYSIS_WINDOW_SECONDS: usize = 5;
-
 /// Analyzes complete mono audio buffers.
 ///
 /// FileAnalyzer is a convenience wrapper around a Collector and Analyzer pair for non-real-time
@@ -27,11 +23,17 @@ const ANALYSIS_WINDOW_SECONDS: usize = 5;
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct FileAnalyzer {
-    // Keeps the Python Model alive so the model weights stay valid for analyze() (which queries
-    // the model's optimal frame count for the requested sample rate).
+    // `inner` is declared before `model` so it is dropped first: the collector/analyzer are torn
+    // down while the borrowed model is still alive.
+    //
+    // `inner` borrows the model with a `'static` lifetime that we manufacture in `new`. The borrow
+    // is kept valid by the `model` handle below; see the SAFETY note there.
+    inner: aic_sdk::FileAnalyzer<'static, 'static>,
+    // Strong reference to the Python Model. It keeps the underlying `aic_sdk::Model` (and its C
+    // weights) alive and pinned for as long as this FileAnalyzer, which is what makes the `'static`
+    // borrow stored in `inner` sound. Never read directly, only held for keep-alive + drop order.
+    #[allow(dead_code)]
     model: Py<Model>,
-    collector: aic_sdk::Collector,
-    analyzer: aic_sdk::Analyzer<'static>,
 }
 
 #[gen_stub_pymethods]
@@ -55,18 +57,37 @@ impl FileAnalyzer {
     ///     >>> analyzer = aic.FileAnalyzer(model, license_key)
     #[new]
     fn new(model: &Bound<'_, Model>, license_key: &str) -> PyResult<Self> {
+        // Identify as the Python wrapper before any SDK object is created. Must stay first: the
+        // `aic_sdk::FileAnalyzer::new` call below creates an analyzer pair, which sets the Rust
+        // wrapper id; the SDK keeps the first id it is given, so this one wins.
+        //
         // SAFETY: This function has no safety requirements.
         unsafe {
             aic_sdk::set_sdk_id(3);
         }
 
-        let (collector, analyzer) =
-            aic_sdk::analyzer_pair(&model.borrow().inner, license_key).map_err(to_py_err)?;
+        let model_ref = model.borrow();
+
+        // SAFETY: We extend the borrow of the model to `'static`. This is sound because:
+        // - `self.model` below holds a strong `Py<Model>` reference, keeping the Python Model
+        //   object (and therefore the `aic_sdk::Model` it owns) alive for at least as long as
+        //   this FileAnalyzer (and `inner`, which holds the borrow).
+        // - pyo3 stores a pyclass's contents at a stable heap address and never relocates them
+        //   while a reference is held, so the pointer stays valid for the object's lifetime.
+        // - `Model` exposes no `&mut self` methods to Python, so pyo3 never hands out a
+        //   `&mut aic_sdk::Model` that could alias this shared reference.
+        let model_static: &'static aic_sdk::Model<'static> =
+            unsafe { std::mem::transmute(&model_ref.inner) };
+
+        let inner = aic_sdk::FileAnalyzer::new(model_static, license_key).map_err(to_py_err)?;
+
+        // Drop the borrow guard before storing the owned handle; `model_static` keeps pointing at
+        // the same stable storage that `self.model` now keeps alive.
+        drop(model_ref);
 
         Ok(Self {
+            inner,
             model: model.clone().unbind(),
-            collector,
-            analyzer,
         })
     }
 }
@@ -83,184 +104,20 @@ impl FileAnalyzer {
         step_samples: Option<usize>,
         py: Python<'py>,
     ) -> PyResult<Vec<AnalysisResult>> {
-        if sample_rate == 0 {
-            return Err(to_py_err(aic_sdk::AicError::AudioConfigUnsupported));
-        }
-
-        // Convert the fixed five-second context to the caller's sample rate. This is the size of
-        // every analysis window.
-        let Some(analysis_window_samples) =
-            (sample_rate as usize).checked_mul(ANALYSIS_WINDOW_SECONDS)
-        else {
-            return Err(to_py_err(aic_sdk::AicError::AudioConfigUnsupported));
-        };
-
-        let step_samples = step_samples.unwrap_or(analysis_window_samples);
-        if step_samples == 0 {
-            return Err(to_py_err(aic_sdk::AicError::AudioConfigUnsupported));
-        }
-
-        // The collector only emits fresh spectrogram frames at the model's hop size. Feeding any
-        // other frame size would add buffering inside the collector and shift the analysis timing.
-        let optimal_num_frames = self.model.borrow(py).inner.optimal_num_frames(sample_rate);
-        if optimal_num_frames == 0 {
-            return Err(to_py_err(aic_sdk::AicError::AudioConfigUnsupported));
-        }
-
         let owned = audio.as_array().as_standard_layout().into_owned();
         let audio_vec = owned
             .as_slice()
             .expect("Array is in standard layout")
             .to_vec();
 
-        let collector = &mut self.collector;
-        let analyzer = &mut self.analyzer;
+        let inner = &mut self.inner;
 
         // The heavy native work (initialize + buffer + analyze) runs without the GIL so other
         // Python threads can make progress.
-        py.detach(move || {
-            run_windows(
-                collector,
-                analyzer,
-                &audio_vec,
-                sample_rate,
-                analysis_window_samples,
-                step_samples,
-                optimal_num_frames,
-            )
-        })
-        .map_err(to_py_err)
-    }
-}
+        let results = py
+            .detach(move || inner.analyze(&audio_vec, sample_rate, step_samples))
+            .map_err(to_py_err)?;
 
-// Buffers and analyzes each independent five-second window, returning one result per window.
-fn run_windows(
-    collector: &mut aic_sdk::Collector,
-    analyzer: &mut aic_sdk::Analyzer<'static>,
-    audio: &[f32],
-    sample_rate: u32,
-    analysis_window_samples: usize,
-    step_samples: usize,
-    optimal_num_frames: usize,
-) -> Result<Vec<AnalysisResult>, aic_sdk::AicError> {
-    let config = aic_sdk::ProcessorConfig {
-        sample_rate,
-        num_channels: 1,
-        // Collector/STFT output advances at the model hop size, so always feed fixed optimal
-        // frames regardless of the requested analysis step.
-        num_frames: optimal_num_frames,
-        allow_variable_frames: false,
-    };
-
-    collector.initialize(&config)?;
-
-    let window_starts = analysis_window_starts(audio.len(), analysis_window_samples, step_samples);
-
-    let mut results = Vec::with_capacity(window_starts.len());
-    for window_start in window_starts {
-        // Each result must be computed from an independent five-second span. Reset clears both
-        // the analyzer and collector before buffering the next window from scratch.
-        analyzer.reset()?;
-
-        buffer_analysis_window(
-            collector,
-            audio,
-            window_start,
-            analysis_window_samples,
-            optimal_num_frames,
-        )?;
-
-        results.push(analyzer.analyze_buffered()?.into());
-    }
-
-    Ok(results)
-}
-
-// Short files still produce one padded five-second analysis. Longer files produce one result for
-// each complete five-second window on the step grid.
-fn analysis_window_starts(
-    audio_len: usize,
-    analysis_window_samples: usize,
-    step_samples: usize,
-) -> Vec<usize> {
-    if audio_len <= analysis_window_samples {
-        return vec![0];
-    }
-
-    let num_complete_followup_windows = (audio_len - analysis_window_samples) / step_samples;
-    (0..=num_complete_followup_windows)
-        .map(|step| step * step_samples)
-        .collect()
-}
-
-// Buffers exactly one analysis window into the collector using fixed-size model-hop frames.
-// Missing samples are zero-padded so short first windows still reach the model's full context.
-fn buffer_analysis_window(
-    collector: &mut aic_sdk::Collector,
-    audio: &[f32],
-    start: usize,
-    window_samples: usize,
-    frame_samples: usize,
-) -> Result<(), aic_sdk::AicError> {
-    let mut frame = vec![0.0; frame_samples];
-    let mut buffered_samples = 0;
-
-    while buffered_samples < window_samples {
-        let Some(frame_start) = start.checked_add(buffered_samples) else {
-            return Err(aic_sdk::AicError::AudioConfigUnsupported);
-        };
-
-        let available_samples = audio.len().saturating_sub(frame_start).min(frame_samples);
-
-        // The collector was initialized with fixed frame size, so every call below must pass
-        // exactly frame_samples samples.
-        if available_samples == frame_samples {
-            // Fast path: the next fixed-size frame is fully available from the source audio.
-            let frame_end = frame_start + frame_samples;
-            collector.buffer_interleaved(&audio[frame_start..frame_end])?;
-        } else {
-            // Pad short windows or non-aligned tails with silence while still feeding the
-            // collector exactly one fixed-size frame.
-            frame.fill(0.0);
-            if available_samples > 0 {
-                let frame_end = frame_start + available_samples;
-                frame[..available_samples].copy_from_slice(&audio[frame_start..frame_end]);
-            }
-            collector.buffer_interleaved(&frame)?;
-        }
-
-        buffered_samples += frame_samples;
-    }
-
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn analysis_window_starts_returns_one_padded_window_for_short_audio() {
-        assert_eq!(analysis_window_starts(0, 80_000, 1_600), [0]);
-        assert_eq!(analysis_window_starts(79_999, 80_000, 1_600), [0]);
-        assert_eq!(analysis_window_starts(80_000, 80_000, 1_600), [0]);
-    }
-
-    #[test]
-    fn analysis_window_starts_advances_by_step_for_complete_followup_windows() {
-        assert_eq!(
-            analysis_window_starts(83_200, 80_000, 1_600),
-            [0, 1_600, 3_200]
-        );
-        assert_eq!(
-            analysis_window_starts(86_400, 80_000, 1_600),
-            [0, 1_600, 3_200, 4_800, 6_400]
-        );
-    }
-
-    #[test]
-    fn analysis_window_starts_ignores_partial_followup_windows() {
-        assert_eq!(analysis_window_starts(81_599, 80_000, 1_600), [0]);
-        assert_eq!(analysis_window_starts(83_199, 80_000, 1_600), [0, 1_600]);
+        Ok(results.into_iter().map(AnalysisResult::from).collect())
     }
 }
