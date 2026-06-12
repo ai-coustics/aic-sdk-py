@@ -127,14 +127,8 @@ pub fn analyzer_pair(
         aic_sdk::analyzer_pair(&model.borrow().inner, license_key).map_err(to_py_err)?;
 
     Ok((
-        Collector {
-            inner: collector,
-            model: model.clone().unbind(),
-        },
-        Analyzer {
-            inner: analyzer,
-            model: model.clone().unbind(),
-        },
+        Collector { inner: collector },
+        Analyzer { inner: analyzer },
     ))
 }
 
@@ -151,15 +145,7 @@ pub fn analyzer_pair(
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct Collector {
-    // `inner` is declared before `model` so it is dropped first: the native collector is torn
-    // down while the model it was created from is still alive.
     pub(crate) inner: aic_sdk::Collector,
-    // Strong reference to the Python Model, keeping the underlying native model state alive for as
-    // long as this collector. The native collector/analyzer are created from the model and may
-    // reference its state, so dropping the model first would be a use-after-free. Held only for
-    // keep-alive + drop order, never read.
-    #[allow(dead_code)]
-    model: Py<Model>,
 }
 
 #[gen_stub_pymethods]
@@ -223,15 +209,13 @@ impl Collector {
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct Analyzer {
-    // `inner` is declared before `model` so it is dropped first: the native analyzer is torn down
-    // while the model it was created from is still alive.
+    // No keep-alive handle to the Model is needed. The `'static` here is honest: the binding only
+    // builds models via Model.from_file/download, whose weights are memory-mapped and owned by the
+    // SDK. The analyzer shares that data through the SDK's internal reference counting, so the model
+    // handle may be destroyed while the analyzer runs (see `aic_model_destroy` /
+    // `aic_analyzer_pair_create` in the C SDK). If buffer-backed models (Analyzer<'a> tied to a
+    // borrowed weights buffer) are ever supported, this assumption must be revisited.
     pub(crate) inner: aic_sdk::Analyzer<'static>,
-    // Strong reference to the Python Model, keeping the underlying native model state alive for as
-    // long as this analyzer. analyze_buffered() runs the model off the audio thread and may read
-    // model state, so dropping the model first would be a use-after-free. Held only for keep-alive
-    // + drop order, never read.
-    #[allow(dead_code)]
-    model: Py<Model>,
 }
 
 #[gen_stub_pymethods]
