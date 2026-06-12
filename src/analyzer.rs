@@ -126,10 +126,7 @@ pub fn analyzer_pair(
     let (collector, analyzer) =
         aic_sdk::analyzer_pair(&model.borrow().inner, license_key).map_err(to_py_err)?;
 
-    Ok((
-        Collector { inner: collector },
-        Analyzer { inner: analyzer },
-    ))
+    Ok((Collector { inner: collector }, Analyzer { inner: analyzer }))
 }
 
 /// Buffers audio for later analysis.
