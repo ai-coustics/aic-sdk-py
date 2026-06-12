@@ -37,20 +37,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        interpreter: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
           - os: ubuntu-latest
             targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
-            interpreters: '3.10 3.11 3.12 3.13 3.14'
             test-arch: x86_64
             use-zig: true
           - os: macos-latest
             targets: x86_64-apple-darwin aarch64-apple-darwin
-            interpreters: '3.10 3.11 3.12 3.13 3.14'
             test-arch: arm64
             use-zig: false
           - os: windows-latest
             targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
-            interpreters: '3.10 3.11 3.12 3.13 3.14'
             test-arch: amd64
             use-zig: false
 
@@ -67,9 +66,9 @@ jobs:
         with:
           targets: ${{ matrix.targets }}
 
-      - name: Install Python interpreters
+      - name: Install Python
         shell: bash
-        run: uv python install ${{ matrix.interpreters }}
+        run: uv python install ${{ matrix.interpreter }}
 
       - name: Build wheels
         shell: bash
@@ -77,9 +76,9 @@ jobs:
           for target in ${{ matrix.targets }}; do
             echo "Building for $target"
             if [ "${{ matrix.use-zig }}" = "true" ]; then
-              uvx --from maturin[zig] maturin build --zig --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+              uvx --from maturin[zig] maturin build --zig --release --target $target --out dist --interpreter ${{ matrix.interpreter }}
             else
-              uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreters }}
+              uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreter }}
             fi
           done
 
@@ -88,17 +87,16 @@ jobs:
         env:
           AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
         run: |
-          for version in ${{ matrix.interpreters }}; do
-            echo "Testing Python $version"
-            uv venv --python $version .venv-$version
-            VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
+          version=${{ matrix.interpreter }}
+          echo "Testing Python $version"
+          uv venv --python $version .venv-$version
+          VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
 
-            if [ -x ".venv-$version/bin/python" ]; then
-              python=".venv-$version/bin/python"
-            else
-              python=".venv-$version/Scripts/python.exe"
-            fi
+          if [ -x ".venv-$version/bin/python" ]; then
+            python=".venv-$version/bin/python"
+          else
+            python=".venv-$version/Scripts/python.exe"
+          fi
 
-            "$python" examples/basic.py
-            "$python" examples/basic_async.py
-          done
+          "$python" examples/basic.py
+          "$python" examples/basic_async.py
