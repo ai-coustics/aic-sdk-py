@@ -206,12 +206,6 @@ impl Collector {
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct Analyzer {
-    // No keep-alive handle to the Model is needed. The `'static` here is honest: the binding only
-    // builds models via Model.from_file/download, whose weights are memory-mapped and owned by the
-    // SDK. The analyzer shares that data through the SDK's internal reference counting, so the model
-    // handle may be destroyed while the analyzer runs (see `aic_model_destroy` /
-    // `aic_analyzer_pair_create` in the C SDK). If buffer-backed models (Analyzer<'a> tied to a
-    // borrowed weights buffer) are ever supported, this assumption must be revisited.
     pub(crate) inner: aic_sdk::Analyzer<'static>,
 }
 
