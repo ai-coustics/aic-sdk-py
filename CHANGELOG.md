@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 2.5.0 - 2026-06-23
+
+Update to core library version 0.21.0.
+
+### New Features
+
+- Added `VadContext.raw_vad_probability()`, which returns the VAD model's raw prediction
+  without the SDK's post-processing (speech hold duration, sensitivity thresholding, etc.).
+  This value can be used to build custom abstractions on top of the raw VAD output. When using
+  an energy-based VAD, the raw prediction is `1.0` or `0.0` depending on
+  `VadContext.is_speech_detected()`.
+
+### Improvements
+
+- Reduced the necessary output delay of the `Processor` when using `allow_variable_frames=True`.
+
 ## 2.4.0 - 2026-06-11
 
 Update to core library version 0.20.0.

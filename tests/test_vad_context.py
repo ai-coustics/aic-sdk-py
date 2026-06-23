@@ -83,6 +83,18 @@ def test_vad_context_silence_not_detected_as_speech(model, license_key):
     assert vad.is_speech_detected() is False
 
 
+def test_vad_context_raw_vad_probability_returns_float(model, license_key):
+    processor = create_processor_or_skip(model, license_key)
+    config = aic.ProcessorConfig(48000, 1, 480, False)
+    processor.initialize(config)
+    vad = processor.get_vad_context()
+    audio = np.zeros((1, 480), dtype=np.float32)
+    processor.process(audio)
+    result = vad.raw_vad_probability()
+    assert isinstance(result, float)
+    assert 0.0 <= result <= 1.0
+
+
 def test_vad_context_updates_after_each_process_call(model, license_key):
     processor = create_processor_or_skip(model, license_key)
     config = aic.ProcessorConfig(48000, 1, 480, False)

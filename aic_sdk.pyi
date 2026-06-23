@@ -1244,7 +1244,10 @@ class VadContext:
     that created the VAD.
 
     Important:
-        - The latency of the VAD prediction is equal to the backing model's processing latency.
+        - The latency of the VAD prediction is equal to the backing model's processing
+          latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
+          input by that many samples, so align speech decisions to the input timeline using
+          that delay.
         - If the backing model stops being processed, the VAD will not update its speech detection prediction.
 
     Created via Processor.get_vad_context().
@@ -1260,11 +1263,39 @@ class VadContext:
         Returns the VAD's prediction.
 
         Important:
-            - The latency of the VAD prediction is equal to the backing model's processing latency.
+            - The latency of the VAD prediction is equal to the backing model's processing
+              latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
+              input by that many samples, so align speech decisions to the input timeline using
+              that delay.
             - If the backing model stops being processed, the VAD will not update its speech detection prediction.
 
         Returns:
             True if speech is detected, False otherwise.
+        """
+    def raw_vad_probability(self) -> builtins.float:
+        r"""
+        Returns the raw prediction of the VAD, without any processing.
+
+        In contrast to the output of is_speech_detected(), the output of this function
+        is the model's direct prediction without going through the SDK's VAD
+        post-processing (i.e. speech hold duration, sensitivity thresholding, etc.).
+
+        This value may be used to build other abstractions on top of this data.
+
+        Note:
+            This value is only useful when using a VAD model. When using an energy-based VAD,
+            the raw prediction is set to 1.0 or 0.0 depending on whether is_speech_detected()
+            is true or false.
+
+        Important:
+            - The latency of the VAD prediction is equal to the backing model's processing
+              latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
+              input by that many samples, so align speech decisions to the input timeline using
+              that delay.
+            - If the backing model stops being processed, the VAD will not update its prediction.
+
+        Returns:
+            The raw VAD probability.
         """
     def set_parameter(self, parameter: VadParameter, value: builtins.float) -> None:
         r"""
