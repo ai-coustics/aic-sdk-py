@@ -1244,7 +1244,10 @@ class VadContext:
     that created the VAD.
 
     Important:
-        - The latency of the VAD prediction is equal to the backing model's processing latency.
+        - The latency of the VAD prediction is equal to the backing model's processing
+          latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
+          input by that many samples, so align speech decisions to the input timeline using
+          that delay.
         - If the backing model stops being processed, the VAD will not update its speech detection prediction.
 
     Created via Processor.get_vad_context().
@@ -1260,7 +1263,10 @@ class VadContext:
         Returns the VAD's prediction.
 
         Important:
-            - The latency of the VAD prediction is equal to the backing model's processing latency.
+            - The latency of the VAD prediction is equal to the backing model's processing
+              latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
+              input by that many samples, so align speech decisions to the input timeline using
+              that delay.
             - If the backing model stops being processed, the VAD will not update its speech detection prediction.
 
         Returns:
