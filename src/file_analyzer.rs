@@ -105,19 +105,20 @@ impl FileAnalyzer {
         step_samples: Option<usize>,
         py: Python<'py>,
     ) -> PyResult<Vec<AnalysisResult>> {
-        let audio_vec = audio
-            .as_array()
-            .as_standard_layout()
-            .into_owned()
-            .into_raw_vec_and_offset()
-            .0;
+        let audio = audio.as_array().as_standard_layout().into_owned();
 
         let inner = &mut self.inner;
 
         // The heavy native work (initialize + buffer + analyze) runs without the GIL so other
         // Python threads can make progress.
         let results = py
-            .detach(move || inner.analyze(&audio_vec, sample_rate, step_samples))
+            .detach(move || {
+                inner.analyze(
+                    audio.as_slice().expect("Array is in standard layout"),
+                    sample_rate,
+                    step_samples,
+                )
+            })
             .map_err(to_py_err)?;
 
         Ok(results.into_iter().map(AnalysisResult::from).collect())
