@@ -105,7 +105,7 @@ impl FileAnalyzer {
         step_samples: Option<usize>,
         py: Python<'py>,
     ) -> PyResult<Vec<AnalysisResult>> {
-        let audio = audio.as_array().as_standard_layout().into_owned();
+        let view = audio.as_array();
 
         let inner = &mut self.inner;
 
@@ -113,11 +113,19 @@ impl FileAnalyzer {
         // Python threads can make progress.
         let results = py
             .detach(move || {
-                inner.analyze(
-                    audio.as_slice().expect("Array is in standard layout"),
-                    sample_rate,
-                    step_samples,
-                )
+                // Pass the samples through directly when already contiguous (the common case);
+                // only a strided view needs a normalizing copy.
+                match view.as_slice() {
+                    Some(slice) => inner.analyze(slice, sample_rate, step_samples),
+                    None => {
+                        let owned = view.as_standard_layout();
+                        inner.analyze(
+                            owned.as_slice().expect("standard layout is contiguous"),
+                            sample_rate,
+                            step_samples,
+                        )
+                    }
+                }
             })
             .map_err(to_py_err)?;
 
