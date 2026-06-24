@@ -105,11 +105,12 @@ impl FileAnalyzer {
         step_samples: Option<usize>,
         py: Python<'py>,
     ) -> PyResult<Vec<AnalysisResult>> {
-        let owned = audio.as_array().as_standard_layout().into_owned();
-        let audio_vec = owned
-            .as_slice()
-            .expect("Array is in standard layout")
-            .to_vec();
+        let audio_vec = audio
+            .as_array()
+            .as_standard_layout()
+            .into_owned()
+            .into_raw_vec_and_offset()
+            .0;
 
         let inner = &mut self.inner;
 
