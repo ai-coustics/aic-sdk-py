@@ -166,17 +166,19 @@ impl ProcessorAsync {
         let array = buffer.as_array().as_standard_layout().into_owned();
         let num_channels = array.shape()[0];
         let num_frames = array.shape()[1];
-        let vec = array.as_slice().expect("standard layout").to_vec();
+        // process_sequential consumes an owned Vec for the 'static async task, so take the
+        // owned array's backing buffer directly instead of copying it again.
+        let vec = array.into_raw_vec_and_offset().0;
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let processed = inner.process_sequential(vec).await.map_err(to_py_err)?;
 
             let result_obj = Python::attach(|py| {
-                use numpy::ToPyArray;
+                use numpy::IntoPyArray;
                 let arr =
                     numpy::ndarray::Array2::from_shape_vec((num_channels, num_frames), processed)
                         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-                Ok::<pyo3::Py<numpy::PyArray2<f32>>, PyErr>(arr.to_pyarray(py).unbind())
+                Ok::<pyo3::Py<numpy::PyArray2<f32>>, PyErr>(arr.into_pyarray(py).unbind())
             })?;
 
             Ok(result_obj)
