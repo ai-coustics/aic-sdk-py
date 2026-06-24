@@ -1,4 +1,3 @@
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_pymethods};
 
@@ -505,11 +504,8 @@ impl Processor {
                 .map_err(to_py_err)
         })?;
 
-        // Convert back to numpy array
-        use numpy::ToPyArray;
-        array
-            .to_pyarray(py)
-            .cast_into_exact::<numpy::PyArray2<f32>>()
-            .map_err(|_| PyRuntimeError::new_err("Failed to convert result to PyArray2"))
+        // Move the owned, already-processed array into a numpy array without copying.
+        use numpy::IntoPyArray;
+        Ok(array.into_pyarray(py))
     }
 }
