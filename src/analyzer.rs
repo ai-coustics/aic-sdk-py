@@ -184,14 +184,24 @@ impl Collector {
         buffer: numpy::PyReadonlyArray2<'py, f32>,
         py: Python<'py>,
     ) -> PyResult<()> {
-        let array = buffer.as_array().as_standard_layout().into_owned();
+        let array = buffer.as_array();
 
         // We release the GIL here so any other Python threads get a chance to run.
         py.detach(|| {
-            // Buffer using sequential layout (channel-contiguous), matching Processor.process.
-            self.inner
-                .buffer_sequential(array.as_slice().expect("Array is in standard layout"))
-                .map_err(to_py_err)
+            // Hand the buffer straight to the layout that matches its memory order, avoiding a
+            // copy. A (channels, frames) array stored C-contiguous is channel-contiguous
+            // (sequential); stored F-contiguous it is frame-contiguous (interleaved). Only a
+            // genuinely strided view needs a normalizing copy.
+            if let Some(slice) = array.as_slice() {
+                self.inner.buffer_sequential(slice)
+            } else if let Some(slice) = array.as_slice_memory_order() {
+                self.inner.buffer_interleaved(slice)
+            } else {
+                let owned = array.as_standard_layout();
+                self.inner
+                    .buffer_sequential(owned.as_slice().expect("standard layout is contiguous"))
+            }
+            .map_err(to_py_err)
         })
     }
 }
