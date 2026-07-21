@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@beta
+      - uses: dtolnay/rust-toolchain@4711ae3e97dd6376c8d5d5d51c89566406abaefa # beta
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - run: cargo fmt --check
 
   clippy:
@@ -54,7 +54,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Install Cargo Shear
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
           tool: cargo-shear
       - name: Run Cargo Shear
@@ -67,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@beta
-      - uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/install-action@ff5adc533ee6e3da2e7fcde6b9fd09c26f5153ee # cargo-hack
       - uses: Swatinem/rust-cache@v2
       - run: cargo hack --feature-powerset check --workspace
 
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@v2
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
       - uses: Swatinem/rust-cache@v2
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - run: make stubs
