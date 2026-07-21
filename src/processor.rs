@@ -71,8 +71,6 @@ impl From<ProcessorParameter> for aic_sdk::ProcessorParameter {
 pub struct ProcessorConfig {
     /// Sample rate in Hz (8000 - 192000)
     pub sample_rate: u32,
-    /// Number of audio channels in the stream (1 for mono, 2 for stereo, etc)
-    pub num_channels: u16,
     /// Samples per channel provided to each processing call.
     /// Note that using a non-optimal number of frames increases latency.
     pub num_frames: usize,
@@ -87,20 +85,13 @@ impl ProcessorConfig {
     ///
     /// Args:
     ///     sample_rate: Sample rate in Hz (8000 - 192000)
-    ///     num_channels: Number of audio channels
     ///     num_frames: Samples per channel provided to each processing call
     ///     allow_variable_frames: Allow variable frame sizes (default: False)
     #[new]
-    #[pyo3(signature = (sample_rate, num_channels, num_frames, allow_variable_frames=false))]
-    fn new(
-        sample_rate: u32,
-        num_channels: u16,
-        num_frames: usize,
-        allow_variable_frames: bool,
-    ) -> Self {
+    #[pyo3(signature = (sample_rate, num_frames, allow_variable_frames=false))]
+    fn new(sample_rate: u32, num_frames: usize, allow_variable_frames: bool) -> Self {
         Self {
             sample_rate,
-            num_channels,
             num_frames,
             allow_variable_frames,
         }
@@ -108,8 +99,8 @@ impl ProcessorConfig {
 
     fn __repr__(&self) -> String {
         format!(
-            "Config(sample_rate={}, num_channels={}, num_frames={}, allow_variable_frames={})",
-            self.sample_rate, self.num_channels, self.num_frames, self.allow_variable_frames
+            "Config(sample_rate={}, num_frames={}, allow_variable_frames={})",
+            self.sample_rate, self.num_frames, self.allow_variable_frames
         )
     }
 
@@ -121,7 +112,6 @@ impl ProcessorConfig {
     /// Args:
     ///     model: The Model instance to get optimal config for
     ///     sample_rate: Custom sample rate in Hz. If None, uses the model's optimal sample rate (default: None)
-    ///     num_channels: Number of audio channels (default: 1)
     ///     num_frames: Custom number of frames per processing call. If None, uses the optimal frame count
     ///         for the sample rate (default: None). Note that using non-optimal frame counts increases latency.
     ///     allow_variable_frames: Allow variable frame sizes (default: False)
@@ -130,18 +120,17 @@ impl ProcessorConfig {
     ///     ProcessorConfig with optimal settings for the given model.
     ///
     /// Example:
-    ///     >>> # Use all optimal defaults with stereo
-    ///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
+    ///     >>> # Use all optimal defaults
+    ///     >>> config = ProcessorConfig.optimal(model)
     ///     >>> # Use custom sample rate (optimal frames calculated automatically)
-    ///     >>> config = ProcessorConfig.optimal(model, sample_rate=44100, num_channels=2)
+    ///     >>> config = ProcessorConfig.optimal(model, sample_rate=44100)
     ///     >>> # Use custom sample rate and frames (increases latency)
-    ///     >>> config = ProcessorConfig.optimal(model, sample_rate=48000, num_frames=512, num_channels=2)
+    ///     >>> config = ProcessorConfig.optimal(model, sample_rate=48000, num_frames=512)
     #[staticmethod]
-    #[pyo3(signature = (model, sample_rate=None, num_channels=1, num_frames=None, allow_variable_frames=false))]
+    #[pyo3(signature = (model, sample_rate=None, num_frames=None, allow_variable_frames=false))]
     fn optimal(
         model: &Bound<'_, Model>,
         sample_rate: Option<u32>,
-        num_channels: u16,
         num_frames: Option<usize>,
         allow_variable_frames: bool,
     ) -> Self {
@@ -151,7 +140,6 @@ impl ProcessorConfig {
 
         Self {
             sample_rate,
-            num_channels,
             num_frames,
             allow_variable_frames,
         }
@@ -162,7 +150,8 @@ impl From<&ProcessorConfig> for aic_sdk::ProcessorConfig {
     fn from(config: &ProcessorConfig) -> Self {
         aic_sdk::ProcessorConfig {
             sample_rate: config.sample_rate,
-            num_channels: config.num_channels,
+            // The Python-facing API only supports mono audio.
+            num_channels: 1,
             num_frames: config.num_frames,
             allow_variable_frames: config.allow_variable_frames,
         }
@@ -173,7 +162,6 @@ impl From<aic_sdk::ProcessorConfig> for ProcessorConfig {
     fn from(config: aic_sdk::ProcessorConfig) -> Self {
         Self {
             sample_rate: config.sample_rate,
-            num_channels: config.num_channels,
             num_frames: config.num_frames,
             allow_variable_frames: config.allow_variable_frames,
         }
@@ -353,9 +341,9 @@ impl ProcessorContext {
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
 ///     >>> processor = Processor(model, license_key)
-///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
+///     >>> config = ProcessorConfig.optimal(model)
 ///     >>> processor.initialize(config)
-///     >>> audio = np.zeros((2, config.num_frames), dtype=np.float32)
+///     >>> audio = np.zeros(config.num_frames, dtype=np.float32)
 ///     >>> enhanced = processor.process(audio)
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
@@ -391,7 +379,7 @@ impl Processor {
     ///     >>> processor.initialize(config)
     ///
     ///     >>> # Or create and initialize in one step
-    ///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
+    ///     >>> config = ProcessorConfig.optimal(model)
     ///     >>> processor = Processor(model, license_key, config)
     #[new]
     #[pyo3(signature = (model, license_key, config=None, otel_config=None))]
@@ -441,10 +429,6 @@ impl Processor {
     /// Warning:
     ///     Do not call from audio processing threads as this allocates memory.
     ///
-    /// Note:
-    ///     All channels are mixed to mono for processing. To process channels
-    ///     independently, create separate Processor instances.
-    ///
     /// Example:
     ///     >>> config = ProcessorConfig.optimal(model)
     ///     >>> processor.initialize(config)
@@ -491,16 +475,15 @@ impl Processor {
 impl Processor {
     pub fn process<'py>(
         &mut self,
-        buffer: numpy::PyReadonlyArray2<'py, f32>,
+        buffer: numpy::PyReadonlyArray1<'py, f32>,
         py: Python<'py>,
-    ) -> PyResult<Bound<'py, numpy::PyArray2<f32>>> {
+    ) -> PyResult<Bound<'py, numpy::PyArray1<f32>>> {
         let mut array = buffer.as_array().as_standard_layout().into_owned();
 
         // We release the GIL here so any other Python threads get a chance to run
         py.detach(|| {
-            // Process using sequential format (channel-contiguous)
             self.processor
-                .process_sequential(array.as_slice_mut().expect("Array is in standard layout"))
+                .process_sequential(array.as_slice_mut().expect("standard layout is contiguous"))
                 .map_err(to_py_err)
         })?;
 

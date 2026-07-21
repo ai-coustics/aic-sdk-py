@@ -151,7 +151,7 @@ def test_process_before_initialize_raises_model_not_initialized_error(
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    audio = np.zeros((1, 480), dtype=np.float32)
+    audio = np.zeros(480, dtype=np.float32)
     with pytest.raises(aic.ModelNotInitializedError) as exc_info:
         processor.process(audio)
     assert exc_info.value.message
@@ -168,21 +168,21 @@ def test_reset_before_initialize_may_raise_model_not_initialized_error(
         pass
 
 
-def test_wrong_channel_count_raises_audio_config_mismatch_error(model, license_key):
+def test_2d_buffer_raises_type_error(model, license_key):
+    """process() only accepts 1D mono buffers; a 2D array fails argument conversion."""
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     audio = np.zeros((2, 480), dtype=np.float32)
-    with pytest.raises(aic.AudioConfigMismatchError) as exc_info:
+    with pytest.raises(TypeError):
         processor.process(audio)
-    assert exc_info.value.message
 
 
 def test_smaller_frame_count_raises_audio_config_mismatch_error(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, allow_variable_frames=False)
+    config = aic.ProcessorConfig(48000, 480, allow_variable_frames=False)
     processor.initialize(config)
-    audio = np.zeros((1, 240), dtype=np.float32)
+    audio = np.zeros(240, dtype=np.float32)
     with pytest.raises(aic.AudioConfigMismatchError) as exc_info:
         processor.process(audio)
     assert exc_info.value.message
@@ -190,23 +190,22 @@ def test_smaller_frame_count_raises_audio_config_mismatch_error(model, license_k
 
 def test_larger_frame_count_raises_audio_config_mismatch_error(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, allow_variable_frames=False)
+    config = aic.ProcessorConfig(48000, 480, allow_variable_frames=False)
     processor.initialize(config)
-    audio = np.zeros((1, 960), dtype=np.float32)
+    audio = np.zeros(960, dtype=np.float32)
     with pytest.raises(aic.AudioConfigMismatchError) as exc_info:
         processor.process(audio)
     assert exc_info.value.message
 
 
 @pytest.mark.asyncio
-async def test_wrong_channel_count_raises_audio_config_mismatch_error_async(
-    model, license_key
-):
+async def test_2d_buffer_raises_type_error_async(model, license_key):
+    """process_async() only accepts 1D mono buffers; a 2D array fails argument conversion."""
     processor = create_processor_async_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     await processor.initialize_async(config)
     audio = np.zeros((2, 480), dtype=np.float32)
-    with pytest.raises(aic.AudioConfigMismatchError):
+    with pytest.raises(TypeError):
         await processor.process_async(audio)
 
 
@@ -214,15 +213,7 @@ def test_unsupported_sample_rate_raises_audio_config_unsupported_error(
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(1, 1, 480, False)
-    with pytest.raises(aic.AudioConfigUnsupportedError) as exc_info:
-        processor.initialize(config)
-    assert exc_info.value.message
-
-
-def test_zero_channels_raises_audio_config_unsupported_error(model, license_key):
-    processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 0, 480, False)
+    config = aic.ProcessorConfig(1, 480, False)
     with pytest.raises(aic.AudioConfigUnsupportedError) as exc_info:
         processor.initialize(config)
     assert exc_info.value.message
@@ -230,7 +221,7 @@ def test_zero_channels_raises_audio_config_unsupported_error(model, license_key)
 
 def test_zero_frames_raises_audio_config_unsupported_error(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 0, False)
+    config = aic.ProcessorConfig(48000, 0, False)
     with pytest.raises(aic.AudioConfigUnsupportedError) as exc_info:
         processor.initialize(config)
     assert exc_info.value.message
@@ -240,7 +231,7 @@ def test_enhancement_level_above_max_raises_parameter_out_of_range_error(
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
@@ -252,7 +243,7 @@ def test_enhancement_level_negative_raises_parameter_out_of_range_error(
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
@@ -262,7 +253,7 @@ def test_enhancement_level_negative_raises_parameter_out_of_range_error(
 
 def test_bypass_above_max_raises_parameter_out_of_range_error(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
@@ -274,7 +265,7 @@ def test_vad_sensitivity_above_max_raises_parameter_out_of_range_error(
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     vad = processor.get_vad_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
@@ -286,7 +277,7 @@ def test_vad_sensitivity_below_min_raises_parameter_out_of_range_error(
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     vad = processor.get_vad_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
@@ -298,7 +289,7 @@ def test_vad_speech_hold_duration_negative_raises_parameter_out_of_range_error(
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     vad = processor.get_vad_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
@@ -310,7 +301,7 @@ def test_vad_minimum_speech_duration_above_max_raises_parameter_out_of_range_err
     model, license_key
 ):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     vad = processor.get_vad_context()
     with pytest.raises(aic.ParameterOutOfRangeError) as exc_info:
@@ -405,7 +396,7 @@ def test_license_format_invalid_error_message_is_descriptive(model):
 
 def test_audio_config_unsupported_error_message_is_descriptive(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 0, 480, False)
+    config = aic.ProcessorConfig(48000, 0, False)
     try:
         processor.initialize(config)
     except aic.AudioConfigUnsupportedError as e:
@@ -414,7 +405,7 @@ def test_audio_config_unsupported_error_message_is_descriptive(model, license_ke
 
 def test_parameter_out_of_range_error_message_is_descriptive(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     try:

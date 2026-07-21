@@ -12,7 +12,7 @@ use std::path::PathBuf;
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
 ///     >>> processor = Processor(model, license_key)
-///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
+///     >>> config = ProcessorConfig.optimal(model)
 ///     >>> processor.initialize(config)
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]

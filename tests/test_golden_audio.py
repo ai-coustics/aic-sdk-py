@@ -16,8 +16,7 @@ def test_process_full_file_enhancement_match(
 
     config = aic.ProcessorConfig(
         sample_rate=sr,
-        num_channels=2,
-        num_frames=audio.shape[1],
+        num_frames=audio.shape[0],
         allow_variable_frames=False,
     )
     processor.initialize(config)

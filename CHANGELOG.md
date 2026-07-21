@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## Unreleased
+
+### Breaking Changes
+
+- `Processor.process()`, `ProcessorAsync.process_async()`, and `Collector.buffer()` now only
+  accept a 1D NumPy array of mono float32 samples, matching `FileAnalyzer.analyze()`. Previously
+  they accepted a 2D `(num_channels, num_frames)` array and mixed all channels to mono
+  internally; callers with multi-channel audio must now downmix (or run one `Processor` per
+  channel) before calling `process()`.
+- Removed `ProcessorConfig.num_channels`. `ProcessorConfig` (and `ProcessorConfig.optimal()`) no
+  longer take a `num_channels` argument, since the audio APIs are mono-only.
+
 ## 2.5.0 - 2026-06-23
 
 Update to core library version 0.21.0.

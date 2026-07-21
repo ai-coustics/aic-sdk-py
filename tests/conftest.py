@@ -60,14 +60,11 @@ def create_processor_async_or_skip(model, license_key):
         pytest.skip("License has expired")
 
 
-def make_sine_noise(channels: int, frames: int, sr: int = 48000) -> np.ndarray:
+def make_sine_noise(frames: int, sr: int = 48000) -> np.ndarray:
     t = np.arange(frames, dtype=np.float32) / float(sr)
     sig = 0.2 * np.sin(2 * np.pi * 440.0 * t)
     noise = 0.05 * np.random.randn(frames).astype(np.float32)
-    mono = np.clip(sig + noise, -1.0, 1.0)
-    if channels == 1:
-        return mono.reshape(1, -1)
-    return np.vstack([mono for _ in range(channels)])
+    return np.clip(sig + noise, -1.0, 1.0)
 
 
 def chunks(total: int, size: int):

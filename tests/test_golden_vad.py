@@ -10,7 +10,7 @@ def test_vad_bypass_mode(model, license_key, test_audio_path, expected_vad_resul
 
     audio, sr = load_wav_pcm(test_audio_path)
 
-    config = aic.ProcessorConfig.optimal(model, num_channels=2, sample_rate=sr)
+    config = aic.ProcessorConfig.optimal(model, sample_rate=sr)
     assert config.sample_rate == sr
 
     processor.initialize(config)
@@ -23,9 +23,9 @@ def test_vad_bypass_mode(model, license_key, test_audio_path, expected_vad_resul
     speech_detected_results = []
     num_frames = config.num_frames
 
-    for i in range(0, audio.shape[1], num_frames):
-        chunk = audio[:, i : i + num_frames]
-        if chunk.shape[1] == num_frames:
+    for i in range(0, audio.shape[0], num_frames):
+        chunk = audio[i : i + num_frames]
+        if chunk.shape[0] == num_frames:
             processor.process(chunk)
             speech_detected_results.append(vad_ctx.is_speech_detected())
 
@@ -41,7 +41,7 @@ def test_vad_with_enhancement(
 
     audio, sr = load_wav_pcm(test_audio_path)
 
-    config = aic.ProcessorConfig.optimal(model, num_channels=2, sample_rate=sr)
+    config = aic.ProcessorConfig.optimal(model, sample_rate=sr)
     assert config.sample_rate == sr
 
     processor.initialize(config)
@@ -54,9 +54,9 @@ def test_vad_with_enhancement(
     speech_detected_results = []
     num_frames = config.num_frames
 
-    for i in range(0, audio.shape[1], num_frames):
-        chunk = audio[:, i : i + num_frames]
-        if chunk.shape[1] == num_frames:
+    for i in range(0, audio.shape[0], num_frames):
+        chunk = audio[i : i + num_frames]
+        if chunk.shape[0] == num_frames:
             processor.process(chunk)
             speech_detected_results.append(vad_ctx.is_speech_detected())
 

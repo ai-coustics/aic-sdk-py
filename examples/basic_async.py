@@ -37,8 +37,8 @@ async def main():
     print(f"  Model optimal sample rate: {model.get_optimal_sample_rate()} Hz")
     print(f"  Model optimal num frames: {model.get_optimal_num_frames(48000)}")
 
-    # Create optimal configuration for stereo
-    config = aic.ProcessorConfig.optimal(model, num_channels=2)
+    # Create optimal configuration
+    config = aic.ProcessorConfig.optimal(model)
     print(f"\nOptimal configuration: {config}")
 
     # Create and initialize async processor in one step
@@ -50,27 +50,23 @@ async def main():
     vad_ctx = processor.get_vad_context()
     print(f"  Output delay: {proc_ctx.get_output_delay()} samples")
 
-    # Process stereo audio
-    audio_buffer = np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
-    audio_buffer[0, :100] = 0.5  # Channel 0
-    audio_buffer[1, :100] = 0.3  # Channel 1
+    # Process mono audio
+    audio_buffer = np.zeros(config.num_frames, dtype=np.float32)
+    audio_buffer[:100] = 0.5
 
     print("\nBefore processing:")
-    print(f"  Channel 0 first 5: {audio_buffer[0, :5]}")
-    print(f"  Channel 1 first 5: {audio_buffer[1, :5]}")
+    print(f"  First 5: {audio_buffer[:5]}")
 
     # Process asynchronously
     audio_processed = await processor.process_async(audio_buffer)
 
     print("\nAfter processing:")
-    print(f"  Channel 0 first 5: {audio_processed[0, :5]}")
-    print(f"  Channel 1 first 5: {audio_processed[1, :5]}")
+    print(f"  First 5: {audio_processed[:5]}")
 
     # Concurrent processing example
-    print("\nProcessing 4 stereo buffers concurrently...")
+    print("\nProcessing 4 mono buffers concurrently...")
     buffers = [
-        np.random.randn(config.num_channels, config.num_frames).astype(np.float32)
-        for _ in range(4)
+        np.random.randn(config.num_frames).astype(np.float32) for _ in range(4)
     ]
     results = await asyncio.gather(*[processor.process_async(buf) for buf in buffers])
     print(f"  Processed {len(results)} buffers concurrently")

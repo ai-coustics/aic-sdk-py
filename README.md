@@ -28,13 +28,13 @@ model_path = aic.Model.download("quail-vf-2.1-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 
 # Get optimal configuration
-config = aic.ProcessorConfig.optimal(model, num_channels=2)
+config = aic.ProcessorConfig.optimal(model)
 
 # Create and initialize processor in one step
 processor = aic.Processor(model, license_key, config)
 
-# Process audio (2D NumPy array: channels × frames)
-audio_buffer = np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
+# Process audio (1D mono NumPy array)
+audio_buffer = np.zeros(config.num_frames, dtype=np.float32)
 processed = processor.process(audio_buffer)
 ```
 
@@ -88,13 +88,12 @@ optimal_frames = model.get_optimal_num_frames(48000)
 
 ```python
 # Get optimal configuration for the model
-config = aic.ProcessorConfig.optimal(model, num_channels=1, allow_variable_frames=False)
-print(config)  # ProcessorConfig(sample_rate=48000, num_channels=1, num_frames=480, allow_variable_frames=False)
+config = aic.ProcessorConfig.optimal(model, allow_variable_frames=False)
+print(config)  # ProcessorConfig(sample_rate=48000, num_frames=480, allow_variable_frames=False)
 
 # Or create from scratch
 config = aic.ProcessorConfig(
     sample_rate=48000,
-    num_channels=2,
     num_frames=480,
     allow_variable_frames=False # up to num_frames
 )
@@ -131,8 +130,8 @@ The same `otel_config` parameter is available on `ProcessorAsync`.
 # Synchronous processing
 import numpy as np
 
-# Create audio buffer (channels × frames)
-audio = np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
+# Create audio buffer (1D mono NumPy array)
+audio = np.zeros(config.num_frames, dtype=np.float32)
 
 # Process
 processed = processor.process(audio)
@@ -172,7 +171,7 @@ async def process_audio():
     model = aic.Model.from_file(model_path)
 
     # Get optimal config
-    config = aic.ProcessorConfig.optimal(model, num_channels=2)
+    config = aic.ProcessorConfig.optimal(model)
 
     # Create and initialize async processor in one step
     processor = aic.ProcessorAsync(model, "your-license-key", config)
@@ -181,12 +180,12 @@ async def process_audio():
     proc_ctx = processor.get_processor_context()
     vad_ctx = processor.get_vad_context()
 
-    # Process audio
-    audio = np.zeros((2, config.num_frames), dtype=np.float32)
+    # Process audio (1D mono NumPy array)
+    audio = np.zeros(config.num_frames, dtype=np.float32)
     result = await processor.process_async(audio)
 
     # Process multiple buffers concurrently
-    buffers = [np.random.randn(2, config.num_frames).astype(np.float32) for _ in range(4)]
+    buffers = [np.random.randn(config.num_frames).astype(np.float32) for _ in range(4)]
     results = await asyncio.gather(*[
         processor.process_async(buf) for buf in buffers
     ])
@@ -253,8 +252,8 @@ collector, analyzer = aic.analyzer_pair(model, license_key)
 config = aic.ProcessorConfig.optimal(model)
 collector.initialize(config)
 
-# Buffer audio (2D NumPy array: channels × frames) as it arrives.
-collector.buffer(np.zeros((config.num_channels, config.num_frames), dtype=np.float32))
+# Buffer audio (1D mono NumPy array) as it arrives.
+collector.buffer(np.zeros(config.num_frames, dtype=np.float32))
 
 # Run the analysis off the audio thread.
 result = analyzer.analyze_buffered()

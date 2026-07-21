@@ -13,7 +13,7 @@ def test_get_processor_context_returns_processor_context(model, license_key):
 
 def test_processor_context_get_output_delay_returns_int(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     delay = ctx.get_output_delay()
@@ -22,7 +22,7 @@ def test_processor_context_get_output_delay_returns_int(model, license_key):
 
 def test_processor_context_get_output_delay_is_non_negative(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     delay = ctx.get_output_delay()
@@ -31,7 +31,7 @@ def test_processor_context_get_output_delay_is_non_negative(model, license_key):
 
 def test_processor_context_set_enhancement_level(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.5)
@@ -41,7 +41,7 @@ def test_processor_context_set_enhancement_level(model, license_key):
 
 def test_processor_context_set_bypass(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     ctx.set_parameter(aic.ProcessorParameter.Bypass, 1.0)
@@ -51,7 +51,7 @@ def test_processor_context_set_bypass(model, license_key):
 
 def test_processor_context_enhancement_level_min_value(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.0)
@@ -61,7 +61,7 @@ def test_processor_context_enhancement_level_min_value(model, license_key):
 
 def test_processor_context_enhancement_level_max_value(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 1.0)
@@ -71,7 +71,7 @@ def test_processor_context_enhancement_level_max_value(model, license_key):
 
 def test_processor_context_bypass_min_value(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     ctx.set_parameter(aic.ProcessorParameter.Bypass, 0.0)
@@ -81,19 +81,19 @@ def test_processor_context_bypass_min_value(model, license_key):
 
 def test_processor_context_reset_after_processing(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
-    audio = np.random.randn(1, 480).astype(np.float32)
+    audio = np.random.randn(480).astype(np.float32)
     processor.process(audio)
     ctx.reset()
     result = processor.process(audio)
-    assert result.shape == (1, 480)
+    assert result.shape == (480,)
 
 
 def test_processor_context_parameters_persist_after_reset(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.7)
@@ -104,7 +104,7 @@ def test_processor_context_parameters_persist_after_reset(model, license_key):
 
 def test_processor_context_parameter_deprecated_warning(model, license_key):
     processor = create_processor_or_skip(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     processor.initialize(config)
     ctx = processor.get_processor_context()
     with pytest.warns(DeprecationWarning, match="parameter\\(\\) is deprecated"):

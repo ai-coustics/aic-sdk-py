@@ -18,9 +18,9 @@ use std::sync::Arc;
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
 ///     >>> processor = ProcessorAsync(model, license_key)
-///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
+///     >>> config = ProcessorConfig.optimal(model)
 ///     >>> await processor.initialize_async(config)
-///     >>> audio = np.zeros((2, config.num_frames), dtype=np.float32)
+///     >>> audio = np.zeros(config.num_frames, dtype=np.float32)
 ///     >>> enhanced = await processor.process_async(audio)
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
@@ -56,7 +56,7 @@ impl ProcessorAsync {
     ///     >>> await processor.initialize_async(config)
     ///
     ///     >>> # Or create and initialize in one step
-    ///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
+    ///     >>> config = ProcessorConfig.optimal(model)
     ///     >>> processor = ProcessorAsync(model, license_key, config)
     #[new]
     #[pyo3(signature = (model, license_key, config=None, otel_config=None))]
@@ -106,10 +106,6 @@ impl ProcessorAsync {
     /// Raises:
     ///     ValueError: If the audio configuration is unsupported.
     ///
-    /// Note:
-    ///     All channels are mixed to mono for processing. To process channels
-    ///     independently, create separate ProcessorAsync instances.
-    ///
     /// Example:
     ///     >>> config = ProcessorConfig.optimal(model)
     ///     >>> await processor.initialize_async(config)
@@ -158,27 +154,28 @@ impl ProcessorAsync {
 impl ProcessorAsync {
     fn process_async<'py>(
         &self,
-        buffer: numpy::PyReadonlyArray2<'py, f32>,
+        buffer: numpy::PyReadonlyArray1<'py, f32>,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, pyo3::types::PyAny>> {
         let inner = Arc::clone(&self.inner);
 
-        let array = buffer.as_array().as_standard_layout().into_owned();
-        let num_channels = array.shape()[0];
-        let num_frames = array.shape()[1];
         // process_sequential consumes an owned Vec for the 'static async task, so take the
         // owned array's backing buffer directly instead of copying it again.
-        let vec = array.into_raw_vec_and_offset().0;
+        let vec = buffer
+            .as_array()
+            .as_standard_layout()
+            .into_owned()
+            .into_raw_vec_and_offset()
+            .0;
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let processed = inner.process_sequential(vec).await.map_err(to_py_err)?;
 
             let result_obj = Python::attach(|py| {
                 use numpy::IntoPyArray;
-                let arr =
-                    numpy::ndarray::Array2::from_shape_vec((num_channels, num_frames), processed)
-                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-                Ok::<pyo3::Py<numpy::PyArray2<f32>>, PyErr>(arr.into_pyarray(py).unbind())
+                Ok::<pyo3::Py<numpy::PyArray1<f32>>, PyErr>(
+                    processed.into_pyarray(py).unbind(),
+                )
             })?;
 
             Ok(result_obj)

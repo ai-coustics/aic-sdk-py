@@ -39,7 +39,7 @@ def main():
 
     # Create an optimal config from the model
     print("\nCreate optimal config from model")
-    config = aic.ProcessorConfig.optimal(model, num_channels=1)
+    config = aic.ProcessorConfig.optimal(model)
     print(f"  Optimal config: {config}")
 
     # Create and initialize processor in one step
@@ -54,37 +54,14 @@ def main():
 
     # Process audio
     print("\nProcess audio buffer (mono)")
-    # Create a 2D array with shape (num_channels, num_frames)
-    audio_buffer = np.zeros(
-        (config.num_channels, config.num_frames), dtype=np.float32, order="F"
-    )
+    # Create a 1D array of mono samples
+    audio_buffer = np.zeros(config.num_frames, dtype=np.float32)
     # Fill with some test data
-    audio_buffer[0, :100] = 0.5
+    audio_buffer[:100] = 0.5
 
-    print(f"  Before processing - Channel 0 first 5: {audio_buffer[0, :5]}")
+    print(f"  Before processing - first 5: {audio_buffer[:5]}")
     audio_processed = processor.process(audio_buffer)
-    print(f"  After processing - Channel 0 first 5: {audio_processed[0, :5]}")
-
-    # Re-initialize with custom stereo configuration
-    print("\nRe-initialize for stereo processing")
-    config.num_channels = 2  # Modify for stereo
-    processor.initialize(config)
-    print(f"  Processor re-initialized: {config}")
-
-    print(f"  Output delay: {proc_ctx.get_output_delay()} samples")
-
-    # Process stereo audio
-    audio_buffer_stereo = np.zeros(
-        (config.num_channels, config.num_frames), dtype=np.float32, order="F"
-    )
-    audio_buffer_stereo[0, :100] = 0.5  # Channel 0
-    audio_buffer_stereo[1, :100] = 0.3  # Channel 1
-
-    print(
-        f"  Before - Ch0: {audio_buffer_stereo[0, :5]}, Ch1: {audio_buffer_stereo[1, :5]}"
-    )
-    audio_processed = processor.process(audio_buffer_stereo)
-    print(f"  After  - Ch0: {audio_processed[0, :5]}, Ch1: {audio_processed[1, :5]}")
+    print(f"  After processing - first 5: {audio_processed[:5]}")
 
     # Adjust enhancement parameters
     print("\nAdjust enhancement parameters")

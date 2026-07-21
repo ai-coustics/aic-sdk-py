@@ -54,9 +54,7 @@ async def session_worker(
         )
         return
 
-    buffer = np.zeros(
-        (config.num_channels, config.num_frames), dtype=np.float32, order="C"
-    )
+    buffer = np.zeros(config.num_frames, dtype=np.float32)
     max_execution_seconds = 0.0
     error = None
 
@@ -116,9 +114,7 @@ async def main() -> None:
     print(f"Safety margin: {safety_margin_seconds * 1000:.0f} ms\n")
 
     _warmup = aic.ProcessorAsync(model, license_key, config)
-    await _warmup.process_async(
-        np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
-    )
+    await _warmup.process_async(np.zeros(config.num_frames, dtype=np.float32))
 
     print(
         f"Starting benchmark: spawning a simulated audio session every {SPAWN_INTERVAL_SECONDS} second(s) until a deadline is missed...\n"

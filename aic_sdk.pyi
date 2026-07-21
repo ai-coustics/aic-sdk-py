@@ -209,10 +209,6 @@ class Collector:
     Analyzer to analyze later.
 
     Created via analyzer_pair().
-
-    Note:
-        All channels are mixed to mono for buffering. To buffer channels independently, create
-        separate analyzer pairs.
     """
     def initialize(self, config: ProcessorConfig) -> None:
         r"""
@@ -231,35 +227,23 @@ class Collector:
         Warning:
             Do not call from audio processing threads as this allocates memory.
 
-        Note:
-            All channels are mixed to mono for buffering. To buffer channels independently,
-            create separate analyzer pairs.
-
         Example:
             >>> config = aic.ProcessorConfig.optimal(model)
             >>> collector.initialize(config)
         """
     def buffer(self, buffer: npt.NDArray[np.float32]) -> None:
         r"""
-        Buffers audio from a 2D NumPy array (channels × frames) for later analysis.
-
-        The input uses sequential channel layout where all samples for each
-        channel are stored contiguously.
-
-        Note:
-            All channels are mixed to mono for buffering. To buffer channels
-            independently, create separate analyzer pairs.
+        Buffers audio from a 1D NumPy array of mono float32 samples for later analysis.
 
         Args:
-            buffer: 2D NumPy array with shape (num_channels, num_frames) containing
-                   audio data to be buffered.
+            buffer: 1D NumPy array of mono float32 samples to be buffered.
 
         Raises:
             ModelNotInitializedError: If the collector has not been initialized.
             AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.
 
         Example:
-            >>> audio = np.zeros((1, config.num_frames), dtype=np.float32)
+            >>> audio = np.zeros(config.num_frames, dtype=np.float32)
             >>> collector.buffer(audio)
         """
         ...
@@ -404,7 +388,7 @@ class Model:
     Example:
         >>> model = Model.from_file("/path/to/model.aicmodel")
         >>> processor = Processor(model, license_key)
-        >>> config = ProcessorConfig.optimal(model, num_channels=2)
+        >>> config = ProcessorConfig.optimal(model)
         >>> processor.initialize(config)
     """
     @staticmethod
@@ -746,9 +730,9 @@ class Processor:
     Example:
         >>> model = Model.from_file("/path/to/model.aicmodel")
         >>> processor = Processor(model, license_key)
-        >>> config = ProcessorConfig.optimal(model, num_channels=2)
+        >>> config = ProcessorConfig.optimal(model)
         >>> processor.initialize(config)
-        >>> audio = np.zeros((2, config.num_frames), dtype=np.float32)
+        >>> audio = np.zeros(config.num_frames, dtype=np.float32)
         >>> enhanced = processor.process(audio)
     """
     def __new__(
@@ -784,7 +768,7 @@ class Processor:
             >>> processor.initialize(config)
 
             >>> # Or create and initialize in one step
-            >>> config = ProcessorConfig.optimal(model, num_channels=2)
+            >>> config = ProcessorConfig.optimal(model)
             >>> processor = Processor(model, license_key, config)
         """
     def initialize(self, config: ProcessorConfig) -> None:
@@ -804,31 +788,19 @@ class Processor:
         Warning:
             Do not call from audio processing threads as this allocates memory.
 
-        Note:
-            All channels are mixed to mono for processing. To process channels
-            independently, create separate Processor instances.
-
         Example:
             >>> config = ProcessorConfig.optimal(model)
             >>> processor.initialize(config)
         """
     def process(self, buffer: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
         r"""
-        Processes audio from a 2D NumPy array (channels × frames).
+        Processes audio from a 1D NumPy array of mono float32 samples.
 
         Enhances speech in the provided audio buffer and returns a new array
         with the processed audio data.
 
-        The input uses sequential channel layout where all samples for each
-        channel are stored contiguously.
-
-        # Note
-        All channels are mixed to mono for processing. To process channels
-        independently, create separate processor instances.,
-
         Args:
-            buffer: 2D NumPy array with shape (num_channels, num_frames) containing
-                   audio data to be enhanced
+            buffer: 1D NumPy array of mono float32 samples to be enhanced
 
         Returns:
             A new NumPy array with the same shape containing the enhanced audio.
@@ -840,7 +812,7 @@ class Processor:
             InternalError: If an internal processing error occurs.
 
         Example:
-            >>> audio = np.random.randn(2, 1024).astype(np.float32)
+            >>> audio = np.random.randn(1024).astype(np.float32)
             >>> enhanced = processor.process(audio)
         """
         ...
@@ -880,9 +852,9 @@ class ProcessorAsync:
     Example:
         >>> model = Model.from_file("/path/to/model.aicmodel")
         >>> processor = ProcessorAsync(model, license_key)
-        >>> config = ProcessorConfig.optimal(model, num_channels=2)
+        >>> config = ProcessorConfig.optimal(model)
         >>> await processor.initialize_async(config)
-        >>> audio = np.zeros((2, config.num_frames), dtype=np.float32)
+        >>> audio = np.zeros(config.num_frames, dtype=np.float32)
         >>> enhanced = await processor.process_async(audio)
     """
     def __new__(
@@ -918,7 +890,7 @@ class ProcessorAsync:
             >>> await processor.initialize_async(config)
 
             >>> # Or create and initialize in one step
-            >>> config = ProcessorConfig.optimal(model, num_channels=2)
+            >>> config = ProcessorConfig.optimal(model)
             >>> processor = ProcessorAsync(model, license_key, config)
         """
     def initialize_async(self, config: ProcessorConfig) -> typing.Awaitable[None]:
@@ -935,10 +907,6 @@ class ProcessorAsync:
         Raises:
             ValueError: If the audio configuration is unsupported.
 
-        Note:
-            All channels are mixed to mono for processing. To process channels
-            independently, create separate ProcessorAsync instances.
-
         Example:
             >>> config = ProcessorConfig.optimal(model)
             >>> await processor.initialize_async(config)
@@ -948,21 +916,13 @@ class ProcessorAsync:
         buffer: npt.NDArray[np.float32],
     ) -> npt.NDArray[np.float32]:
         r"""
-        Processes audio asynchronously from a 2D NumPy array (channels × frames).
+        Processes audio asynchronously from a 1D NumPy array of mono float32 samples.
 
         Enhances speech in the provided audio buffer and returns a new array
         with the processed audio data. Processing happens in a background thread.
 
-        The input uses sequential channel layout where all samples for each
-        channel are stored contiguously.
-
-        # Note
-        All channels are mixed to mono for processing. To process channels
-        independently, create separate processor instances.,
-
         Args:
-            buffer: 2D NumPy array with shape (num_channels, num_frames) containing
-                   audio data to be enhanced
+            buffer: 1D NumPy array of mono float32 samples to be enhanced
 
         Returns:
             A new NumPy array with the same shape containing the enhanced audio.
@@ -974,7 +934,7 @@ class ProcessorAsync:
             InternalError: If an internal processing error occurs.
 
         Example:
-            >>> audio = np.random.randn(2, 1024).astype(np.float32)
+            >>> audio = np.random.randn(1024).astype(np.float32)
             >>> enhanced = await processor.process_async(audio)
         """
         ...
@@ -1019,16 +979,6 @@ class ProcessorConfig:
         Sample rate in Hz (8000 - 192000)
         """
     @property
-    def num_channels(self) -> builtins.int:
-        r"""
-        Number of audio channels in the stream (1 for mono, 2 for stereo, etc)
-        """
-    @num_channels.setter
-    def num_channels(self, value: builtins.int) -> None:
-        r"""
-        Number of audio channels in the stream (1 for mono, 2 for stereo, etc)
-        """
-    @property
     def num_frames(self) -> builtins.int:
         r"""
         Samples per channel provided to each processing call.
@@ -1053,7 +1003,6 @@ class ProcessorConfig:
     def __new__(
         cls,
         sample_rate: builtins.int,
-        num_channels: builtins.int,
         num_frames: builtins.int,
         allow_variable_frames: builtins.bool = False,
     ) -> ProcessorConfig:
@@ -1062,7 +1011,6 @@ class ProcessorConfig:
 
         Args:
             sample_rate: Sample rate in Hz (8000 - 192000)
-            num_channels: Number of audio channels
             num_frames: Samples per channel provided to each processing call
             allow_variable_frames: Allow variable frame sizes (default: False)
         """
@@ -1071,7 +1019,6 @@ class ProcessorConfig:
     def optimal(
         model: Model,
         sample_rate: typing.Optional[builtins.int] = None,
-        num_channels: builtins.int = 1,
         num_frames: typing.Optional[builtins.int] = None,
         allow_variable_frames: builtins.bool = False,
     ) -> ProcessorConfig:
@@ -1084,7 +1031,6 @@ class ProcessorConfig:
         Args:
             model: The Model instance to get optimal config for
             sample_rate: Custom sample rate in Hz. If None, uses the model's optimal sample rate (default: None)
-            num_channels: Number of audio channels (default: 1)
             num_frames: Custom number of frames per processing call. If None, uses the optimal frame count
                 for the sample rate (default: None). Note that using non-optimal frame counts increases latency.
             allow_variable_frames: Allow variable frame sizes (default: False)
@@ -1093,12 +1039,12 @@ class ProcessorConfig:
             ProcessorConfig with optimal settings for the given model.
 
         Example:
-            >>> # Use all optimal defaults with stereo
-            >>> config = ProcessorConfig.optimal(model, num_channels=2)
+            >>> # Use all optimal defaults
+            >>> config = ProcessorConfig.optimal(model)
             >>> # Use custom sample rate (optimal frames calculated automatically)
-            >>> config = ProcessorConfig.optimal(model, sample_rate=44100, num_channels=2)
+            >>> config = ProcessorConfig.optimal(model, sample_rate=44100)
             >>> # Use custom sample rate and frames (increases latency)
-            >>> config = ProcessorConfig.optimal(model, sample_rate=48000, num_frames=512, num_channels=2)
+            >>> config = ProcessorConfig.optimal(model, sample_rate=48000, num_frames=512)
         """
 
 @typing.final
