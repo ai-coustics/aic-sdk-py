@@ -12,6 +12,6 @@ async def test_real_sdk_processing_async(processor_async):
     await processor_async.initialize_async(config)
 
     frames = 480
-    buffer = make_sine_noise(frames)
-    out = await processor_async.process_async(buffer)
+    audio_block = make_sine_noise(frames)
+    out = await processor_async.process_async(audio_block)
     assert np.isfinite(out).all()

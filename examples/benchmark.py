@@ -54,25 +54,24 @@ async def session_worker(
         )
         return
 
-    buffer = np.zeros(config.num_frames, dtype=np.float32)
+    audio_block = np.zeros(config.block_size, dtype=np.float32)
     max_execution_seconds = 0.0
     error = None
 
     deadline_seconds = period_seconds - safety_margin_seconds
 
     while not stop_event.is_set():
-        # Process the audio buffer
+        # Process the audio block
         start = time.monotonic()
         try:
-            await processor.process_async(buffer)
+            await processor.process_async(audio_block)
         except Exception as exc:  # noqa: BLE001 - propagate SDK error
             error = f"process error: {exc}"
             break
 
         end = time.monotonic()
         execution_seconds = end - start
-        if execution_seconds > max_execution_seconds:
-            max_execution_seconds = execution_seconds
+        max_execution_seconds = max(max_execution_seconds, execution_seconds)
 
         # Check if we missed the deadline
         if execution_seconds > deadline_seconds:
@@ -104,24 +103,24 @@ async def main() -> None:
     print(f"Model loaded from {model_path}\n")
 
     config = aic.ProcessorConfig.optimal(model)
-    period_seconds = config.num_frames / config.sample_rate
+    period_seconds = config.block_size / config.sample_rate
     safety_margin_seconds = period_seconds * SAFETY_MARGIN
 
     print(f"Model: {model.get_id()}")
     print(f"Sample rate: {config.sample_rate} Hz")
-    print(f"Frames per buffer: {config.num_frames}")
+    print(f"Block size: {config.block_size} samples")
     print(f"Period: {period_seconds * 1000:.0f} ms")
     print(f"Safety margin: {safety_margin_seconds * 1000:.0f} ms\n")
 
     _warmup = aic.ProcessorAsync(model, license_key, config)
-    await _warmup.process_async(np.zeros(config.num_frames, dtype=np.float32))
+    await _warmup.process_async(np.zeros(config.block_size, dtype=np.float32))
 
     print(
         f"Starting benchmark: spawning a simulated audio session every {SPAWN_INTERVAL_SECONDS} second(s) until a deadline is missed...\n"
     )
 
     stop_event = asyncio.Event()
-    report_queue: "asyncio.Queue[SessionReport]" = asyncio.Queue()
+    report_queue: asyncio.Queue[SessionReport] = asyncio.Queue()
     reports: list[SessionReport] = []
     tasks: list[asyncio.Task] = []
 

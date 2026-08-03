@@ -1,64 +1,24 @@
-from conftest import create_processor_or_skip
+from conftest import create_vad_or_skip
 from helpers.audio_utils import load_wav_pcm
 
 import aic_sdk as aic
 
 
-def test_vad_bypass_mode(model, license_key, test_audio_path, expected_vad_results):
-    """Test VAD predictions in bypass mode match golden reference."""
-    processor = create_processor_or_skip(model, license_key)
-
-    audio, sr = load_wav_pcm(test_audio_path)
-
-    config = aic.ProcessorConfig.optimal(model, sample_rate=sr)
-    assert config.sample_rate == sr
-
-    processor.initialize(config)
-
-    proc_ctx = processor.get_processor_context()
-    proc_ctx.set_parameter(aic.ProcessorParameter.Bypass, 1.0)
-
-    vad_ctx = processor.get_vad_context()
-
-    speech_detected_results = []
-    num_frames = config.num_frames
-
-    for i in range(0, audio.shape[0], num_frames):
-        chunk = audio[i : i + num_frames]
-        if chunk.shape[0] == num_frames:
-            processor.process(chunk)
-            speech_detected_results.append(vad_ctx.is_speech_detected())
-
-    assert len(speech_detected_results) == len(expected_vad_results)
-    assert speech_detected_results == expected_vad_results
-
-
-def test_vad_with_enhancement(
-    model, license_key, test_audio_path, expected_vad_results
+def test_vad_predictions_match_golden_reference(
+    vad_model, license_key, test_audio_path, expected_vad_results
 ):
-    """Test that VAD predictions with enhancement enabled match the same golden reference."""
-    processor = create_processor_or_skip(model, license_key)
+    vad = create_vad_or_skip(vad_model, license_key)
+    audio, sample_rate = load_wav_pcm(test_audio_path)
+    config = aic.ProcessorConfig.optimal(vad_model, sample_rate=sample_rate)
+    vad.initialize(config)
+    context = vad.get_context()
 
-    audio, sr = load_wav_pcm(test_audio_path)
+    results = []
+    for start in range(0, audio.shape[0], config.block_size):
+        block = audio[start : start + config.block_size]
+        if block.shape[0] == config.block_size:
+            vad.process(block)
+            results.append(context.is_speech_detected())
 
-    config = aic.ProcessorConfig.optimal(model, sample_rate=sr)
-    assert config.sample_rate == sr
-
-    processor.initialize(config)
-
-    proc_ctx = processor.get_processor_context()
-    proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.5)
-
-    vad_ctx = processor.get_vad_context()
-
-    speech_detected_results = []
-    num_frames = config.num_frames
-
-    for i in range(0, audio.shape[0], num_frames):
-        chunk = audio[i : i + num_frames]
-        if chunk.shape[0] == num_frames:
-            processor.process(chunk)
-            speech_detected_results.append(vad_ctx.is_speech_detected())
-
-    assert len(speech_detected_results) == len(expected_vad_results)
-    assert speech_detected_results == expected_vad_results
+    assert len(results) == len(expected_vad_results)
+    assert results == expected_vad_results

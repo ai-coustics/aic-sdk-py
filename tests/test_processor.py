@@ -1,19 +1,20 @@
-import aic_sdk as aic
 import numpy as np
 import pytest
+
+import aic_sdk as aic
 
 
 def test_process_sync(processor):
     """Test sync process method with mono audio"""
-    num_frames = 480
-    config = aic.ProcessorConfig(48000, num_frames, False)
+    block_size = 480
+    config = aic.ProcessorConfig(48000, block_size, False)
     processor.initialize(config)
 
-    audio = np.zeros(num_frames, dtype=np.float32)
+    audio = np.zeros(block_size, dtype=np.float32)
     result = processor.process(audio)
 
     assert isinstance(result, np.ndarray)
-    assert result.shape == (num_frames,)
+    assert result.shape == (block_size,)
     assert result.dtype == np.float32
 
     # Should be C-contiguous
@@ -26,18 +27,27 @@ def test_process_accepts_reversed_view(processor):
     ndarray's to_owned() preserves contiguous-but-reversed strides, which would make
     as_slice_mut() return None; process() must use as_standard_layout() to avoid that.
     """
-    num_frames = 480
-    config = aic.ProcessorConfig(48000, num_frames, False)
+    block_size = 480
+    config = aic.ProcessorConfig(48000, block_size, False)
     processor.initialize(config)
 
-    audio = np.arange(num_frames, dtype=np.float32)[::-1]
+    audio = np.arange(block_size, dtype=np.float32)[::-1]
     assert audio.strides[0] < 0  # sanity check: this really is a reversed view
 
     result = processor.process(audio)
 
     assert isinstance(result, np.ndarray)
-    assert result.shape == (num_frames,)
+    assert result.shape == (block_size,)
     assert result.dtype == np.float32
+
+
+def test_terminate_session_prevents_further_processing(processor):
+    config = aic.ProcessorConfig(48000, 480, False)
+    processor.initialize(config)
+    processor.terminate_session()
+
+    with pytest.raises(aic.ProcessingNotAllowedError):
+        processor.process(np.zeros(config.block_size, dtype=np.float32))
 
 
 @pytest.mark.parametrize(

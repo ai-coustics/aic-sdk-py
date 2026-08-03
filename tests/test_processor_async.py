@@ -2,8 +2,9 @@ import asyncio
 import os
 
 import numpy as np
-import aic_sdk as aic
 import pytest
+
+import aic_sdk as aic
 
 
 @pytest.mark.asyncio
@@ -48,17 +49,19 @@ async def test_process_async_with_numpy(model):
 
 @pytest.mark.asyncio
 async def test_concurrent_processing(model):
-    """Test concurrent processing of multiple buffers"""
+    """Test concurrent processing of multiple blocks"""
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
 
     config = aic.ProcessorConfig(48000, 480, False)
     await processor.initialize_async(config)
 
-    # Process 4 mono buffers concurrently
-    buffers = [np.zeros(480, dtype=np.float32) for _ in range(4)]
+    # Process 4 mono blocks concurrently
+    blocks = [np.zeros(480, dtype=np.float32) for _ in range(4)]
 
-    results = await asyncio.gather(*[processor.process_async(buf) for buf in buffers])
+    results = await asyncio.gather(
+        *[processor.process_async(block) for block in blocks]
+    )
 
     assert len(results) == 4
     assert all(isinstance(r, np.ndarray) for r in results)
@@ -103,10 +106,10 @@ async def test_context_methods_work(model):
     rate = model.get_optimal_sample_rate()
     assert rate == 16000
 
-    frames = model.get_optimal_num_frames(16000)
+    frames = model.get_optimal_block_size(16000)
     assert frames == 240
 
-    proc_ctx = processor.get_processor_context()
+    proc_ctx = processor.get_context()
     delay = proc_ctx.get_output_delay()
     assert delay >= 0
 
@@ -140,9 +143,9 @@ async def test_process_async_accepts_reversed_view(model):
     Unlike the sync path, a missed normalization here wouldn't panic -- it would
     silently process samples in the wrong order, since into_raw_vec_and_offset()
     doesn't check layout at all. Shape/dtype checks alone can't catch that: a
-    reversed-but-mismixed buffer still comes back with the right shape and dtype.
-    We need value equality against the same logical samples processed from a
-    contiguous buffer to actually detect a wrong-order regression.
+    misordered block still comes back with the right shape and dtype. We need
+    value equality against the same logical samples processed from a contiguous
+    array to actually detect a wrong-order regression.
     """
     license_key = os.environ["AIC_SDK_LICENSE"]
     config = aic.ProcessorConfig(48000, 480, False)
@@ -151,7 +154,7 @@ async def test_process_async_accepts_reversed_view(model):
     assert audio.strides[0] < 0  # sanity check: this really is a reversed view
 
     # Two fresh processors (the processor is stateful) so both start from the
-    # same conditions and only the buffer's memory layout differs.
+    # same conditions and only the block's memory layout differs.
     processor_view = aic.ProcessorAsync(model, license_key)
     await processor_view.initialize_async(config)
     result_view = await processor_view.process_async(audio)
@@ -165,6 +168,17 @@ async def test_process_async_accepts_reversed_view(model):
     assert result_view.dtype == np.float32
 
     np.testing.assert_array_equal(result_view, result_contig)
+
+
+@pytest.mark.asyncio
+async def test_terminate_session_async_prevents_further_processing(model):
+    license_key = os.environ["AIC_SDK_LICENSE"]
+    config = aic.ProcessorConfig(48000, 480, False)
+    processor = aic.ProcessorAsync(model, license_key, config)
+    await processor.terminate_session_async()
+
+    with pytest.raises(aic.ProcessingNotAllowedError):
+        await processor.process_async(np.zeros(config.block_size, dtype=np.float32))
 
 
 @pytest.mark.asyncio

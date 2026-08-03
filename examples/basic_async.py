@@ -35,7 +35,7 @@ async def main():
     print("  Model loaded successfully")
     print(f"  Model ID: {model.get_id()}")
     print(f"  Model optimal sample rate: {model.get_optimal_sample_rate()} Hz")
-    print(f"  Model optimal num frames: {model.get_optimal_num_frames(48000)}")
+    print(f"  Model optimal block size: {model.get_optimal_block_size(48000)}")
 
     # Create optimal configuration
     config = aic.ProcessorConfig.optimal(model)
@@ -45,31 +45,30 @@ async def main():
     processor = aic.ProcessorAsync(model, license_key, config)
     print(f"\nProcessor created and initialized: {config}")
 
-    # Create processor and VAD contexts
-    proc_ctx = processor.get_processor_context()
-    vad_ctx = processor.get_vad_context()
+    # Create processor context
+    proc_ctx = processor.get_context()
     print(f"  Output delay: {proc_ctx.get_output_delay()} samples")
 
     # Process mono audio
-    audio_buffer = np.zeros(config.num_frames, dtype=np.float32)
-    audio_buffer[:100] = 0.5
+    audio_block = np.zeros(config.block_size, dtype=np.float32)
+    audio_block[:100] = 0.5
 
     print("\nBefore processing:")
-    print(f"  First 5: {audio_buffer[:5]}")
+    print(f"  First 5: {audio_block[:5]}")
 
     # Process asynchronously
-    audio_processed = await processor.process_async(audio_buffer)
+    audio_processed = await processor.process_async(audio_block)
 
     print("\nAfter processing:")
     print(f"  First 5: {audio_processed[:5]}")
 
     # Concurrent processing example
-    print("\nProcessing 4 mono buffers concurrently...")
-    buffers = [
-        np.random.randn(config.num_frames).astype(np.float32) for _ in range(4)
-    ]
-    results = await asyncio.gather(*[processor.process_async(buf) for buf in buffers])
-    print(f"  Processed {len(results)} buffers concurrently")
+    print("\nProcessing 4 mono blocks concurrently...")
+    blocks = [np.random.randn(config.block_size).astype(np.float32) for _ in range(4)]
+    results = await asyncio.gather(
+        *[processor.process_async(block) for block in blocks]
+    )
+    print(f"  Processed {len(results)} blocks concurrently")
     print(f"  Each result shape: {results[0].shape}")
 
     # Test parameter adjustment
@@ -78,18 +77,17 @@ async def main():
     level = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
     print(f"  Enhancement level set to: {level:.2f}")
 
-    # Test VAD
-    print("\nVoice Activity Detection...")
-    vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
-    print(
-        f"  VAD sensitivity: {vad_ctx.get_parameter(aic.VadParameter.Sensitivity):.2f}"
-    )
-    print(f"  Speech detected: {vad_ctx.is_speech_detected()}")
-
     # Reset processor state
     print("\nReset processor context...")
     proc_ctx.reset()
     print("  Processor state reset")
+
+    # End the telemetry session explicitly instead of waiting for the processor to be collected
+    print("\nTerminate telemetry session...")
+    await processor.terminate_session_async()
+    print("  Processor telemetry session terminated")
+
+    # Voice activity detection uses a separate VadAsync; see examples/vad.py.
 
 
 if __name__ == "__main__":

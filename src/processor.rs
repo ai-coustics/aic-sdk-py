@@ -4,7 +4,6 @@ use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_py
 use crate::model::Model;
 use crate::otel_config::OtelConfig;
 use crate::to_py_err;
-use crate::vad::VadContext;
 
 /// Configurable parameters for audio enhancement.
 #[gen_stub_pyclass_enum]
@@ -61,21 +60,22 @@ impl From<ProcessorParameter> for aic_sdk::ProcessorParameter {
     }
 }
 
-/// Audio processing configuration passed to Processor.initialize().
+/// Audio configuration passed to Processor.initialize(), Vad.initialize(),
+/// and Collector.initialize().
 ///
 /// Use ProcessorConfig.optimal() as a starting point, then adjust fields
-/// to match your stream layout.
+/// to match your audio stream.
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk", get_all, set_all)]
 #[derive(Clone)]
 pub struct ProcessorConfig {
     /// Sample rate in Hz (8000 - 192000)
     pub sample_rate: u32,
-    /// Samples per channel provided to each processing call.
-    /// Note that using a non-optimal number of frames increases latency.
-    pub num_frames: usize,
-    /// Allows frame counts below num_frames at the cost of added latency
-    pub allow_variable_frames: bool,
+    /// Number of samples provided to each processing call.
+    /// Note that using a non-optimal block size increases latency.
+    pub block_size: usize,
+    /// Allows calls shorter than block_size at the cost of added latency.
+    pub variable_block_size: bool,
 }
 
 #[gen_stub_pymethods]
@@ -85,22 +85,22 @@ impl ProcessorConfig {
     ///
     /// Args:
     ///     sample_rate: Sample rate in Hz (8000 - 192000)
-    ///     num_frames: Samples per channel provided to each processing call
-    ///     allow_variable_frames: Allow variable frame sizes (default: False)
+    ///     block_size: Number of samples provided to each processing call
+    ///     variable_block_size: Allow calls shorter than block_size (default: False)
     #[new]
-    #[pyo3(signature = (sample_rate, num_frames, allow_variable_frames=false))]
-    fn new(sample_rate: u32, num_frames: usize, allow_variable_frames: bool) -> Self {
+    #[pyo3(signature = (sample_rate, block_size, variable_block_size=false))]
+    fn new(sample_rate: u32, block_size: usize, variable_block_size: bool) -> Self {
         Self {
             sample_rate,
-            num_frames,
-            allow_variable_frames,
+            block_size,
+            variable_block_size,
         }
     }
 
     fn __repr__(&self) -> String {
         format!(
-            "Config(sample_rate={}, num_frames={}, allow_variable_frames={})",
-            self.sample_rate, self.num_frames, self.allow_variable_frames
+            "ProcessorConfig(sample_rate={}, block_size={}, variable_block_size={})",
+            self.sample_rate, self.block_size, self.variable_block_size
         )
     }
 
@@ -112,9 +112,9 @@ impl ProcessorConfig {
     /// Args:
     ///     model: The Model instance to get optimal config for
     ///     sample_rate: Custom sample rate in Hz. If None, uses the model's optimal sample rate (default: None)
-    ///     num_frames: Custom number of frames per processing call. If None, uses the optimal frame count
-    ///         for the sample rate (default: None). Note that using non-optimal frame counts increases latency.
-    ///     allow_variable_frames: Allow variable frame sizes (default: False)
+    ///     block_size: Custom number of samples per processing call. If None, uses the optimal block size
+    ///         for the sample rate (default: None). A non-optimal block size increases latency.
+    ///     variable_block_size: Allow calls shorter than block_size (default: False)
     ///
     /// Returns:
     ///     ProcessorConfig with optimal settings for the given model.
@@ -122,26 +122,26 @@ impl ProcessorConfig {
     /// Example:
     ///     >>> # Use all optimal defaults
     ///     >>> config = ProcessorConfig.optimal(model)
-    ///     >>> # Use custom sample rate (optimal frames calculated automatically)
+    ///     >>> # Use a custom sample rate (optimal block size calculated automatically)
     ///     >>> config = ProcessorConfig.optimal(model, sample_rate=44100)
-    ///     >>> # Use custom sample rate and frames (increases latency)
-    ///     >>> config = ProcessorConfig.optimal(model, sample_rate=48000, num_frames=512)
+    ///     >>> # Use a custom sample rate and block size (increases latency)
+    ///     >>> config = ProcessorConfig.optimal(model, sample_rate=48000, block_size=512)
     #[staticmethod]
-    #[pyo3(signature = (model, sample_rate=None, num_frames=None, allow_variable_frames=false))]
+    #[pyo3(signature = (model, sample_rate=None, block_size=None, variable_block_size=false))]
     fn optimal(
         model: &Bound<'_, Model>,
         sample_rate: Option<u32>,
-        num_frames: Option<usize>,
-        allow_variable_frames: bool,
+        block_size: Option<usize>,
+        variable_block_size: bool,
     ) -> Self {
         let sample_rate = sample_rate.unwrap_or_else(|| model.borrow().inner.optimal_sample_rate());
-        let num_frames =
-            num_frames.unwrap_or_else(|| model.borrow().inner.optimal_num_frames(sample_rate));
+        let block_size =
+            block_size.unwrap_or_else(|| model.borrow().inner.optimal_block_size(sample_rate));
 
         Self {
             sample_rate,
-            num_frames,
-            allow_variable_frames,
+            block_size,
+            variable_block_size,
         }
     }
 }
@@ -150,10 +150,8 @@ impl From<&ProcessorConfig> for aic_sdk::ProcessorConfig {
     fn from(config: &ProcessorConfig) -> Self {
         aic_sdk::ProcessorConfig {
             sample_rate: config.sample_rate,
-            // The Python-facing API only supports mono audio.
-            num_channels: 1,
-            num_frames: config.num_frames,
-            allow_variable_frames: config.allow_variable_frames,
+            block_size: config.block_size,
+            variable_block_size: config.variable_block_size,
         }
     }
 }
@@ -162,15 +160,15 @@ impl From<aic_sdk::ProcessorConfig> for ProcessorConfig {
     fn from(config: aic_sdk::ProcessorConfig) -> Self {
         Self {
             sample_rate: config.sample_rate,
-            num_frames: config.num_frames,
-            allow_variable_frames: config.allow_variable_frames,
+            block_size: config.block_size,
+            variable_block_size: config.variable_block_size,
         }
     }
 }
 
 /// Context for managing processor state and parameters.
 ///
-/// Created via Processor.get_processor_context().
+/// Created via Processor.get_context().
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct ProcessorContext {
@@ -180,7 +178,7 @@ pub struct ProcessorContext {
 #[gen_stub_pymethods]
 #[pymethods]
 impl ProcessorContext {
-    /// Clears all internal state and buffers. This also resets the VAD state associated with this processor.
+    /// Clears all internal enhancement state and buffers.
     ///
     /// Call this when the audio stream is interrupted or when seeking
     /// to prevent artifacts from previous audio content.
@@ -282,16 +280,15 @@ impl ProcessorContext {
 
     /// Returns the total output delay in samples for the current audio configuration.
     ///
-    /// This function provides the complete end-to-end latency introduced by the model,
-    /// which includes both algorithmic processing delay and any buffering overhead.
-    /// Use this value to synchronize enhanced audio with other streams or to implement
-    /// delay compensation in your application.
+    /// This function provides the complete end-to-end enhancement latency, including
+    /// algorithmic processing delay and buffering overhead. It does not include VAD delay;
+    /// use VadContext.get_output_delay() for a separate VAD.
     ///
     /// Delay behavior:
     ///     - Before initialization: Returns the base processing delay using the model's
-    ///       optimal frame size at its native sample rate
+    ///       optimal block size at its native sample rate
     ///     - After initialization: Returns the actual delay for your specific configuration,
-    ///       including any additional buffering introduced by non-optimal frame sizes
+    ///       including any additional buffering introduced by a non-optimal block size
     ///
     /// Important:
     ///     The delay value is always expressed in samples at the sample rate
@@ -299,8 +296,8 @@ impl ProcessorContext {
     ///     delay_ms = (delay_samples * 1000) / sample_rate
     ///
     /// Note:
-    ///     Using frame sizes different from the optimal value returned by
-    ///     get_optimal_num_frames() will increase the delay beyond the model's base latency.
+    ///     Using a block size different from the optimal value returned by
+    ///     get_optimal_block_size() will increase the delay beyond the model's base latency.
     ///
     /// Returns:
     ///     The delay in samples.
@@ -343,7 +340,7 @@ impl ProcessorContext {
 ///     >>> processor = Processor(model, license_key)
 ///     >>> config = ProcessorConfig.optimal(model)
 ///     >>> processor.initialize(config)
-///     >>> audio = np.zeros(config.num_frames, dtype=np.float32)
+///     >>> audio = np.zeros(config.block_size, dtype=np.float32)
 ///     >>> enhanced = processor.process(audio)
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
@@ -363,7 +360,7 @@ impl Processor {
     /// Otherwise, you must call initialize() before processing audio.
     ///
     /// Args:
-    ///     model: The loaded model instance
+    ///     model: The loaded enhancement or bypass model instance
     ///     license_key: License key for the ai-coustics SDK
     ///         (generate your key at <https://developers.ai-coustics.com/>)
     ///     config: Optional audio processing configuration. If provided, the processor
@@ -389,6 +386,10 @@ impl Processor {
         config: Option<&ProcessorConfig>,
         otel_config: Option<&OtelConfig>,
     ) -> PyResult<Self> {
+        // Identify as the Python wrapper before any SDK object is created. Must stay first: the
+        // `aic_sdk::Processor::new` call below sets the Rust wrapper id; the SDK keeps the first
+        // id it is given, so this one wins.
+        //
         // SAFETY:
         // - This function has no safety requirements.
         unsafe {
@@ -417,8 +418,8 @@ impl Processor {
     /// Configures the processor for specific audio settings.
     ///
     /// This function must be called before processing any audio.
-    /// For the lowest delay use the sample rate and frame size returned by
-    /// Model.get_optimal_sample_rate() and Model.get_optimal_num_frames().
+    /// For the lowest delay use the sample rate and block size returned by
+    /// Model.get_optimal_sample_rate() and Model.get_optimal_block_size().
     ///
     /// Args:
     ///     config: Audio processing configuration
@@ -447,25 +448,22 @@ impl Processor {
     ///     A new ProcessorContext instance.
     ///
     /// Example:
-    ///     >>> processor_context = processor.get_processor_context()
-    pub fn get_processor_context(&self) -> ProcessorContext {
+    ///     >>> processor_context = processor.get_context()
+    pub fn get_context(&self) -> ProcessorContext {
         ProcessorContext {
-            inner: self.processor.processor_context(),
+            inner: self.processor.context(),
         }
     }
 
-    /// Creates a Voice Activity Detector Context instance.
-    /// All instances created from a given processor reference the same VAD instance.
+    /// Terminates the processor's telemetry session.
     ///
-    /// Returns:
-    ///     A new VadContext instance.
+    /// The processor cannot process more audio after this call. The session is also
+    /// terminated automatically when the processor is destroyed.
     ///
-    /// Example:
-    ///     >>> vad = processor.get_vad_context()
-    pub fn get_vad_context(&self) -> VadContext {
-        VadContext {
-            inner: self.processor.vad_context(),
-        }
+    /// Warning:
+    ///     This method may block and is not real-time safe.
+    fn terminate_session(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.processor.terminate_session().map_err(to_py_err))
     }
 }
 
@@ -475,15 +473,15 @@ impl Processor {
 impl Processor {
     pub fn process<'py>(
         &mut self,
-        buffer: numpy::PyReadonlyArray1<'py, f32>,
+        audio: numpy::PyReadonlyArray1<'py, f32>,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, numpy::PyArray1<f32>>> {
-        let mut array = buffer.as_array().as_standard_layout().into_owned();
+        let mut array = audio.as_array().as_standard_layout().into_owned();
 
         // We release the GIL here so any other Python threads get a chance to run
         py.detach(|| {
             self.processor
-                .process_sequential(array.as_slice_mut().expect("standard layout is contiguous"))
+                .process(array.as_slice_mut().expect("standard layout is contiguous"))
                 .map_err(to_py_err)
         })?;
 

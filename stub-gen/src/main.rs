@@ -35,69 +35,44 @@ fn patch_numpy_methods(path: &std::path::Path) {
         &format!("{import_insertion}{numpy_imports}"),
     );
 
-    // Inject process() into Processor right before get_processor_context.
+    // Inject process() into Processor right before get_context().
     // Anchor: end of initialize() docstring in Processor (uses "create separate Processor instances.")
     let process_stub = concat!(
-        "    def process(self, buffer: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:\n",
+        "    def process(self, audio: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:\n",
         "        r\"\"\"\n",
-        "        Processes audio from a 1D NumPy array of mono float32 samples.\n",
-        "\n",
-        "        Enhances speech in the provided audio buffer and returns a new array\n",
-        "        with the processed audio data.\n",
-        "\n",
-        "        Args:\n",
-        "            buffer: 1D NumPy array of mono float32 samples to be enhanced\n",
-        "\n",
-        "        Returns:\n",
-        "            A new NumPy array with the same shape containing the enhanced audio.\n",
+        "        Enhances a mono float32 audio block and returns the processed block.\n",
         "\n",
         "        Raises:\n",
-        "            ModelNotInitializedError: If the processor has not been initialized.\n",
-        "            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.\n",
-        "            EnhancementNotAllowedError: If SDK key is not authorized or processing fails to report usage.\n",
-        "            InternalError: If an internal processing error occurs.\n",
-        "\n",
-        "        Example:\n",
-        "            >>> audio = np.random.randn(1024).astype(np.float32)\n",
-        "            >>> enhanced = processor.process(audio)\n",
+        "            NotInitializedError: If the processor has not been initialized.\n",
+        "            AudioConfigMismatchError: If the block size does not match the configuration.\n",
+        "            ProcessingNotAllowedError: If processing is not authorized.\n",
         "        \"\"\"\n",
         "        ...\n",
     );
-    // Unique anchor: the end of Processor.initialize()'s docstring + start of get_processor_context
-    let processor_anchor = "            >>> processor.initialize(config)\n        \"\"\"\n    def get_processor_context(self) -> ProcessorContext:";
+    // Unique anchor: the end of Processor.initialize()'s docstring + start of get_context().
+    let processor_anchor = "            >>> processor.initialize(config)\n        \"\"\"\n    def get_context(self) -> ProcessorContext:";
     let content = content.replace(
         processor_anchor,
-        &format!("{processor_anchor_prefix}{process_stub}    def get_processor_context(self) -> ProcessorContext:", processor_anchor_prefix = "            >>> processor.initialize(config)\n        \"\"\"\n"),
+        &format!(
+            "{processor_anchor_prefix}{process_stub}    def get_context(self) -> ProcessorContext:",
+            processor_anchor_prefix =
+                "            >>> processor.initialize(config)\n        \"\"\"\n"
+        ),
     );
 
-    // Inject process_async() into ProcessorAsync right before get_processor_context.
+    // Inject process_async() into ProcessorAsync right before get_context().
     // Anchor: end of initialize_async() docstring in ProcessorAsync
     let process_async_stub = concat!(
         "    async def process_async(\n",
-        "        self,\n",
-        "        buffer: npt.NDArray[np.float32],\n",
+        "        self, audio: npt.NDArray[np.float32]\n",
         "    ) -> npt.NDArray[np.float32]:\n",
         "        r\"\"\"\n",
-        "        Processes audio asynchronously from a 1D NumPy array of mono float32 samples.\n",
-        "\n",
-        "        Enhances speech in the provided audio buffer and returns a new array\n",
-        "        with the processed audio data. Processing happens in a background thread.\n",
-        "\n",
-        "        Args:\n",
-        "            buffer: 1D NumPy array of mono float32 samples to be enhanced\n",
-        "\n",
-        "        Returns:\n",
-        "            A new NumPy array with the same shape containing the enhanced audio.\n",
+        "        Enhances a mono float32 audio block on a background thread.\n",
         "\n",
         "        Raises:\n",
-        "            ModelNotInitializedError: If the processor has not been initialized.\n",
-        "            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.\n",
-        "            EnhancementNotAllowedError: If SDK key is not authorized or processing fails to report usage.\n",
-        "            InternalError: If an internal processing error occurs.\n",
-        "\n",
-        "        Example:\n",
-        "            >>> audio = np.random.randn(1024).astype(np.float32)\n",
-        "            >>> enhanced = await processor.process_async(audio)\n",
+        "            NotInitializedError: If the processor has not been initialized.\n",
+        "            AudioConfigMismatchError: If the block size does not match the configuration.\n",
+        "            ProcessingNotAllowedError: If processing is not authorized.\n",
         "        \"\"\"\n",
         "        ...\n",
     );
@@ -107,11 +82,53 @@ fn patch_numpy_methods(path: &std::path::Path) {
         "    def initialize_async(self, config: ProcessorConfig) -> typing.Awaitable[None]:",
     );
 
-    // Unique anchor: end of ProcessorAsync.initialize_async() docstring + start of get_processor_context
-    let processor_async_anchor = "            >>> await processor.initialize_async(config)\n        \"\"\"\n    def get_processor_context(self) -> ProcessorContext:";
+    // Unique anchor: end of ProcessorAsync.initialize_async() docstring + start of get_context().
+    let processor_async_anchor = "            >>> await processor.initialize_async(config)\n        \"\"\"\n    def get_context(self) -> ProcessorContext:";
     let content = content.replace(
         processor_async_anchor,
-        &format!("{processor_async_anchor_prefix}{process_async_stub}    def get_processor_context(self) -> ProcessorContext:", processor_async_anchor_prefix = "            >>> await processor.initialize_async(config)\n        \"\"\"\n"),
+        &format!("{processor_async_anchor_prefix}{process_async_stub}    def get_context(self) -> ProcessorContext:", processor_async_anchor_prefix = "            >>> await processor.initialize_async(config)\n        \"\"\"\n"),
+    );
+    let content = content.replace(
+        "    def terminate_session_async(self) -> typing.Any:",
+        "    def terminate_session_async(self) -> typing.Awaitable[None]:",
+    );
+
+    // Inject the NumPy methods for the dedicated synchronous and async VADs.
+    let vad_process_stub = concat!(
+        "    def process(self, audio: npt.NDArray[np.float32]) -> None:\n",
+        "        r\"\"\"\n",
+        "        Processes a mono float32 audio block and updates the VAD prediction.\n",
+        "\n",
+        "        Returns nothing: VAD processing does not modify the audio. Read the updated\n",
+        "        prediction through get_context().\n",
+        "\n",
+        "        Raises:\n",
+        "            NotInitializedError: If the VAD has not been initialized.\n",
+        "            AudioConfigMismatchError: If the block size does not match the configuration.\n",
+        "            ProcessingNotAllowedError: If processing is not authorized.\n",
+        "        \"\"\"\n",
+        "        ...\n",
+    );
+    let vad_anchor = "            This method allocates memory and is not real-time safe.\n        \"\"\"\n    def get_context(self) -> VadContext:";
+    let content = content.replace(
+        vad_anchor,
+        &format!("{vad_anchor_prefix}{vad_process_stub}    def get_context(self) -> VadContext:", vad_anchor_prefix = "            This method allocates memory and is not real-time safe.\n        \"\"\"\n"),
+    );
+
+    let vad_process_async_stub = concat!(
+        "    async def process_async(self, audio: npt.NDArray[np.float32]) -> None:\n",
+        "        r\"\"\"\n",
+        "        Processes a mono float32 audio block and updates the VAD prediction on a background thread.\n",
+        "\n",
+        "        Returns nothing: VAD processing does not modify the audio. Read the updated\n",
+        "        prediction through get_context().\n",
+        "        \"\"\"\n",
+        "        ...\n",
+    );
+    let vad_async_anchor = "        Configures the VAD asynchronously for a sample rate and block size.\n        \"\"\"\n    def get_context(self) -> VadContext:";
+    let content = content.replace(
+        vad_async_anchor,
+        &format!("{vad_async_anchor_prefix}{vad_process_async_stub}    def get_context(self) -> VadContext:", vad_async_anchor_prefix = "        Configures the VAD asynchronously for a sample rate and block size.\n        \"\"\"\n"),
     );
 
     // Inject buffer() into Collector right after initialize().
@@ -124,11 +141,11 @@ fn patch_numpy_methods(path: &std::path::Path) {
         "            buffer: 1D NumPy array of mono float32 samples to be buffered.\n",
         "\n",
         "        Raises:\n",
-        "            ModelNotInitializedError: If the collector has not been initialized.\n",
+        "            NotInitializedError: If the collector has not been initialized.\n",
         "            AudioConfigMismatchError: If the buffer shape doesn't match the configured audio settings.\n",
         "\n",
         "        Example:\n",
-        "            >>> audio = np.zeros(config.num_frames, dtype=np.float32)\n",
+        "            >>> audio = np.zeros(config.block_size, dtype=np.float32)\n",
         "            >>> collector.buffer(audio)\n",
         "        \"\"\"\n",
         "        ...\n",

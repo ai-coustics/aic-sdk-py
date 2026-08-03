@@ -6,19 +6,19 @@ def test_processor_config_init_sets_sample_rate():
     assert config.sample_rate == 48000
 
 
-def test_processor_config_init_sets_num_frames():
+def test_processor_config_init_sets_block_size():
     config = aic.ProcessorConfig(48000, 480, False)
-    assert config.num_frames == 480
+    assert config.block_size == 480
 
 
-def test_processor_config_init_sets_allow_variable_frames():
+def test_processor_config_init_sets_variable_block_size():
     config = aic.ProcessorConfig(48000, 480, True)
-    assert config.allow_variable_frames is True
+    assert config.variable_block_size is True
 
 
-def test_processor_config_allow_variable_frames_defaults_to_false():
+def test_processor_config_variable_block_size_defaults_to_false():
     config = aic.ProcessorConfig(48000, 480)
-    assert config.allow_variable_frames is False
+    assert config.variable_block_size is False
 
 
 def test_processor_config_sample_rate_is_mutable():
@@ -27,16 +27,16 @@ def test_processor_config_sample_rate_is_mutable():
     assert config.sample_rate == 16000
 
 
-def test_processor_config_num_frames_is_mutable():
+def test_processor_config_block_size_is_mutable():
     config = aic.ProcessorConfig(48000, 480, False)
-    config.num_frames = 960
-    assert config.num_frames == 960
+    config.block_size = 960
+    assert config.block_size == 960
 
 
-def test_processor_config_allow_variable_frames_is_mutable():
+def test_processor_config_variable_block_size_is_mutable():
     config = aic.ProcessorConfig(48000, 480, False)
-    config.allow_variable_frames = True
-    assert config.allow_variable_frames is True
+    config.variable_block_size = True
+    assert config.variable_block_size is True
 
 
 def test_processor_config_repr_contains_sample_rate():
@@ -44,7 +44,7 @@ def test_processor_config_repr_contains_sample_rate():
     assert "48000" in repr(config)
 
 
-def test_processor_config_repr_contains_num_frames():
+def test_processor_config_repr_contains_block_size():
     config = aic.ProcessorConfig(48000, 480, False)
     assert "480" in repr(config)
 
@@ -59,17 +59,17 @@ def test_processor_config_optimal_uses_model_sample_rate(model):
     assert config.sample_rate == model.get_optimal_sample_rate()
 
 
-def test_processor_config_optimal_uses_model_num_frames(model):
+def test_processor_config_optimal_uses_model_block_size(model):
     config = aic.ProcessorConfig.optimal(model)
-    expected_frames = model.get_optimal_num_frames(config.sample_rate)
-    assert config.num_frames == expected_frames
+    expected_block_size = model.get_optimal_block_size(config.sample_rate)
+    assert config.block_size == expected_block_size
 
 
-def test_processor_config_optimal_defaults_allow_variable_frames_false(model):
+def test_processor_config_optimal_defaults_variable_block_size_false(model):
     config = aic.ProcessorConfig.optimal(model)
-    assert config.allow_variable_frames is False
+    assert config.variable_block_size is False
 
 
-def test_processor_config_optimal_accepts_allow_variable_frames(model):
-    config = aic.ProcessorConfig.optimal(model, allow_variable_frames=True)
-    assert config.allow_variable_frames is True
+def test_processor_config_optimal_accepts_variable_block_size(model):
+    config = aic.ProcessorConfig.optimal(model, variable_block_size=True)
+    assert config.variable_block_size is True

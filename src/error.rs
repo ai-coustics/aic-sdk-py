@@ -32,20 +32,20 @@ define_exception!(
     ParameterOutOfRangeError
 );
 define_exception!(
-    /// Model must be initialized before calling this operation. Call `Processor.initialize` first.
-    ModelNotInitializedError
+    /// Handle must be initialized before this operation. Call `Processor.initialize`, `Vad.initialize`, or `Collector.initialize` first.
+    NotInitializedError
 );
 define_exception!(
-    /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
+    /// Audio configuration (sample_rate, block_size) is not supported by the model.
     AudioConfigUnsupportedError
 );
 define_exception!(
-    /// Audio buffer configuration differs from the one provided during initialization.
+    /// Audio configuration differs from the one provided during initialization.
     AudioConfigMismatchError
 );
 define_exception!(
-    /// SDK key was not authorized or process failed to report usage. Check if you have internet connection.
-    EnhancementNotAllowedError
+    /// Processing is not allowed because the SDK key was not authorized or usage reporting failed.
+    ProcessingNotAllowedError
 );
 define_exception!(
     /// Internal error occurred. Contact support.
@@ -83,8 +83,8 @@ define_exception!(
     ModelTypeUnsupportedError
 );
 define_exception!(
-    /// The path to the model file is invalid.
-    ModelFilePathInvalidError
+    /// The file path is invalid.
+    FilePathInvalidError
 );
 define_exception!(
     /// The model file cannot be opened due to a filesystem error. Verify that the file exists.
@@ -152,10 +152,8 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
             aic_sdk::AicError::ParameterOutOfRange => PyErr::new::<ParameterOutOfRangeError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),
-            aic_sdk::AicError::ProcessorNotInitialized => {
-                PyErr::new::<ModelNotInitializedError, _>(
-                    err_msg.into_pyobject(py).unwrap().unbind(),
-                )
+            aic_sdk::AicError::NotInitialized => {
+                PyErr::new::<NotInitializedError, _>(err_msg.into_pyobject(py).unwrap().unbind())
             }
             aic_sdk::AicError::AudioConfigUnsupported => {
                 PyErr::new::<AudioConfigUnsupportedError, _>(
@@ -165,11 +163,9 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
             aic_sdk::AicError::AudioConfigMismatch => PyErr::new::<AudioConfigMismatchError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),
-            aic_sdk::AicError::EnhancementNotAllowed => {
-                PyErr::new::<EnhancementNotAllowedError, _>(
-                    err_msg.into_pyobject(py).unwrap().unbind(),
-                )
-            }
+            aic_sdk::AicError::ProcessingNotAllowed => PyErr::new::<ProcessingNotAllowedError, _>(
+                err_msg.into_pyobject(py).unwrap().unbind(),
+            ),
             aic_sdk::AicError::Internal => {
                 PyErr::new::<InternalError, _>(err_msg.into_pyobject(py).unwrap().unbind())
             }
@@ -195,9 +191,9 @@ pub fn to_py_err(err: aic_sdk::AicError) -> PyErr {
             aic_sdk::AicError::ModelTypeUnsupported => PyErr::new::<ModelTypeUnsupportedError, _>(
                 err_msg.into_pyobject(py).unwrap().unbind(),
             ),
-            aic_sdk::AicError::ModelFilePathInvalid => PyErr::new::<ModelFilePathInvalidError, _>(
-                err_msg.into_pyobject(py).unwrap().unbind(),
-            ),
+            aic_sdk::AicError::FilePathInvalid => {
+                PyErr::new::<FilePathInvalidError, _>(err_msg.into_pyobject(py).unwrap().unbind())
+            }
             aic_sdk::AicError::FileSystemError => {
                 PyErr::new::<FileSystemError, _>(err_msg.into_pyobject(py).unwrap().unbind())
             }

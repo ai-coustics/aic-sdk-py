@@ -1,9 +1,9 @@
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 
-/// OpenTelemetry configuration for a Processor.
+/// OpenTelemetry configuration for a Processor or Vad.
 ///
-/// Pass to Processor or ProcessorAsync to control telemetry on a per-processor basis.
+/// Pass to Processor, ProcessorAsync, Vad, or VadAsync to control telemetry per instance.
 /// When no OtelConfig is provided, telemetry is configured according to the runtime
 /// environment (e.g. the AIC_SDK_OTEL_ENABLE environment variable).
 ///

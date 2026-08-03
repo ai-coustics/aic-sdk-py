@@ -6,15 +6,43 @@ The format is inspired by Keep a Changelog, and this project adheres to semantic
 
 ## Unreleased
 
+Update to core library version 0.22.0.
+
+### New Features
+
+- Added dedicated `Vad` and `VadAsync` classes for voice activity detection with VAD models such as
+  `vad-2.1-xxs-16khz`. VAD processing does not modify audio; predictions are read through
+  `Vad.get_context()` or `VadAsync.get_context()`.
+- Added `VadContext.get_output_delay()`, `VadContext.reset()`, and
+  `VadContext.update_bearer_token()`.
+- Added explicit telemetry-session termination to `Processor`, `ProcessorAsync`, `Vad`, `VadAsync`,
+  and `Analyzer`. A terminated object cannot process or analyze more audio.
+
 ### Breaking Changes
 
-- `Processor.process()`, `ProcessorAsync.process_async()`, and `Collector.buffer()` now only
-  accept a 1D NumPy array of mono float32 samples, matching `FileAnalyzer.analyze()`. Previously
-  they accepted a 2D `(num_channels, num_frames)` array and mixed all channels to mono
-  internally; callers with multi-channel audio must now downmix (or run one `Processor` per
-  channel) before calling `process()`.
-- Removed `ProcessorConfig.num_channels`. `ProcessorConfig` (and `ProcessorConfig.optimal()`) no
-  longer take a `num_channels` argument, since the audio APIs are mono-only.
+- `Processor.process()`, `ProcessorAsync.process_async()`, and `Collector.buffer()` now only accept a
+  1D NumPy array of mono float32 samples. Previously they accepted a 2D
+  `(num_channels, num_frames)` array and mixed all channels to mono internally; callers with
+  multi-channel audio must now downmix (or run one `Processor` per channel) before processing.
+- Replaced frame terminology with block-size terminology:
+  - `ProcessorConfig.num_frames` → `ProcessorConfig.block_size`
+  - `ProcessorConfig.allow_variable_frames` → `ProcessorConfig.variable_block_size`
+  - `Model.get_optimal_num_frames()` → `Model.get_optimal_block_size()`
+  - Removed `ProcessorConfig.num_channels`; the processing APIs are mono-only.
+- Renamed `Processor.get_processor_context()` and `ProcessorAsync.get_processor_context()` to
+  `get_context()`.
+- Removed `Processor.get_vad_context()` and `ProcessorAsync.get_vad_context()`. Energy-based VAD on
+  enhancement output is no longer supported; create a separate `Vad` or `VadAsync` with a dedicated
+  VAD model. `VadParameter.Sensitivity` is now always a probability threshold from 0.0 to 1.0.
+- `Processor` and `ProcessorAsync` now accept only enhancement and bypass models. Passing a VAD or
+  analysis model raises `ModelTypeUnsupportedError`, and passing an enhancement model to `Vad` or
+  `VadAsync` raises the same error.
+- `ProcessorContext.reset()` and `ProcessorContext.get_output_delay()` now affect and report only
+  enhancement state. Reset a VAD and query its delay through its own `VadContext`.
+- Renamed errors to match the core API:
+  - `ModelNotInitializedError` → `NotInitializedError`
+  - `EnhancementNotAllowedError` → `ProcessingNotAllowedError`
+  - `ModelFilePathInvalidError` → `FilePathInvalidError`
 
 ## 2.5.0 - 2026-06-23
 

@@ -1,6 +1,6 @@
 # aic-sdk - Python Bindings for ai-coustics SDK
 
-Python wrapper for the ai-coustics Speech Enhancement SDK.
+Python wrapper for the ai-coustics audio enhancement, voice activity detection, and analysis SDK.
 
 For comprehensive documentation, visit [docs.ai-coustics.com](https://docs.ai-coustics.com).
 
@@ -34,8 +34,8 @@ config = aic.ProcessorConfig.optimal(model)
 processor = aic.Processor(model, license_key, config)
 
 # Process audio (1D mono NumPy array)
-audio_buffer = np.zeros(config.num_frames, dtype=np.float32)
-processed = processor.process(audio_buffer)
+audio_block = np.zeros(config.block_size, dtype=np.float32)
+processed = processor.process(audio_block)
 ```
 
 ## Usage
@@ -80,22 +80,24 @@ model_id = model.get_id()
 # Get optimal sample rate for the model
 optimal_rate = model.get_optimal_sample_rate()
 
-# Get optimal frame count for a specific sample rate
-optimal_frames = model.get_optimal_num_frames(48000)
+# Get optimal block size for a specific sample rate
+optimal_block_size = model.get_optimal_block_size(48000)
 ```
 
 ### Configuring the Processor
 
 ```python
 # Get optimal configuration for the model
-config = aic.ProcessorConfig.optimal(model, allow_variable_frames=False)
-print(config)  # ProcessorConfig(sample_rate=48000, num_frames=480, allow_variable_frames=False)
+config = aic.ProcessorConfig.optimal(model, variable_block_size=False)
+print(
+    config
+)  # ProcessorConfig(sample_rate=48000, block_size=480, variable_block_size=False)
 
 # Or create from scratch
 config = aic.ProcessorConfig(
     sample_rate=48000,
-    num_frames=480,
-    allow_variable_frames=False # up to num_frames
+    block_size=480,
+    variable_block_size=False,  # when True, calls may be shorter than block_size
 )
 
 # Option 1: Create and initialize in one step
@@ -108,7 +110,7 @@ processor.initialize(config)
 
 ### OpenTelemetry Configuration
 
-Pass an `OtelConfig` to override telemetry settings for a single processor instance,
+Pass an `OtelConfig` to override telemetry settings for a single processor or VAD instance,
 independently of the `AIC_SDK_OTEL_ENABLE` environment variable:
 
 ```python
@@ -117,12 +119,15 @@ processor = aic.Processor(model, license_key, otel_config=aic.OtelConfig(enable=
 
 # Enable with a session ID and custom export interval
 processor = aic.Processor(
-    model, license_key,
-    otel_config=aic.OtelConfig(enable=True, session_id="my-session", export_interval_ms=5_000),
+    model,
+    license_key,
+    otel_config=aic.OtelConfig(
+        enable=True, session_id="my-session", export_interval_ms=5_000
+    ),
 )
 ```
 
-The same `otel_config` parameter is available on `ProcessorAsync`.
+The same `otel_config` parameter is available on `ProcessorAsync`, `Vad`, and `VadAsync`.
 
 ### Processing Audio
 
@@ -130,18 +135,25 @@ The same `otel_config` parameter is available on `ProcessorAsync`.
 # Synchronous processing
 import numpy as np
 
-# Create audio buffer (1D mono NumPy array)
-audio = np.zeros(config.num_frames, dtype=np.float32)
+# Create audio block (1D mono NumPy array)
+audio = np.zeros(config.block_size, dtype=np.float32)
 
 # Process
 processed = processor.process(audio)
 ```
 
+### Ending a Session
+
+Telemetry sessions end automatically when their object is destroyed. To end one at a specific
+lifecycle event, call `processor.terminate_session()`, `vad.terminate_session()`, or
+`analyzer.terminate_session()`. Async processors and VADs expose `terminate_session_async()`.
+After explicit termination, that object cannot process or analyze more audio.
+
 ### Processor Context
 
 ```python
 # Get processor context
-proc_ctx = processor.get_processor_context()
+proc_ctx = processor.get_context()
 
 # Get output delay in samples
 delay = proc_ctx.get_output_delay()
@@ -165,6 +177,7 @@ import asyncio
 import numpy as np
 import aic_sdk as aic
 
+
 async def process_audio():
     # Download and load model (or download manually at https://artifacts.ai-coustics.io/)
     model_path = await aic.Model.download_async("quail-vf-2.1-l-16khz", "./models")
@@ -176,42 +189,51 @@ async def process_audio():
     # Create and initialize async processor in one step
     processor = aic.ProcessorAsync(model, "your-license-key", config)
 
-    # Get processor and VAD contexts
-    proc_ctx = processor.get_processor_context()
-    vad_ctx = processor.get_vad_context()
+    # Get processor context
+    proc_ctx = processor.get_context()
 
     # Process audio (1D mono NumPy array)
-    audio = np.zeros(config.num_frames, dtype=np.float32)
+    audio = np.zeros(config.block_size, dtype=np.float32)
     result = await processor.process_async(audio)
 
-    # Process multiple buffers concurrently
-    buffers = [np.random.randn(config.num_frames).astype(np.float32) for _ in range(4)]
-    results = await asyncio.gather(*[
-        processor.process_async(buf) for buf in buffers
-    ])
+    # Process multiple blocks concurrently
+    blocks = [np.random.randn(config.block_size).astype(np.float32) for _ in range(4)]
+    results = await asyncio.gather(*[processor.process_async(block) for block in blocks])
+
 
 asyncio.run(process_audio())
 ```
 
 ### Voice Activity Detection (VAD)
 
-```python
-# Get VAD context from processor
-vad_ctx = processor.get_vad_context()
+VAD uses a separate `Vad` instance and a dedicated VAD model. Enhancement models are accepted by
+`Processor`, while VAD models such as `vad-2.1-xxs-16khz` are accepted by `Vad`.
 
-# Configure VAD parameters
-vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
+```python
+vad_model_path = aic.Model.download("vad-2.1-xxs-16khz", "./models")
+vad_model = aic.Model.from_file(vad_model_path)
+vad_config = aic.ProcessorConfig.optimal(vad_model)
+vad = aic.Vad(vad_model, license_key, vad_config)
+vad_ctx = vad.get_context()
+
+# Sensitivity is a speech-probability threshold in the 0.0-1.0 range.
+vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 0.5)
 vad_ctx.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.05)
 vad_ctx.set_parameter(aic.VadParameter.MinimumSpeechDuration, 0.0)
 
-# Get parameter values
-sensitivity = vad_ctx.get_parameter(aic.VadParameter.Sensitivity)
-print(f"VAD sensitivity: {sensitivity}")
+# Processing does not modify the audio and returns nothing; it only updates the prediction.
+audio_block = np.zeros(vad_config.block_size, dtype=np.float32)
+vad.process(audio_block)
+print(f"Speech detected: {vad_ctx.is_speech_detected()}")
+print(f"Raw probability: {vad_ctx.raw_vad_probability()}")
+print(f"Prediction delay: {vad_ctx.get_output_delay()} samples")
 
-# Check for speech (after processing audio through the processor)
-if vad_ctx.is_speech_detected():
-    print("Speech detected!")
+# Clear state after a stream interruption.
+vad_ctx.reset()
 ```
+
+`VadAsync` provides matching `initialize_async()`, `process_async()`, and
+`terminate_session_async()` methods.
 
 ### Audio Analysis
 
@@ -253,7 +275,10 @@ config = aic.ProcessorConfig.optimal(model)
 collector.initialize(config)
 
 # Buffer audio (1D mono NumPy array) as it arrives.
-collector.buffer(np.zeros(config.num_frames, dtype=np.float32))
+collector.buffer(np.zeros(config.block_size, dtype=np.float32))
+
+# End the analyzer telemetry session early when needed.
+analyzer.terminate_session()
 
 # Run the analysis off the audio thread.
 result = analyzer.analyze_buffered()
@@ -307,6 +332,8 @@ For a complete list of all available exception types and their descriptions, see
 See the [`basic.py`](examples/basic.py) or [`basic_async.py`](examples/basic_async.py) file for a complete working example.
 
 For a complete file enhancement example with parallel processing, see [`enhance_files.py`](examples/enhance_files.py).
+
+For a voice-activity-detection example using a dedicated VAD model, see [`vad.py`](examples/vad.py).
 
 For an audio-analysis example that scores an audio file with the *Tyto* model, see [`analyze_file.py`](examples/analyze_file.py).
 

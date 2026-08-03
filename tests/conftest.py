@@ -18,6 +18,13 @@ def model():
 
 
 @pytest.fixture
+def vad_model():
+    model_id = "vad-2.1-xxs-16khz"
+    model_path = aic.Model.download(model_id, "./models")
+    return aic.Model.from_file(model_path)
+
+
+@pytest.fixture
 def analysis_model():
     # The analyzer requires an analysis model (Tyto), not an enhancement model.
     model_id = "tyto-l-16khz"
@@ -38,6 +45,18 @@ def processor_async(request):
 
 
 @pytest.fixture
+def vad(request):
+    model = request.getfixturevalue("vad_model")
+    return aic.Vad(model, _LICENSE_KEY)
+
+
+@pytest.fixture
+def vad_async(request):
+    model = request.getfixturevalue("vad_model")
+    return aic.VadAsync(model, _LICENSE_KEY)
+
+
+@pytest.fixture
 def license_key():
     return _LICENSE_KEY
 
@@ -54,6 +73,24 @@ def create_processor_or_skip(model, license_key):
 def create_processor_async_or_skip(model, license_key):
     try:
         return aic.ProcessorAsync(model, license_key)
+    except aic.LicenseVersionUnsupportedError:
+        pytest.skip("License version incompatible with SDK version")
+    except aic.LicenseExpiredError:
+        pytest.skip("License has expired")
+
+
+def create_vad_or_skip(model, license_key):
+    try:
+        return aic.Vad(model, license_key)
+    except aic.LicenseVersionUnsupportedError:
+        pytest.skip("License version incompatible with SDK version")
+    except aic.LicenseExpiredError:
+        pytest.skip("License has expired")
+
+
+def create_vad_async_or_skip(model, license_key):
+    try:
+        return aic.VadAsync(model, license_key)
     except aic.LicenseVersionUnsupportedError:
         pytest.skip("License version incompatible with SDK version")
     except aic.LicenseExpiredError:

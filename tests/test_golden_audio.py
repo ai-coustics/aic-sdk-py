@@ -16,12 +16,12 @@ def test_process_full_file_enhancement_match(
 
     config = aic.ProcessorConfig(
         sample_rate=sr,
-        num_frames=audio.shape[0],
-        allow_variable_frames=False,
+        block_size=audio.shape[0],
+        variable_block_size=False,
     )
     processor.initialize(config)
 
-    proc_ctx = processor.get_processor_context()
+    proc_ctx = processor.get_context()
     proc_ctx.set_parameter(aic.ProcessorParameter.EnhancementLevel, 0.9)
 
     actual_output = processor.process(audio.copy())

@@ -1,6 +1,7 @@
-import aic_sdk as aic
 import numpy as np
 import pytest
+
+import aic_sdk as aic
 
 _SCORE_ATTRS = (
     "risk_score",
@@ -45,7 +46,7 @@ def test_collector_buffer_and_analyzer_returns_scores(analysis_model, license_ke
     config = aic.ProcessorConfig.optimal(analysis_model)
     collector.initialize(config)
 
-    audio = np.zeros(config.num_frames, dtype=np.float32)
+    audio = np.zeros(config.block_size, dtype=np.float32)
     collector.buffer(audio)
 
     result = analyzer.analyze_buffered()
@@ -65,7 +66,7 @@ def test_collector_buffer_accepts_reversed_view(analysis_model, license_key):
     config = aic.ProcessorConfig.optimal(analysis_model)
     collector.initialize(config)
 
-    audio = np.arange(config.num_frames, dtype=np.float32)[::-1]
+    audio = np.arange(config.block_size, dtype=np.float32)[::-1]
     assert audio.strides[0] < 0  # sanity check: this really is a reversed view
 
     collector.buffer(audio)
@@ -83,10 +84,21 @@ def test_analyzer_reset_keeps_collector_initialized(analysis_model, license_key)
 
     analyzer.reset()
 
-    collector.buffer(np.zeros(config.num_frames, dtype=np.float32))
+    collector.buffer(np.zeros(config.block_size, dtype=np.float32))
     result = analyzer.analyze_buffered()
 
     assert_scores_in_range(result)
+
+
+def test_analyzer_terminate_session_prevents_further_analysis(
+    analysis_model, license_key
+):
+    collector, analyzer = make_pair_or_skip(analysis_model, license_key)
+    collector.initialize(aic.ProcessorConfig.optimal(analysis_model))
+    analyzer.terminate_session()
+
+    with pytest.raises(aic.ProcessingNotAllowedError):
+        analyzer.analyze_buffered()
 
 
 def test_analyzer_pair_keeps_model_alive_after_model_drop(license_key):
@@ -103,7 +115,7 @@ def test_analyzer_pair_keeps_model_alive_after_model_drop(license_key):
     gc.collect()
 
     collector.initialize(config)
-    collector.buffer(np.zeros(config.num_frames, dtype=np.float32))
+    collector.buffer(np.zeros(config.block_size, dtype=np.float32))
     result = analyzer.analyze_buffered()
 
     assert_scores_in_range(result)
