@@ -25,12 +25,17 @@ def main():
 
     # Replace this silence with mono float32 audio from your stream. VAD processing does not
     # modify the audio and returns nothing; it only updates the prediction on the context.
+    #
+    # When enhancement and VAD run together, feed the VAD the original input audio rather than
+    # the enhanced output of Processor.process().
     audio_block = np.zeros(config.block_size, dtype=np.float32)
     vad.process(audio_block)
 
     print(f"Speech detected: {context.is_speech_detected()}")
     print(f"Raw speech probability: {context.raw_vad_probability():.3f}")
-    print(f"Prediction delay: {context.get_output_delay()} samples")
+    # How far the prediction lags behind the input. This delay is not applied to the audio,
+    # Vad.process() leaves the buffer untouched.
+    print(f"Prediction delay: {context.get_prediction_delay()} samples")
 
     context.reset()
     vad.terminate_session()

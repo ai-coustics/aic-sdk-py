@@ -278,11 +278,13 @@ impl ProcessorContext {
         self.get_parameter(parameter)
     }
 
-    /// Returns the total output delay in samples for the current audio configuration.
+    /// Returns the delay applied to the audio in samples for the current audio configuration.
     ///
     /// This function provides the complete end-to-end enhancement latency, including
-    /// algorithmic processing delay and buffering overhead. It does not include VAD delay;
-    /// use VadContext.get_output_delay() for a separate VAD.
+    /// algorithmic processing delay and buffering overhead. The processed audio leaves
+    /// Processor.process() this many samples behind its input.
+    ///
+    /// It does not include VAD delay; use VadContext.get_prediction_delay() for a separate VAD.
     ///
     /// Delay behavior:
     ///     - Before initialization: Returns the base processing delay using the model's
@@ -303,10 +305,10 @@ impl ProcessorContext {
     ///     The delay in samples.
     ///
     /// Example:
-    ///     >>> delay = processor_context.get_output_delay()
-    ///     >>> print(f"Output delay: {delay} samples")
-    fn get_output_delay(&self) -> usize {
-        self.inner.output_delay()
+    ///     >>> delay = processor_context.get_audio_delay()
+    ///     >>> print(f"Audio delay: {delay} samples")
+    fn get_audio_delay(&self) -> usize {
+        self.inner.audio_delay()
     }
 
     /// Replaces the bearer token on the running processor.

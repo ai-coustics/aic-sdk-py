@@ -52,6 +52,12 @@ impl From<VadParameter> for aic_sdk::VadParameter {
 /// Feed mono audio to process() and read predictions through get_context(). The audio is not
 /// modified; processing only updates the detector's prediction.
 ///
+/// When enhancement and VAD run together, feed the VAD the original input audio, not the
+/// enhanced output of Processor.process(). Run both on the same block instead of chaining them:
+///
+///     >>> vad.process(audio)                   # reads the block, does not modify it
+///     >>> enhanced = processor.process(audio)  # enhances the same original block
+///
 /// Example:
 ///     >>> model = Model.from_file("/path/to/vad_model.aicmodel")
 ///     >>> config = ProcessorConfig.optimal(model)
@@ -150,20 +156,26 @@ impl Vad {
 #[pymethods]
 impl Vad {
     // Returns None rather than the audio block: the VAD never modifies its input, so handing
-    // back a freshly allocated array would cost an allocation per block on the audio path
-    // without telling the caller anything they don't already have. The owned copy below only
-    // exists because the C API takes a mutable pointer.
+    // back an array would tell the caller nothing they don't already have.
     pub fn process(
         &mut self,
         audio: numpy::PyReadonlyArray1<'_, f32>,
         py: Python<'_>,
     ) -> PyResult<()> {
-        let mut array = audio.as_array().as_standard_layout().into_owned();
+        let array = audio.as_array();
 
+        // We release the GIL here so any other Python threads get a chance to run.
         py.detach(|| {
-            self.vad
-                .process(array.as_slice_mut().expect("standard layout is contiguous"))
-                .map_err(to_py_err)
+            // `Vad::process` only reads the samples, so a contiguous buffer is handed straight
+            // through, avoiding a copy. Only a genuinely strided view needs a normalizing copy.
+            if let Some(slice) = array.as_slice() {
+                self.vad.process(slice)
+            } else {
+                let owned = array.as_standard_layout();
+                self.vad
+                    .process(owned.as_slice().expect("standard layout is contiguous"))
+            }
+            .map_err(to_py_err)
         })
     }
 }
@@ -183,7 +195,7 @@ pub struct VadContext {
 impl VadContext {
     /// Returns the post-processed VAD prediction.
     ///
-    /// The prediction lags its input by get_output_delay() samples. If the backing Vad stops
+    /// The prediction lags its input by get_prediction_delay() samples. If the backing Vad stops
     /// being processed, the prediction does not update.
     fn is_speech_detected(&self) -> bool {
         self.inner.is_speech_detected()
@@ -191,7 +203,7 @@ impl VadContext {
 
     /// Returns the VAD model's raw speech probability without SDK post-processing.
     ///
-    /// The prediction lags its input by get_output_delay() samples.
+    /// The prediction lags its input by get_prediction_delay() samples.
     fn raw_vad_probability(&self) -> f32 {
         self.inner.raw_vad_probability()
     }
@@ -233,8 +245,12 @@ impl VadContext {
     ///
     /// This includes input reblocking, model processing, and buffering overhead for the current
     /// configuration. Use it to align speech decisions with the input timeline.
-    fn get_output_delay(&self) -> usize {
-        self.inner.output_delay()
+    ///
+    /// This delay is not applied to the audio: Vad.process() leaves its input untouched. The
+    /// value only describes how far behind its input the published prediction is, and it is
+    /// independent of ProcessorContext.get_audio_delay().
+    fn get_prediction_delay(&self) -> usize {
+        self.inner.prediction_delay()
     }
 
     /// Clears the VAD's internal state and published predictions.

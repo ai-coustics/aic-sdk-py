@@ -8,6 +8,9 @@ use std::sync::Arc;
 /// Async voice activity detector backed by a dedicated VAD model.
 ///
 /// Processing runs on the SDK's background thread pool and does not block the event loop.
+///
+/// When enhancement and VAD run together, feed the VAD the original input audio, not the
+/// enhanced output of ProcessorAsync.process_async().
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct VadAsync {

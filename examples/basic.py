@@ -50,7 +50,7 @@ def main():
     # Create processor context
     print("\nCreate processor context")
     proc_ctx = processor.get_context()
-    print(f"  Output delay: {proc_ctx.get_output_delay()} samples")
+    print(f"  Audio delay: {proc_ctx.get_audio_delay()} samples")
 
     # Process audio
     print("\nProcess audio block (mono)")

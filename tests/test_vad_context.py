@@ -114,9 +114,9 @@ def test_vad_context_raw_vad_probability_returns_float(vad_model, license_key):
     assert 0.0 <= result <= 1.0
 
 
-def test_vad_context_output_delay_returns_int(vad_model, license_key):
+def test_vad_context_prediction_delay_returns_int(vad_model, license_key):
     vad, _ = create_initialized_vad(vad_model, license_key)
-    delay = vad.get_context().get_output_delay()
+    delay = vad.get_context().get_prediction_delay()
     assert isinstance(delay, int)
     assert delay >= 0
 

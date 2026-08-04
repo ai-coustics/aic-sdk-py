@@ -47,7 +47,7 @@ async def main():
 
     # Create processor context
     proc_ctx = processor.get_context()
-    print(f"  Output delay: {proc_ctx.get_output_delay()} samples")
+    print(f"  Audio delay: {proc_ctx.get_audio_delay()} samples")
 
     # Process mono audio
     audio_block = np.zeros(config.block_size, dtype=np.float32)

@@ -155,8 +155,8 @@ After explicit termination, that object cannot process or analyze more audio.
 # Get processor context
 proc_ctx = processor.get_context()
 
-# Get output delay in samples
-delay = proc_ctx.get_output_delay()
+# Get the delay applied to the audio in samples
+delay = proc_ctx.get_audio_delay()
 
 # Reset processor state (clears internal buffers)
 proc_ctx.reset()
@@ -226,11 +226,28 @@ audio_block = np.zeros(vad_config.block_size, dtype=np.float32)
 vad.process(audio_block)
 print(f"Speech detected: {vad_ctx.is_speech_detected()}")
 print(f"Raw probability: {vad_ctx.raw_vad_probability()}")
-print(f"Prediction delay: {vad_ctx.get_output_delay()} samples")
+
+# How many samples the prediction lags behind the input. This delay is not applied to the
+# audio, `Vad.process()` leaves the buffer untouched.
+print(f"Prediction delay: {vad_ctx.get_prediction_delay()} samples")
 
 # Clear state after a stream interruption.
 vad_ctx.reset()
 ```
+
+When enhancement and VAD run together, feed the VAD the original input audio, not the processor's
+enhanced output. Run both on the same block instead of chaining them:
+
+```python
+audio_block = np.zeros(config.block_size, dtype=np.float32)
+
+vad.process(audio_block)                   # reads the block, does not modify it
+enhanced = processor.process(audio_block)  # enhances the same original block
+```
+
+Enhancement is designed to change the signal, so running the VAD on its output means detecting
+speech in audio that no longer matches what the VAD model expects, and it stacks the processor's
+audio delay on top of the VAD's prediction delay.
 
 `VadAsync` provides matching `initialize_async()`, `process_async()`, and
 `terminate_session_async()` methods.

@@ -1071,13 +1071,15 @@ class ProcessorContext:
         r"""
         Deprecated: Use get_parameter instead
         """
-    def get_output_delay(self) -> builtins.int:
+    def get_audio_delay(self) -> builtins.int:
         r"""
-        Returns the total output delay in samples for the current audio configuration.
+        Returns the delay applied to the audio in samples for the current audio configuration.
 
         This function provides the complete end-to-end enhancement latency, including
-        algorithmic processing delay and buffering overhead. It does not include VAD delay;
-        use VadContext.get_output_delay() for a separate VAD.
+        algorithmic processing delay and buffering overhead. The processed audio leaves
+        Processor.process() this many samples behind its input.
+
+        It does not include VAD delay; use VadContext.get_prediction_delay() for a separate VAD.
 
         Delay behavior:
             - Before initialization: Returns the base processing delay using the model's
@@ -1098,8 +1100,8 @@ class ProcessorContext:
             The delay in samples.
 
         Example:
-            >>> delay = processor_context.get_output_delay()
-            >>> print(f"Output delay: {delay} samples")
+            >>> delay = processor_context.get_audio_delay()
+            >>> print(f"Audio delay: {delay} samples")
         """
     def update_bearer_token(self, token: builtins.str) -> None:
         r"""
@@ -1151,6 +1153,12 @@ class Vad:
     Feed mono audio to process() and read predictions through get_context(). The audio is not
     modified; processing only updates the detector's prediction.
 
+    When enhancement and VAD run together, feed the VAD the original input audio, not the
+    enhanced output of Processor.process(). Run both on the same block instead of chaining them:
+
+        >>> vad.process(audio)                   # reads the block, does not modify it
+        >>> enhanced = processor.process(audio)  # enhances the same original block
+
     Example:
         >>> model = Model.from_file("/path/to/vad_model.aicmodel")
         >>> config = ProcessorConfig.optimal(model)
@@ -1201,6 +1209,9 @@ class Vad:
         Returns nothing: VAD processing does not modify the audio. Read the updated
         prediction through get_context().
 
+        When enhancement and VAD run together, pass the original input audio here, not
+        the enhanced output of Processor.process().
+
         Raises:
             NotInitializedError: If the VAD has not been initialized.
             AudioConfigMismatchError: If the block size does not match the configuration.
@@ -1227,6 +1238,9 @@ class VadAsync:
     Async voice activity detector backed by a dedicated VAD model.
 
     Processing runs on the SDK's background thread pool and does not block the event loop.
+
+    When enhancement and VAD run together, feed the VAD the original input audio, not the
+    enhanced output of ProcessorAsync.process_async().
     """
     def __new__(
         cls,
@@ -1257,6 +1271,9 @@ class VadAsync:
 
         Returns nothing: VAD processing does not modify the audio. Read the updated
         prediction through get_context().
+
+        When enhancement and VAD run together, pass the original input audio here, not
+        the enhanced output of ProcessorAsync.process_async().
         """
     def get_context(self) -> VadContext:
         r"""
@@ -1281,14 +1298,14 @@ class VadContext:
         r"""
         Returns the post-processed VAD prediction.
 
-        The prediction lags its input by get_output_delay() samples. If the backing Vad stops
+        The prediction lags its input by get_prediction_delay() samples. If the backing Vad stops
         being processed, the prediction does not update.
         """
     def raw_vad_probability(self) -> builtins.float:
         r"""
         Returns the VAD model's raw speech probability without SDK post-processing.
 
-        The prediction lags its input by get_output_delay() samples.
+        The prediction lags its input by get_prediction_delay() samples.
         """
     def set_parameter(self, parameter: VadParameter, value: builtins.float) -> None:
         r"""
@@ -1306,12 +1323,16 @@ class VadContext:
         r"""
         Deprecated: Use get_parameter instead.
         """
-    def get_output_delay(self) -> builtins.int:
+    def get_prediction_delay(self) -> builtins.int:
         r"""
         Returns the total VAD prediction delay in samples.
 
         This includes input reblocking, model processing, and buffering overhead for the current
         configuration. Use it to align speech decisions with the input timeline.
+
+        This delay is not applied to the audio: Vad.process() leaves its input untouched. The
+        value only describes how far behind its input the published prediction is, and it is
+        independent of ProcessorContext.get_audio_delay().
         """
     def reset(self) -> None:
         r"""

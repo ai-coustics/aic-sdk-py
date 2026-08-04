@@ -80,9 +80,9 @@ async def process_single_file(
     await processor.process_async(zero_block)
     await processor.process_async(zero_block)
 
-    latency_samples = proc_ctx.get_output_delay()
+    latency_samples = proc_ctx.get_audio_delay()
 
-    # Pad the input audio with zeros at the end to account for the output delay
+    # Pad the input audio with zeros at the end to account for the audio delay
     padding = np.zeros(latency_samples, dtype=np.float32)
     audio_input = np.concatenate([audio_input, padding])
 

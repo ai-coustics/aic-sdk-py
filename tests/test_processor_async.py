@@ -110,7 +110,7 @@ async def test_context_methods_work(model):
     assert frames == 240
 
     proc_ctx = processor.get_context()
-    delay = proc_ctx.get_output_delay()
+    delay = proc_ctx.get_audio_delay()
     assert delay >= 0
 
     # Test parameter get/set
