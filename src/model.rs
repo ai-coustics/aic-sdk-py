@@ -92,6 +92,9 @@ impl Model {
 
     /// Downloads a model file asynchronously from the ai-coustics artifact CDN.
     ///
+    /// The network I/O runs on a background blocking task and does not block the caller's
+    /// event loop.
+    ///
     /// This method fetches the model manifest, verifies that the requested model
     /// exists in a version compatible with this library, and downloads the model
     /// file to the specified directory. If the model file already exists, it will not
@@ -102,9 +105,6 @@ impl Model {
     /// to ensure the latest model versions are always used.
     ///
     /// Available models can be browsed at [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io/).
-    ///
-    /// Note:
-    ///     This is a blocking operation that performs network I/O.
     ///
     /// Args:
     ///     model_id: The model identifier (e.g., `"quail-l-16khz"`).
@@ -170,7 +170,7 @@ impl Model {
     ///
     /// Sample rate and optimal block size relationship:
     ///     When using a different sample rate than the model's native rate, the optimal block
-    ///     size (returned by get_optimal_block_size) changes. The model's output delay remains
+    ///     size (returned by get_optimal_block_size) changes. The processor's output delay remains
     ///     constant as long as you use the optimal block size for that rate.
     ///
     /// Recommendation:

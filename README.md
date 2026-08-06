@@ -151,6 +151,9 @@ After explicit termination, that object cannot process or analyze more audio.
 
 ### Processor Context
 
+The processor context provides thread-safe access to processor parameters and state. You can create
+multiple contexts and use them from any thread for concurrent parameter updates.
+
 ```python
 # Get processor context
 proc_ctx = processor.get_context()
@@ -216,6 +219,7 @@ vad_config = aic.ProcessorConfig.optimal(vad_model)
 vad = aic.Vad(vad_model, license_key, vad_config)
 vad_ctx = vad.get_context()
 
+# The context is thread-safe; multiple contexts can control the VAD from any thread.
 # Sensitivity is a speech-probability threshold in the 0.0-1.0 range.
 vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 0.5)
 vad_ctx.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.05)
@@ -294,12 +298,12 @@ collector.initialize(config)
 # Buffer audio (1D mono NumPy array) as it arrives.
 collector.buffer(np.zeros(config.block_size, dtype=np.float32))
 
-# End the analyzer telemetry session early when needed.
-analyzer.terminate_session()
-
 # Run the analysis off the audio thread.
 result = analyzer.analyze_buffered()
 print(f"Risk score: {result.risk_score}")
+
+# End the analyzer telemetry session early when no more analysis is needed.
+analyzer.terminate_session()
 ```
 
 ### When to Use Sync vs Async

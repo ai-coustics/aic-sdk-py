@@ -14,7 +14,7 @@ use crate::to_py_err;
 /// size. It analyzes independent five-second windows, advancing the start of each window by
 /// step_samples.
 ///
-/// For streaming or multi-channel analysis, use analyzer_pair() directly.
+/// For streaming analysis, use analyzer_pair() directly.
 ///
 /// Example:
 ///

@@ -16,7 +16,7 @@ pub enum VadParameter {
     ///
     /// Range: 0.0 to 300x model window length (seconds)
     ///
-    /// Default: 0.03 (30 ms)
+    /// Default: model-specific
     SpeechHoldDuration,
     /// Probability threshold used to decide whether speech is detected.
     ///
@@ -33,7 +33,7 @@ pub enum VadParameter {
     ///
     /// Range: 0.0 to 1.0 (seconds)
     ///
-    /// Default: 0.0
+    /// Default: model-specific
     MinimumSpeechDuration,
 }
 
