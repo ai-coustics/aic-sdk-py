@@ -107,8 +107,7 @@ async def process_single_file(
         position=processor_idx,
     ) as pbar:
         for chunk_start in range(0, audio_input_size, model_block_size):
-            chunk_end = min(chunk_start + model_block_size, audio_input_size)
-            chunk = audio_input[chunk_start:chunk_end]
+            chunk = audio_input[chunk_start:chunk_start + model_block_size]
 
             # Process the chunk
             processed = await process_chunk(processor, chunk, model_block_size)
