@@ -33,6 +33,9 @@ async def process_chunk(
     block_size: int,
 ) -> np.ndarray:
     """Process a single audio chunk with the given processor."""
+    if chunk.ndim != 1:
+        raise ValueError(f"Expected mono audio, got shape {chunk.shape}")
+
     valid_samples = chunk.shape[0]
 
     # Create and zero-initialize the processing block
