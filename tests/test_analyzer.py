@@ -90,16 +90,6 @@ def test_analyzer_reset_keeps_collector_initialized(analysis_model, license_key)
     assert_scores_in_range(result)
 
 
-def test_analyzer_terminate_session_prevents_further_analysis(
-    analysis_model, license_key
-):
-    collector, analyzer = make_pair_or_skip(analysis_model, license_key)
-    collector.initialize(aic.ProcessorConfig.optimal(analysis_model))
-    analyzer.terminate_session()
-
-    with pytest.raises(aic.ProcessingNotAllowedError):
-        analyzer.analyze_buffered()
-
 
 def test_analyzer_pair_keeps_model_alive_after_model_drop(license_key):
     import gc

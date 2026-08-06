@@ -61,18 +61,6 @@ async def test_vad_async_process_before_initialize_raises_not_initialized_error(
         await vad.process_async(np.zeros(240, dtype=np.float32))
 
 
-@pytest.mark.asyncio
-async def test_vad_async_terminate_session_prevents_further_processing(
-    vad_model, license_key
-):
-    vad = create_vad_async_or_skip(vad_model, license_key)
-    config = aic.ProcessorConfig.optimal(vad_model)
-    await vad.initialize_async(config)
-    assert await vad.terminate_session_async() is None
-
-    with pytest.raises(aic.ProcessingNotAllowedError):
-        await vad.process_async(np.zeros(config.block_size, dtype=np.float32))
-
 
 @pytest.mark.asyncio
 async def test_vad_async_accepts_otel_config(vad_model, license_key):

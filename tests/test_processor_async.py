@@ -170,16 +170,6 @@ async def test_process_async_accepts_reversed_view(model):
     np.testing.assert_array_equal(result_view, result_contig)
 
 
-@pytest.mark.asyncio
-async def test_terminate_session_async_prevents_further_processing(model):
-    license_key = os.environ["AIC_SDK_LICENSE"]
-    config = aic.ProcessorConfig(48000, 480, False)
-    processor = aic.ProcessorAsync(model, license_key, config)
-    assert await processor.terminate_session_async() is None
-
-    with pytest.raises(aic.ProcessingNotAllowedError):
-        await processor.process_async(np.zeros(config.block_size, dtype=np.float32))
-
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(

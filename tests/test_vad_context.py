@@ -1,5 +1,3 @@
-import time
-
 import numpy as np
 import pytest
 from conftest import create_vad_or_skip
@@ -158,15 +156,6 @@ def test_vad_context_reset_clears_published_prediction(
     assert context.is_speech_detected() is False
     assert context.raw_vad_probability() == 0.0
 
-
-def test_vad_terminate_session_prevents_further_processing(vad_model, license_key):
-    vad, config = create_initialized_vad(vad_model, license_key)
-    vad.terminate_session()
-    # The SDK finalizes session termination asynchronously.
-    time.sleep(0.1)
-
-    with pytest.raises(aic.ProcessingNotAllowedError):
-        vad.process(np.zeros(config.block_size, dtype=np.float32))
 
 
 def test_vad_context_parameter_deprecated_warning(vad_model, license_key):

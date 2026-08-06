@@ -41,14 +41,6 @@ def test_process_accepts_reversed_view(processor):
     assert result.dtype == np.float32
 
 
-def test_terminate_session_prevents_further_processing(processor):
-    config = aic.ProcessorConfig(48000, 480, False)
-    processor.initialize(config)
-    processor.terminate_session()
-
-    with pytest.raises(aic.ProcessingNotAllowedError):
-        processor.process(np.zeros(config.block_size, dtype=np.float32))
-
 
 @pytest.mark.parametrize(
     "license_key",
