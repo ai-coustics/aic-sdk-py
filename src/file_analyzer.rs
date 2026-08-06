@@ -10,11 +10,11 @@ use crate::to_py_err;
 /// FileAnalyzer is a convenience wrapper around a Collector and Analyzer pair for non-real-time
 /// analysis of audio that is already loaded in memory.
 ///
-/// Each call to analyze() configures the collector for mono input with the model's optimal frame
+/// Each call to analyze() configures the collector for mono input with the model's optimal block
 /// size. It analyzes independent five-second windows, advancing the start of each window by
 /// step_samples.
 ///
-/// For streaming or multi-channel analysis, use analyzer_pair() directly.
+/// For streaming analysis, use analyzer_pair() directly.
 ///
 /// Example:
 ///

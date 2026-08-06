@@ -1,6 +1,7 @@
-import aic_sdk as aic
 import numpy as np
 import pytest
+
+import aic_sdk as aic
 
 ANALYSIS_WINDOW_SECONDS = 5
 
@@ -56,7 +57,7 @@ def test_analyze_rejects_zero_sample_rate_or_step(analysis_model, license_key):
 def test_analyze_short_audio_returns_single_padded_result(analysis_model, license_key):
     analyzer = make_file_analyzer_or_skip(analysis_model, license_key)
     sample_rate = analysis_model.get_optimal_sample_rate()
-    step_samples = analysis_model.get_optimal_num_frames(sample_rate)
+    step_samples = analysis_model.get_optimal_block_size(sample_rate)
     audio = np.zeros(sample_rate, dtype=np.float32)  # 1 second, shorter than the window
 
     results = analyzer.analyze(audio, sample_rate, step_samples)
@@ -68,7 +69,7 @@ def test_analyze_short_audio_returns_single_padded_result(analysis_model, licens
 def test_analyze_exact_window_returns_single_result(analysis_model, license_key):
     analyzer = make_file_analyzer_or_skip(analysis_model, license_key)
     sample_rate = analysis_model.get_optimal_sample_rate()
-    step_samples = analysis_model.get_optimal_num_frames(sample_rate)
+    step_samples = analysis_model.get_optimal_block_size(sample_rate)
     window_samples = sample_rate * ANALYSIS_WINDOW_SECONDS
     audio = np.zeros(window_samples, dtype=np.float32)
 
@@ -95,7 +96,7 @@ def test_analyze_long_audio_returns_one_result_per_complete_window(
 ):
     analyzer = make_file_analyzer_or_skip(analysis_model, license_key)
     sample_rate = analysis_model.get_optimal_sample_rate()
-    step_samples = analysis_model.get_optimal_num_frames(sample_rate)
+    step_samples = analysis_model.get_optimal_block_size(sample_rate)
     window_samples = sample_rate * ANALYSIS_WINDOW_SECONDS
     audio = np.zeros(window_samples + 2 * step_samples, dtype=np.float32)
 
@@ -108,7 +109,7 @@ def test_analyze_long_audio_returns_one_result_per_complete_window(
 def test_analyze_ignores_partial_followup_window(analysis_model, license_key):
     analyzer = make_file_analyzer_or_skip(analysis_model, license_key)
     sample_rate = analysis_model.get_optimal_sample_rate()
-    step_samples = analysis_model.get_optimal_num_frames(sample_rate)
+    step_samples = analysis_model.get_optimal_block_size(sample_rate)
     window_samples = sample_rate * ANALYSIS_WINDOW_SECONDS
     audio = np.zeros(window_samples + step_samples - 1, dtype=np.float32)
 

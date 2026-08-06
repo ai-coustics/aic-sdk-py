@@ -14,6 +14,7 @@ mod otel_config;
 mod processor;
 mod processor_async;
 mod vad;
+mod vad_async;
 
 // Re-export the to_py_err function for use in other modules
 pub(crate) use error::to_py_err;
@@ -45,7 +46,7 @@ fn get_compatible_model_version() -> u32 {
     aic_sdk::get_compatible_model_version()
 }
 
-#[gen_stub_pyfunction(module = "aic_sdk")]
+// Internal integration hook: available at runtime but intentionally omitted from public stubs.
 #[pyfunction]
 fn set_sdk_id(id: u32) {
     // SAFETY:
@@ -150,6 +151,8 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<processor_async::ProcessorAsync>()?;
     m.add_class::<vad::VadParameter>()?;
     m.add_class::<vad::VadContext>()?;
+    m.add_class::<vad::Vad>()?;
+    m.add_class::<vad_async::VadAsync>()?;
     m.add_class::<analyzer::AnalysisResult>()?;
     m.add_class::<analyzer::Collector>()?;
     m.add_class::<analyzer::Analyzer>()?;
@@ -157,10 +160,10 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Register custom exception classes
     m.add_class::<error::ParameterOutOfRangeError>()?;
-    m.add_class::<error::ModelNotInitializedError>()?;
+    m.add_class::<error::NotInitializedError>()?;
     m.add_class::<error::AudioConfigUnsupportedError>()?;
     m.add_class::<error::AudioConfigMismatchError>()?;
-    m.add_class::<error::EnhancementNotAllowedError>()?;
+    m.add_class::<error::ProcessingNotAllowedError>()?;
     m.add_class::<error::InternalError>()?;
     m.add_class::<error::ParameterFixedError>()?;
     m.add_class::<error::LicenseFormatInvalidError>()?;
@@ -169,7 +172,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<error::ModelInvalidError>()?;
     m.add_class::<error::ModelVersionUnsupportedError>()?;
     m.add_class::<error::ModelTypeUnsupportedError>()?;
-    m.add_class::<error::ModelFilePathInvalidError>()?;
+    m.add_class::<error::FilePathInvalidError>()?;
     m.add_class::<error::FileSystemError>()?;
     m.add_class::<error::ModelDataUnalignedError>()?;
     m.add_class::<error::ModelDownloadError>()?;

@@ -6,12 +6,12 @@ import aic_sdk as aic
 
 
 @pytest.mark.asyncio
-async def test_real_sdk_sequential_processing_async(processor_async):
-    """Test async processing with stereo audio."""
-    config = aic.ProcessorConfig(48000, 2, 480, False)
+async def test_real_sdk_processing_async(processor_async):
+    """Test async processing with mono audio."""
+    config = aic.ProcessorConfig(48000, 480, False)
     await processor_async.initialize_async(config)
 
     frames = 480
-    buffer = make_sine_noise(2, frames)
-    out = await processor_async.process_async(buffer)
+    audio_block = make_sine_noise(frames)
+    out = await processor_async.process_async(audio_block)
     assert np.isfinite(out).all()

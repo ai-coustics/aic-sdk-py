@@ -12,8 +12,8 @@ uvx maturin develop
 The example scripts use the published `aic-sdk` package by default. To run them with the local build, use `--with` to override:
 
 ```bash
-uv run --with "aic-sdk @ ." examples/basic.py
-uv run --with "aic-sdk @ ." examples/basic_async.py
+uv run --with "aic-sdk @ ." examples/enhancement.py
+uv run --with "aic-sdk @ ." examples/enhancement_async.py
 ```
 
 ### File Enhancement Example
@@ -25,7 +25,7 @@ The `enhance_files.py` example requires additional dependencies (numpy, soundfil
 export AIC_SDK_LICENSE="your-license-key"
 
 # Run the example
-uv run --with "aic-sdk @ ." examples/enhance_files.py input.wav output.wav --strength 100 --model quail-vf-2.1-s-16khz
+uv run --with "aic-sdk @ ." examples/enhance_files.py input.wav --enhancement-level 1.0 --model quail-vf-2.2-s-16khz --output-dir out
 ```
 
 ## Build

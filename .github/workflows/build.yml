@@ -72,5 +72,5 @@ jobs:
             python=".venv-$version/Scripts/python.exe"
           fi
 
-          "$python" examples/basic.py
-          "$python" examples/basic_async.py
+          "$python" examples/enhancement.py
+          "$python" examples/enhancement_async.py

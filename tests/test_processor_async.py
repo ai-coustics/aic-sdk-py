@@ -2,8 +2,9 @@ import asyncio
 import os
 
 import numpy as np
-import aic_sdk as aic
 import pytest
+
+import aic_sdk as aic
 
 
 @pytest.mark.asyncio
@@ -20,8 +21,8 @@ async def test_initialize_async(model):
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
 
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    await processor.initialize_async(config)
+    config = aic.ProcessorConfig(48000, 480, False)
+    assert await processor.initialize_async(config) is None
 
     # Verify sync getters work
     assert model.get_optimal_sample_rate() == 16000
@@ -33,36 +34,38 @@ async def test_process_async_with_numpy(model):
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
 
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     await processor.initialize_async(config)
 
-    # Test with numpy array (2D: channels × frames)
-    audio = np.zeros((1, 480), dtype=np.float32, order="F")
+    # Test with a 1D mono numpy array
+    audio = np.zeros(480, dtype=np.float32)
     result = await processor.process_async(audio)
 
     assert isinstance(result, np.ndarray)
-    assert result.shape == (1, 480)
+    assert result.shape == (480,)
     assert result.dtype == np.float32
     assert result.flags["C_CONTIGUOUS"] is True
 
 
 @pytest.mark.asyncio
 async def test_concurrent_processing(model):
-    """Test concurrent processing of multiple buffers"""
+    """Test concurrent processing of multiple blocks"""
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
 
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     await processor.initialize_async(config)
 
-    # Process 4 mono buffers concurrently (2D arrays: channels × frames)
-    buffers = [np.zeros((1, 480), dtype=np.float32, order="F") for _ in range(4)]
+    # Process 4 mono blocks concurrently
+    blocks = [np.zeros(480, dtype=np.float32) for _ in range(4)]
 
-    results = await asyncio.gather(*[processor.process_async(buf) for buf in buffers])
+    results = await asyncio.gather(
+        *[processor.process_async(block) for block in blocks]
+    )
 
     assert len(results) == 4
     assert all(isinstance(r, np.ndarray) for r in results)
-    assert all(r.shape == (1, 480) for r in results)
+    assert all(r.shape == (480,) for r in results)
     assert all(r.dtype == np.float32 for r in results)
 
 
@@ -72,7 +75,7 @@ async def test_non_blocking(model):
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
 
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     await processor.initialize_async(config)
 
     async def event_loop_check():
@@ -80,8 +83,7 @@ async def test_non_blocking(model):
         await asyncio.sleep(0.001)
         return "event_loop_responsive"
 
-    # Create 2D array: (1 channel, 480 frames)
-    audio = np.zeros((1, 480), dtype=np.float32, order="F")
+    audio = np.zeros(480, dtype=np.float32)
 
     # Both should complete without blocking
     results = await asyncio.gather(
@@ -98,17 +100,17 @@ async def test_context_methods_work(model):
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
 
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     await processor.initialize_async(config)
 
     rate = model.get_optimal_sample_rate()
     assert rate == 16000
 
-    frames = model.get_optimal_num_frames(16000)
+    frames = model.get_optimal_block_size(16000)
     assert frames == 240
 
-    proc_ctx = processor.get_processor_context()
-    delay = proc_ctx.get_output_delay()
+    proc_ctx = processor.get_context()
+    delay = proc_ctx.get_audio_delay()
     assert delay >= 0
 
     # Test parameter get/set
@@ -119,57 +121,53 @@ async def test_context_methods_work(model):
 
 @pytest.mark.asyncio
 async def test_process_async_mono(model):
-    """Test async process_async method with mono audio (1 channel)"""
+    """Test async process_async method with mono audio"""
     license_key = os.environ["AIC_SDK_LICENSE"]
     processor = aic.ProcessorAsync(model, license_key)
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     await processor.initialize_async(config)
 
-    # Create 2D array: (1 channel, 480 frames)
-    audio = np.zeros((1, 480), dtype=np.float32, order="F")
+    audio = np.zeros(480, dtype=np.float32)
     result = await processor.process_async(audio)
 
     assert isinstance(result, np.ndarray)
-    assert result.shape == (1, 480)
+    assert result.shape == (480,)
     assert result.dtype == np.float32
     assert result.flags["C_CONTIGUOUS"] is True
 
 
 @pytest.mark.asyncio
-async def test_process_async_stereo(model):
-    """Test async process_async method with stereo audio (2 channels)"""
+async def test_process_async_accepts_reversed_view(model):
+    """A reversed (negative-stride) 1D view must be normalized before processing.
+
+    Unlike the sync path, a missed normalization here wouldn't panic -- it would
+    silently process samples in the wrong order, since into_raw_vec_and_offset()
+    doesn't check layout at all. Shape/dtype checks alone can't catch that: a
+    misordered block still comes back with the right shape and dtype. We need
+    value equality against the same logical samples processed from a contiguous
+    array to actually detect a wrong-order regression.
+    """
     license_key = os.environ["AIC_SDK_LICENSE"]
-    processor = aic.ProcessorAsync(model, license_key)
-    config = aic.ProcessorConfig(48000, 2, 480, False)
-    await processor.initialize_async(config)
+    config = aic.ProcessorConfig(48000, 480, False)
 
-    # Create 2D array: (2 channels, 480 frames)
-    audio = np.zeros((2, 480), dtype=np.float32, order="F")
-    audio[1, :] = 1.0  # Fill second channel with 1s
-    result = await processor.process_async(audio)
+    audio = np.arange(480, dtype=np.float32)[::-1]
+    assert audio.strides[0] < 0  # sanity check: this really is a reversed view
 
-    assert isinstance(result, np.ndarray)
-    assert result.shape == (2, 480)
-    assert result.dtype == np.float32
-    assert result.flags["C_CONTIGUOUS"] is True
+    # Two fresh processors (the processor is stateful) so both start from the
+    # same conditions and only the block's memory layout differs.
+    processor_view = aic.ProcessorAsync(model, license_key)
+    await processor_view.initialize_async(config)
+    result_view = await processor_view.process_async(audio)
 
+    processor_contig = aic.ProcessorAsync(model, license_key)
+    await processor_contig.initialize_async(config)
+    result_contig = await processor_contig.process_async(audio.copy())
 
-@pytest.mark.asyncio
-async def test_process_async_concurrent(model):
-    """Test concurrent processing with process_async"""
-    license_key = os.environ["AIC_SDK_LICENSE"]
-    processor = aic.ProcessorAsync(model, license_key)
-    config = aic.ProcessorConfig(48000, 2, 480, False)
-    await processor.initialize_async(config)
+    assert isinstance(result_view, np.ndarray)
+    assert result_view.shape == (480,)
+    assert result_view.dtype == np.float32
 
-    # Process 4 stereo buffers concurrently
-    buffers = [np.random.randn(2, 480).astype(np.float32) for _ in range(4)]
-    results = await asyncio.gather(*[processor.process_async(buf) for buf in buffers])
-
-    assert len(results) == 4
-    assert all(isinstance(r, np.ndarray) for r in results)
-    assert all(r.shape == (2, 480) for r in results)
-    assert all(r.dtype == np.float32 for r in results)
+    np.testing.assert_array_equal(result_view, result_contig)
 
 
 @pytest.mark.asyncio

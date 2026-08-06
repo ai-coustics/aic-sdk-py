@@ -4,6 +4,218 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 3.0.0 - 2026-08-06
+
+Update to core library version 0.22.0.
+
+This release contains two breaking changes that affect every integration:
+
+- **All audio APIs are mono only.** The multi-channel process/buffer methods are gone.
+- **The VAD is its own class.** VAD runs on dedicated VAD models through `Vad` (and `VadAsync`), and
+  can no longer be derived from a processor.
+
+Both migrations are covered step by step below.
+
+### Breaking Changes
+
+#### Multi-channel support removed
+
+The processor and the analyzer's collector now operate on mono audio only.
+
+All models process mono inputs. Previously the processor mixed all input channels down to mono
+internally, which could lead to surprising results. To prevent misunderstandings, all APIs now take
+exclusively mono inputs.
+
+To process multi-channel audio, downmix to mono before calling `Processor.process()`, or create a
+separate processor instance per channel.
+
+##### What changed
+
+| Before (2.5.0) | Now |
+| --- | --- |
+| `ProcessorConfig(sample_rate, num_channels, num_frames, allow_variable_frames)` | `ProcessorConfig(sample_rate, block_size, variable_block_size)` |
+| `ProcessorConfig.optimal(model, sample_rate, num_channels, num_frames, allow_variable_frames)` | `ProcessorConfig.optimal(model, sample_rate, block_size, variable_block_size)` |
+| `Processor.process(audio)` / `ProcessorAsync.process_async(audio)` with a 2D `(num_channels, num_frames)` array | the same methods with a 1D array of mono samples |
+| `Collector.buffer(audio)` with a 2D `(num_channels, num_frames)` array | `Collector.buffer(audio)` with a 1D array of mono samples |
+| `Model.get_optimal_num_frames(sample_rate)` | `Model.get_optimal_block_size(sample_rate)` |
+
+Naming also became consistent: the configured block length is `block_size` on `ProcessorConfig`, the
+per-call buffer is a 1D `float32` NumPy array of that length on `Processor.process()` and
+`Collector.buffer()`, and the `allow_variable_frames` flag is now `variable_block_size`.
+`ProcessorConfig.num_channels` is gone from the property, the constructor and
+`ProcessorConfig.optimal()`.
+
+##### Before
+
+```python
+config = aic.ProcessorConfig.optimal(model, num_channels=2)
+
+# Stereo in, stereo out. The SDK mixed both channels down to mono internally.
+processor = aic.Processor(model, license_key, config)
+
+audio = np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
+processed = processor.process(audio)
+```
+
+##### After
+
+```python
+config = aic.ProcessorConfig.optimal(model)
+
+processor = aic.Processor(model, license_key, config)
+
+# Downmix to mono yourself, then process a single 1D buffer.
+mono = stereo.mean(axis=0, dtype=np.float32)  # stereo: (2, block_size) float32
+
+processed = processor.process(mono)
+```
+
+If you need per-channel output instead of a downmix, create one processor per channel and call
+`Processor.process()` once per channel with that channel's buffer.
+
+The same applies to the analyzer: downmix multichannel audio before calling `Collector.buffer()`, or
+create a separate collector/analyzer pair per channel.
+
+The OpenTelemetry `audio.channels` metric has been kept for backwards compatibility, but it now
+always reports exactly one channel.
+
+#### VAD moved into its own class, energy-based VAD removed
+
+Voice activity detection is no longer a side effect of enhancement. It is now a first-class type,
+`Vad` (plus `VadAsync`), that runs a dedicated VAD model such as `vad-2.1-xxs-16khz`.
+
+Energy-based VADs, which inferred speech activity from the output level of an enhancement model,
+have been removed. They were an approximation and their accuracy depended on the enhancement model
+in use. A dedicated VAD model is trained for the task and is considerably more accurate.
+
+##### What changed
+
+| Before (2.5.0) | Now |
+| --- | --- |
+| VAD came from a processor: `processor.get_vad_context()` | VAD is standalone: `aic.Vad(model, license_key, config)` → `vad.process(audio)`, then `vad.get_context()` |
+| Any enhancement model provided a VAD (energy-based), VAD models were also loaded into a `Processor` | Only dedicated VAD models are accepted by `Vad` and `VadAsync`; `Processor` and `ProcessorAsync` accept only enhancement and bypass models. Every other model type raises `ModelTypeUnsupportedError` |
+| VAD advanced whenever the processor processed audio | VAD advances on `Vad.process()`, independently of any processor |
+| `VadParameter.Sensitivity` ranged 0.0 - 1.0 on VAD models and 1.0 - 15.0 on energy-based VADs | `VadParameter.Sensitivity` is always a probability threshold, 0.0 - 1.0 |
+| `ProcessorContext.reset()` also cleared VAD state | `ProcessorContext.reset()` resets the processor only, `VadContext.reset()` resets the VAD |
+| `Processor.get_processor_context()` / `ProcessorAsync.get_processor_context()` | `Processor.get_context()` / `ProcessorAsync.get_context()` |
+
+##### Before
+
+```python
+# One model, one processor: enhancement and VAD were coupled.
+processor = aic.Processor(enhancement_model, license_key, config)
+
+vad_ctx = processor.get_vad_context()
+vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 5.0)  # energy threshold
+
+# The VAD updated as a side effect of enhancement.
+processed = processor.process(audio)
+
+print(f"Speech detected: {vad_ctx.is_speech_detected()}")
+```
+
+##### After
+
+```python
+# Load a dedicated VAD model and create a Vad from it.
+vad_model = aic.Model.from_file(aic.Model.download("vad-2.1-xxs-16khz", Path("./models")))
+vad_config = aic.ProcessorConfig.optimal(vad_model)
+
+# Raises ModelTypeUnsupportedError if the model is not a VAD model.
+vad = aic.Vad(vad_model, license_key, vad_config)
+
+vad_ctx = vad.get_context()
+vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 0.8)  # probability
+
+# The VAD is driven explicitly and does not modify the audio.
+vad.process(audio)
+
+print(f"Speech detected: {vad_ctx.is_speech_detected()}")
+```
+
+##### Run the VAD on the original audio
+
+If you use enhancement and VAD together, **feed the VAD the original input audio, not the
+processor's enhanced output.** Run the two objects side by side on the same mono block rather than
+chaining them:
+
+```python
+# Recommended: both objects see the same original input block.
+vad.process(audio)                   # reads the block, does not modify it
+enhanced = processor.process(audio)  # enhances the same original block
+```
+
+`Vad.process()` leaves its input array untouched and returns nothing, so calling it on the same
+buffer before `Processor.process()` is all it takes to keep the VAD on the unprocessed signal.
+
+Enhancement is designed to change the signal, so running the VAD on its output means detecting
+speech in audio that no longer matches what the VAD model expects. It also stacks the processor's
+delay on top of the VAD's own prediction delay, which makes speech decisions harder to align.
+
+##### Delay queries renamed
+
+There is no single "output delay" any more. The processor delays audio, the VAD does not, so the two
+queries are now named after what they actually report:
+
+| Before (2.5.0) | Now | What it means |
+| --- | --- | --- |
+| `ProcessorContext.get_output_delay()` | `ProcessorContext.get_audio_delay()` | An **audio** delay. The enhanced samples leave `Processor.process()` that many samples behind their input. |
+| No VAD-specific query. The VAD was driven by a processor, so its prediction delay was the processor's `ProcessorContext.get_output_delay()`. | `VadContext.get_prediction_delay()` | A **prediction** delay. It is *not* applied to the audio, `Vad.process()` leaves the buffer untouched. It tells you how far behind its own input the published prediction is, so you can line speech decisions up with the audio timeline. |
+
+With both objects fed from the same input block, the two delays are independent of each other:
+
+```python
+audio_delay = proc_ctx.get_audio_delay()
+prediction_delay = vad_ctx.get_prediction_delay()
+
+# The enhanced audio lags the input by audio_delay.
+# The VAD prediction lags the same input by prediction_delay.
+```
+
+`Vad` mirrors the processor's lifecycle and control surface:
+
+- `Vad(model, license_key, config=None, otel_config=None)`, `Vad.initialize()`, `Vad.process()`
+- `Vad.get_context()` for thread-safe control handles
+- `VadContext.reset()`, `VadContext.get_prediction_delay()`, `VadContext.update_bearer_token()`
+- `VadContext.is_speech_detected()`, `VadContext.raw_vad_probability()`,
+  `VadContext.set_parameter()`, `VadContext.get_parameter()`
+
+`VadAsync` provides the matching `initialize_async()` and `process_async()` methods.
+
+See [`vad.py`](examples/vad.py) for a complete example.
+
+#### Renamed error classes
+
+Some error classes are no longer processor-specific, since they are now also raised by the VAD:
+
+| Before (2.5.0) | Now |
+| --- | --- |
+| `ModelNotInitializedError` | `NotInitializedError` |
+| `EnhancementNotAllowedError` | `ProcessingNotAllowedError` |
+| `ModelFilePathInvalidError` | `FilePathInvalidError` |
+
+The numeric values of the underlying error codes are unchanged, so only source-level references need
+updating.
+
+### New Features
+
+There are new explicit session termination APIs. Use these APIs to close telemetry sessions during
+lifecycle events without waiting for the corresponding SDK object to be garbage collected, which is
+useful in integrations where object deallocation may be delayed. After termination the processor and
+VAD may no longer process audio and the analyzer may no longer analyze buffered audio.
+
+- `Processor.terminate_session()`
+- `ProcessorAsync.terminate_session_async()`
+- `Vad.terminate_session()`
+- `VadAsync.terminate_session_async()`
+- `Analyzer.terminate_session()`
+
+### Bug Fixes
+
+- Resetting VAD state through `VadContext.reset()` now immediately clears the published speech
+  detection and raw VAD probability values, so `is_speech_detected()` and `raw_vad_probability()` no
+  longer return stale values from the previous stream after reset.
+
 ## 2.5.0 - 2026-06-23
 
 Update to core library version 0.21.0.

@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 use std::path::PathBuf;
 
-/// High-level wrapper for the ai-coustics audio enhancement model.
+/// High-level wrapper for an ai-coustics model.
 ///
 /// This class provides a safe, Python-friendly interface to the underlying C library.
 /// It handles memory management automatically.
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
 ///     >>> processor = Processor(model, license_key)
-///     >>> config = ProcessorConfig.optimal(model, num_channels=2)
+///     >>> config = ProcessorConfig.optimal(model)
 ///     >>> processor.initialize(config)
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
@@ -23,10 +23,9 @@ pub struct Model {
 #[gen_stub_pymethods]
 #[pymethods]
 impl Model {
-    /// Creates a new audio enhancement model instance from a file.
+    /// Creates a new model instance from a file.
     ///
-    /// Multiple models can be created to process different audio streams simultaneously
-    /// or to switch between different enhancement algorithms during runtime.
+    /// Multiple models can be loaded for enhancement, voice activity detection, or analysis.
     ///
     /// Args:
     ///     path: Path to the model file (.aicmodel). You can download models manually
@@ -93,6 +92,9 @@ impl Model {
 
     /// Downloads a model file asynchronously from the ai-coustics artifact CDN.
     ///
+    /// The network I/O runs on a background blocking task and does not block the caller's
+    /// event loop.
+    ///
     /// This method fetches the model manifest, verifies that the requested model
     /// exists in a version compatible with this library, and downloads the model
     /// file to the specified directory. If the model file already exists, it will not
@@ -103,9 +105,6 @@ impl Model {
     /// to ensure the latest model versions are always used.
     ///
     /// Available models can be browsed at [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io/).
-    ///
-    /// Note:
-    ///     This is a blocking operation that performs network I/O.
     ///
     /// Args:
     ///     model_id: The model identifier (e.g., `"quail-l-16khz"`).
@@ -169,11 +168,10 @@ impl Model {
     ///     the original, maintaining the full frequency spectrum of your input while adding
     ///     the model's noise reduction capabilities to the lower frequencies.
     ///
-    /// Sample rate and optimal frames relationship:
-    ///     When using different sample rates than the model's native rate, the optimal number
-    ///     of frames (returned by get_optimal_num_frames) will change. The model's output
-    ///     delay remains constant regardless of sample rate as long as you use the optimal frame
-    ///     count for that rate.
+    /// Sample rate and optimal block size relationship:
+    ///     When using a different sample rate than the model's native rate, the optimal block
+    ///     size (returned by get_optimal_block_size) changes. The processor's output delay remains
+    ///     constant as long as you use the optimal block size for that rate.
     ///
     /// Recommendation:
     ///     For maximum enhancement quality across the full frequency spectrum, match your
@@ -189,32 +187,26 @@ impl Model {
         self.inner.optimal_sample_rate()
     }
 
-    /// Retrieves the optimal number of frames for the model at a given sample rate.
+    /// Retrieves the optimal block size for the model at a given sample rate.
     ///
-    /// Using the optimal number of frames minimizes latency by avoiding internal buffering.
+    /// Using the optimal block size minimizes latency by avoiding internal buffering.
+    /// A non-optimal block size adds buffering latency on top of the model's base delay.
     ///
-    /// When you use a different frame count than the optimal value, the model will
-    /// introduce additional buffering latency on top of its base processing delay.
-    ///
-    /// The optimal frame count varies based on the sample rate. Each model operates on a
-    /// fixed time window duration, so the required number of frames changes with sample rate.
-    /// For example, a model designed for 10 ms processing windows requires 480 frames at
-    /// 48 kHz, but only 160 frames at 16 kHz to capture the same duration of audio.
-    ///
-    /// Call this function with your intended sample rate before calling
-    /// Processor.initialize() to determine the best frame count for minimal latency.
+    /// The optimal block size varies with sample rate because each model operates on a fixed
+    /// time window. For example, a 10 ms window is 480 samples at 48 kHz and 160 samples at
+    /// 16 kHz.
     ///
     /// Args:
-    ///     sample_rate: The sample rate in Hz for which to calculate the optimal frame count
+    ///     sample_rate: Sample rate in Hz for which to calculate the optimal block size
     ///
     /// Returns:
-    ///     The optimal frame count for the given sample rate.
+    ///     The optimal block size for the given sample rate.
     ///
     /// Example:
     ///     >>> sample_rate = model.get_optimal_sample_rate()
-    ///     >>> optimal_frames = model.get_optimal_num_frames(sample_rate)
-    ///     >>> print(f"Optimal frame count: {optimal_frames}")
-    fn get_optimal_num_frames(&self, sample_rate: u32) -> usize {
-        self.inner.optimal_num_frames(sample_rate)
+    ///     >>> block_size = model.get_optimal_block_size(sample_rate)
+    ///     >>> print(f"Optimal block size: {block_size}")
+    fn get_optimal_block_size(&self, sample_rate: u32) -> usize {
+        self.inner.optimal_block_size(sample_rate)
     }
 }

@@ -4,8 +4,8 @@
 #     "aic-sdk",
 # ]
 # ///
-# To run with a local build instead: uv run --with "aic-sdk @ ." examples/basic_async.py
-"""Async example usage of aic-sdk."""
+# To run with a local build instead: uv run --with "aic-sdk @ ." examples/enhancement_async.py
+"""Asynchronous speech enhancement example using aic-sdk."""
 
 import asyncio
 import os
@@ -27,7 +27,7 @@ async def main():
     print("\nDownloading and loading model...")
 
     # Download the model asynchronously (using pathlib.Path for the download directory)
-    model_path = await aic.Model.download_async("rook-s-48khz", Path("./models"))
+    model_path = await aic.Model.download_async("rook-s-48khz", Path.cwd() / "models")
     print(f"  Model downloaded to: {model_path}")
 
     # Load the model
@@ -35,45 +35,40 @@ async def main():
     print("  Model loaded successfully")
     print(f"  Model ID: {model.get_id()}")
     print(f"  Model optimal sample rate: {model.get_optimal_sample_rate()} Hz")
-    print(f"  Model optimal num frames: {model.get_optimal_num_frames(48000)}")
+    print(f"  Model optimal block size: {model.get_optimal_block_size(48000)}")
 
-    # Create optimal configuration for stereo
-    config = aic.ProcessorConfig.optimal(model, num_channels=2)
+    # Create optimal configuration
+    config = aic.ProcessorConfig.optimal(model)
     print(f"\nOptimal configuration: {config}")
 
     # Create and initialize async processor in one step
     processor = aic.ProcessorAsync(model, license_key, config)
     print(f"\nProcessor created and initialized: {config}")
 
-    # Create processor and VAD contexts
-    proc_ctx = processor.get_processor_context()
-    vad_ctx = processor.get_vad_context()
-    print(f"  Output delay: {proc_ctx.get_output_delay()} samples")
+    # Create processor context
+    proc_ctx = processor.get_context()
+    print(f"  Audio delay: {proc_ctx.get_audio_delay()} samples")
 
-    # Process stereo audio
-    audio_buffer = np.zeros((config.num_channels, config.num_frames), dtype=np.float32)
-    audio_buffer[0, :100] = 0.5  # Channel 0
-    audio_buffer[1, :100] = 0.3  # Channel 1
+    # Process mono audio
+    audio_block = np.zeros(config.block_size, dtype=np.float32)
+    audio_block[:100] = 0.5
 
     print("\nBefore processing:")
-    print(f"  Channel 0 first 5: {audio_buffer[0, :5]}")
-    print(f"  Channel 1 first 5: {audio_buffer[1, :5]}")
+    print(f"  First 5: {audio_block[:5]}")
 
     # Process asynchronously
-    audio_processed = await processor.process_async(audio_buffer)
+    audio_processed = await processor.process_async(audio_block)
 
     print("\nAfter processing:")
-    print(f"  Channel 0 first 5: {audio_processed[0, :5]}")
-    print(f"  Channel 1 first 5: {audio_processed[1, :5]}")
+    print(f"  First 5: {audio_processed[:5]}")
 
     # Concurrent processing example
-    print("\nProcessing 4 stereo buffers concurrently...")
-    buffers = [
-        np.random.randn(config.num_channels, config.num_frames).astype(np.float32)
-        for _ in range(4)
-    ]
-    results = await asyncio.gather(*[processor.process_async(buf) for buf in buffers])
-    print(f"  Processed {len(results)} buffers concurrently")
+    print("\nProcessing 4 mono blocks concurrently...")
+    blocks = [np.random.randn(config.block_size).astype(np.float32) for _ in range(4)]
+    results = await asyncio.gather(
+        *[processor.process_async(block) for block in blocks]
+    )
+    print(f"  Processed {len(results)} blocks concurrently")
     print(f"  Each result shape: {results[0].shape}")
 
     # Test parameter adjustment
@@ -82,18 +77,17 @@ async def main():
     level = proc_ctx.get_parameter(aic.ProcessorParameter.EnhancementLevel)
     print(f"  Enhancement level set to: {level:.2f}")
 
-    # Test VAD
-    print("\nVoice Activity Detection...")
-    vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
-    print(
-        f"  VAD sensitivity: {vad_ctx.get_parameter(aic.VadParameter.Sensitivity):.2f}"
-    )
-    print(f"  Speech detected: {vad_ctx.is_speech_detected()}")
-
     # Reset processor state
     print("\nReset processor context...")
     proc_ctx.reset()
     print("  Processor state reset")
+
+    # End the telemetry session explicitly instead of waiting for the processor to be collected
+    print("\nTerminate telemetry session...")
+    await processor.terminate_session_async()
+    print("  Processor telemetry session terminated")
+
+    # Voice activity detection uses a separate VadAsync; see examples/vad.py.
 
 
 if __name__ == "__main__":

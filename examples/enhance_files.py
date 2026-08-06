@@ -20,44 +20,35 @@ from tqdm import tqdm
 import aic_sdk as aic
 
 
-def _load_audio_original(input_wav: str) -> tuple[np.ndarray, int, int]:
-    """Load audio with original sample rate and channels, return numpy ndarray, sample_rate, and num_channels."""
-    # Use soundfile to preserve original properties
-    audio, sample_rate = sf.read(input_wav, dtype="float32")
-
-    # audio is (frames,) for mono or (frames, channels) for multi-channel
-    if audio.ndim == 1:
-        # Mono audio: reshape to (1, frames)
-        audio = audio.reshape(1, -1)
-        num_channels = 1
-    else:
-        # Multi-channel: transpose from (frames, channels) to (channels, frames)
-        audio = audio.T
-        num_channels = audio.shape[0]
-
-    return audio, sample_rate, num_channels
+def _load_audio_original(input_wav: str) -> tuple[np.ndarray, int]:
+    """Load audio and downmix to mono float32, since the processor only supports mono audio."""
+    # always_2d gives (frames, channels), including a singleton channel for mono files.
+    audio, sample_rate = sf.read(input_wav, dtype="float32", always_2d=True)
+    return audio.mean(axis=1), sample_rate
 
 
 async def process_chunk(
     processor: aic.ProcessorAsync,
     chunk: np.ndarray,
-    buffer_size: int,
-    num_channels: int,
+    block_size: int,
 ) -> np.ndarray:
     """Process a single audio chunk with the given processor."""
-    valid_samples = chunk.shape[1]
+    if chunk.ndim != 1:
+        raise ValueError(f"Expected mono audio, got shape {chunk.shape}")
 
-    # Create and zero-initialize process buffer
-    process_buffer = np.zeros((num_channels, buffer_size), dtype=np.float32)
+    valid_samples = chunk.shape[0]
 
-    # Copy input data into the buffer
-    process_buffer[:, :valid_samples] = chunk
+    # Create and zero-initialize the processing block
+    process_block = np.zeros(block_size, dtype=np.float32)
+
+    # Copy input data into the block
+    process_block[:valid_samples] = chunk
 
     # Process the chunk
-    processed_chunk = await processor.process_async(process_buffer)
+    processed_chunk = await processor.process_async(process_block)
 
     # Return only the valid part
-    return processed_chunk[:, :valid_samples]
+    return processed_chunk[:valid_samples]
 
 
 async def process_single_file(
@@ -69,34 +60,32 @@ async def process_single_file(
     processor_idx: int,
 ) -> None:
     """Process a single file with a reusable processor."""
-    # Load Audio with original properties
-    audio_input, sample_rate, num_channels = _load_audio_original(input_wav)
+    # Load audio, downmixed to mono (the processor only supports mono audio)
+    audio_input, sample_rate = _load_audio_original(input_wav)
 
-    # Create optimal config using original number of channels and sample rate
-    config = aic.ProcessorConfig.optimal(
-        model, sample_rate=sample_rate, num_channels=num_channels
-    )
+    # Create optimal config using the file's original sample rate
+    config = aic.ProcessorConfig.optimal(model, sample_rate=sample_rate)
 
     # Re-initialize the processor with the new config for this file
     await processor.initialize_async(config)
-    proc_ctx = processor.get_processor_context()
+    proc_ctx = processor.get_context()
 
     # Reset processor state to clear any previous file's data
     proc_ctx.reset()
 
-    # Process two zero buffers before the actual file to test state dependency
-    zero_buffer = np.zeros((num_channels, config.num_frames), dtype=np.float32)
-    await processor.process_async(zero_buffer)
-    await processor.process_async(zero_buffer)
+    # Process two zero blocks before the actual file to test state dependency
+    zero_block = np.zeros(config.block_size, dtype=np.float32)
+    await processor.process_async(zero_block)
+    await processor.process_async(zero_block)
 
-    latency_samples = proc_ctx.get_output_delay()
+    latency_samples = proc_ctx.get_audio_delay()
 
-    # Pad the input audio with zeros at the end to account for the output delay
-    padding = np.zeros((num_channels, latency_samples), dtype=np.float32)
-    audio_input = np.concatenate([audio_input, padding], axis=1)
+    # Pad the input audio with zeros at the end to account for the audio delay
+    padding = np.zeros(latency_samples, dtype=np.float32)
+    audio_input = np.concatenate([audio_input, padding])
 
-    num_frames_model = config.num_frames
-    num_frames_audio_input = audio_input.shape[1]
+    model_block_size = config.block_size
+    audio_input_size = audio_input.shape[0]
 
     # Set Enhancement Parameter if provided
     if enhancement_level is not None:
@@ -113,32 +102,26 @@ async def process_single_file(
     output = np.zeros_like(audio_input)
 
     # Process the entire file sequentially with this processor
-    num_chunks = (num_frames_audio_input + num_frames_model - 1) // num_frames_model
+    num_chunks = (audio_input_size + model_block_size - 1) // model_block_size
 
     with tqdm(
         total=num_chunks,
         desc=f"Processing {os.path.basename(input_wav)}",
         position=processor_idx,
     ) as pbar:
-        for chunk_start in range(0, num_frames_audio_input, num_frames_model):
-            chunk_end = min(chunk_start + num_frames_model, num_frames_audio_input)
-            chunk = audio_input[:, chunk_start:chunk_end]
+        for chunk_start in range(0, audio_input_size, model_block_size):
+            chunk = audio_input[chunk_start : chunk_start + model_block_size]
 
             # Process the chunk
-            processed = await process_chunk(
-                processor,
-                chunk,
-                num_frames_model,
-                config.num_channels,
-            )
+            processed = await process_chunk(processor, chunk, model_block_size)
 
-            output[:, chunk_start : chunk_start + processed.shape[1]] = processed
+            output[chunk_start : chunk_start + processed.shape[0]] = processed
             pbar.update(1)
 
     # Remove the delay from the beginning of the output
-    output = output[:, latency_samples:]
+    output = output[latency_samples:]
 
-    sf.write(output_wav, output.T, sample_rate)
+    sf.write(output_wav, output, sample_rate)
 
 
 async def process_multiple_files(
@@ -162,9 +145,9 @@ async def process_multiple_files(
     ]
 
     # Get the enhancement level (either provided or model default)
-    temp_config = aic.ProcessorConfig.optimal(model, num_channels=1)
+    temp_config = aic.ProcessorConfig.optimal(model)
     await processors[0].initialize_async(temp_config)
-    temp_ctx = processors[0].get_processor_context()
+    temp_ctx = processors[0].get_context()
 
     # Validate and get the actual enhancement level that will be used
     if enhancement_level is not None:

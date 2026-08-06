@@ -2,66 +2,50 @@ import aic_sdk as aic
 
 
 def test_processor_config_init_sets_sample_rate():
-    config = aic.ProcessorConfig(48000, 2, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     assert config.sample_rate == 48000
 
 
-def test_processor_config_init_sets_num_channels():
-    config = aic.ProcessorConfig(48000, 2, 480, False)
-    assert config.num_channels == 2
+def test_processor_config_init_sets_block_size():
+    config = aic.ProcessorConfig(48000, 480, False)
+    assert config.block_size == 480
 
 
-def test_processor_config_init_sets_num_frames():
-    config = aic.ProcessorConfig(48000, 2, 480, False)
-    assert config.num_frames == 480
+def test_processor_config_init_sets_variable_block_size():
+    config = aic.ProcessorConfig(48000, 480, True)
+    assert config.variable_block_size is True
 
 
-def test_processor_config_init_sets_allow_variable_frames():
-    config = aic.ProcessorConfig(48000, 2, 480, True)
-    assert config.allow_variable_frames is True
-
-
-def test_processor_config_allow_variable_frames_defaults_to_false():
-    config = aic.ProcessorConfig(48000, 1, 480)
-    assert config.allow_variable_frames is False
+def test_processor_config_variable_block_size_defaults_to_false():
+    config = aic.ProcessorConfig(48000, 480)
+    assert config.variable_block_size is False
 
 
 def test_processor_config_sample_rate_is_mutable():
-    config = aic.ProcessorConfig(48000, 1, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     config.sample_rate = 16000
     assert config.sample_rate == 16000
 
 
-def test_processor_config_num_channels_is_mutable():
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    config.num_channels = 2
-    assert config.num_channels == 2
+def test_processor_config_block_size_is_mutable():
+    config = aic.ProcessorConfig(48000, 480, False)
+    config.block_size = 960
+    assert config.block_size == 960
 
 
-def test_processor_config_num_frames_is_mutable():
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    config.num_frames = 960
-    assert config.num_frames == 960
-
-
-def test_processor_config_allow_variable_frames_is_mutable():
-    config = aic.ProcessorConfig(48000, 1, 480, False)
-    config.allow_variable_frames = True
-    assert config.allow_variable_frames is True
+def test_processor_config_variable_block_size_is_mutable():
+    config = aic.ProcessorConfig(48000, 480, False)
+    config.variable_block_size = True
+    assert config.variable_block_size is True
 
 
 def test_processor_config_repr_contains_sample_rate():
-    config = aic.ProcessorConfig(48000, 2, 480, False)
+    config = aic.ProcessorConfig(48000, 480, False)
     assert "48000" in repr(config)
 
 
-def test_processor_config_repr_contains_num_channels():
-    config = aic.ProcessorConfig(48000, 2, 480, False)
-    assert "2" in repr(config)
-
-
-def test_processor_config_repr_contains_num_frames():
-    config = aic.ProcessorConfig(48000, 2, 480, False)
+def test_processor_config_repr_contains_block_size():
+    config = aic.ProcessorConfig(48000, 480, False)
     assert "480" in repr(config)
 
 
@@ -75,27 +59,17 @@ def test_processor_config_optimal_uses_model_sample_rate(model):
     assert config.sample_rate == model.get_optimal_sample_rate()
 
 
-def test_processor_config_optimal_uses_model_num_frames(model):
+def test_processor_config_optimal_uses_model_block_size(model):
     config = aic.ProcessorConfig.optimal(model)
-    expected_frames = model.get_optimal_num_frames(config.sample_rate)
-    assert config.num_frames == expected_frames
+    expected_block_size = model.get_optimal_block_size(config.sample_rate)
+    assert config.block_size == expected_block_size
 
 
-def test_processor_config_optimal_defaults_to_mono(model):
+def test_processor_config_optimal_defaults_variable_block_size_false(model):
     config = aic.ProcessorConfig.optimal(model)
-    assert config.num_channels == 1
+    assert config.variable_block_size is False
 
 
-def test_processor_config_optimal_accepts_num_channels(model):
-    config = aic.ProcessorConfig.optimal(model, num_channels=2)
-    assert config.num_channels == 2
-
-
-def test_processor_config_optimal_defaults_allow_variable_frames_false(model):
-    config = aic.ProcessorConfig.optimal(model)
-    assert config.allow_variable_frames is False
-
-
-def test_processor_config_optimal_accepts_allow_variable_frames(model):
-    config = aic.ProcessorConfig.optimal(model, allow_variable_frames=True)
-    assert config.allow_variable_frames is True
+def test_processor_config_optimal_accepts_variable_block_size(model):
+    config = aic.ProcessorConfig.optimal(model, variable_block_size=True)
+    assert config.variable_block_size is True

@@ -47,7 +47,7 @@ def main():
     samples, sample_rate = load_mono_audio(audio_path)
 
     # Download and load the analysis model.
-    model_path = aic.Model.download(MODEL, Path("./models"))
+    model_path = aic.Model.download(MODEL, Path.cwd() / "models")
     model = aic.Model.from_file(model_path)
     print(f"Model loaded from {model_path}")
     print(

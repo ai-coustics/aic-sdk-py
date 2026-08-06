@@ -1,67 +1,68 @@
+use crate::model::Model;
+use crate::otel_config::OtelConfig;
+use crate::processor::ProcessorConfig;
 use crate::to_py_err;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_pymethods};
 
-/// Configurable parameters for Voice Activity Detection.
+/// Configurable parameters for voice activity detection.
 #[gen_stub_pyclass_enum]
 #[pyclass(module = "aic_sdk", eq, eq_int)]
 #[derive(Clone, PartialEq)]
 pub enum VadParameter {
-    /// Controls for how long the VAD continues to detect speech after the audio signal
-    /// no longer contains speech.
+    /// Controls how long the VAD continues to detect speech after the audio signal no longer
+    /// contains speech.
     ///
     /// This affects the stability of speech detected -> not detected transitions.
     ///
-    /// The VAD reports speech detected if the audio signal contained speech in at least 50%
-    /// of the frames processed in the last speech_hold_duration * 2 seconds.
+    /// The VAD reports speech detected if the audio signal contained speech in at least 50% of the
+    /// blocks processed in the last `speech_hold_duration * 2` seconds.
     ///
-    /// For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting speech
-    /// in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming the
-    /// VAD does not detect speech again during that period. If a few frames of speech are detected
-    /// during that period, those frames will be included in the 50% calculation, which will extend
-    /// the speech detection period until the 50% threshold is no longer met.
+    /// For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting
+    /// speech in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming
+    /// the VAD does not detect speech again during that period. If a few blocks of speech are
+    /// detected during that period, those blocks will be included in the 50% calculation, which
+    /// will extend the speech detection period until the 50% threshold is no longer met.
     ///
     /// Note:
-    ///     The VAD returns a value per processed buffer, so this duration is rounded
-    ///     to the closest model window length. For example, if the model has a processing window
-    ///     length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
-    ///     Because of this, this parameter may return a different value than the one it was last set to.
+    ///     The VAD returns a value per processed audio block, so this duration is rounded to the
+    ///     closest model window length. For example, if the model has a processing window length of
+    ///     10 ms, the VAD will round up/down to the closest multiple of 10 ms. Because of this, this
+    ///     parameter may return a different value than the one it was last set to.
     ///
-    /// Range: 0.0 to 300x model window length (value in seconds)
+    /// Range: 0.0 to 300x model window length (seconds)
     ///
-    /// Default: 0.03 (30 ms)
+    /// Default: model-specific
     SpeechHoldDuration,
-    /// Controls the sensitivity (energy threshold) of the VAD.
+    /// Probability threshold used to decide whether speech is detected.
     ///
-    /// This value is used by the VAD as the threshold a speech audio signal's energy
-    /// has to exceed in order to be considered speech.
+    /// Dedicated VAD models output a speech probability for each processed audio block. A value
+    /// above this threshold triggers a speech-detected decision.
     ///
-    /// Range: 1.0 to 15.0
+    /// Range: 0.0 to 1.0
     ///
-    /// Formula: Energy threshold = 10 ^ (-sensitivity)
-    ///
-    /// Default: 6.0
+    /// Default: model-specific
     Sensitivity,
-    /// Controls for how long speech needs to be present in the audio signal before
-    /// the VAD considers it speech.
+    /// Controls how long speech needs to be present in the audio signal before the VAD considers it
+    /// speech.
     ///
     /// This affects the stability of speech not detected -> detected transitions.
     ///
     /// Note:
-    ///     The VAD returns a value per processed buffer, so this duration is rounded
-    ///     to the closest model window length. For example, if the model has a processing window
-    ///     length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
-    ///     Because of this, this parameter may return a different value than the one it was last set to.
+    ///     The VAD returns a value per processed audio block, so this duration is rounded to the
+    ///     closest model window length. For example, if the model has a processing window length of
+    ///     10 ms, the VAD will round up/down to the closest multiple of 10 ms. Because of this, this
+    ///     parameter may return a different value than the one it was last set to.
     ///
-    /// Range: 0.0 to 1.0 (value in seconds)
+    /// Range: 0.0 to 1.0 (seconds)
     ///
-    /// Default: 0.0
+    /// Default: model-specific
     MinimumSpeechDuration,
 }
 
 impl From<VadParameter> for aic_sdk::VadParameter {
-    fn from(val: VadParameter) -> Self {
-        match val {
+    fn from(value: VadParameter) -> Self {
+        match value {
             VadParameter::SpeechHoldDuration => aic_sdk::VadParameter::SpeechHoldDuration,
             VadParameter::Sensitivity => aic_sdk::VadParameter::Sensitivity,
             VadParameter::MinimumSpeechDuration => aic_sdk::VadParameter::MinimumSpeechDuration,
@@ -69,25 +70,143 @@ impl From<VadParameter> for aic_sdk::VadParameter {
     }
 }
 
-/// Voice Activity Detector backed by an ai-coustics speech enhancement model.
+/// Voice activity detector backed by a dedicated VAD model.
 ///
-/// The VAD works automatically using the enhanced audio output of the model
-/// that created the VAD.
+/// Feed mono audio to process() and read predictions through get_context(). The audio is not
+/// modified; processing only updates the detector's prediction.
 ///
-/// Important:
-///     - The latency of the VAD prediction is equal to the backing model's processing
-///       latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
-///       input by that many samples, so align speech decisions to the input timeline using
-///       that delay.
-///     - If the backing model stops being processed, the VAD will not update its speech detection prediction.
+/// When enhancement and VAD run together, feed the VAD the original input audio, not the
+/// enhanced output of Processor.process(). Run both on the same block instead of chaining them:
 ///
-/// Created via Processor.get_vad_context().
+///     >>> vad.process(audio)                   # reads the block, does not modify it
+///     >>> enhanced = processor.process(audio)  # enhances the same original block
 ///
 /// Example:
-///     >>> vad = processor.get_vad_context()
-///     >>> vad.set_parameter(VadParameter.Sensitivity, 5.0)
-///     >>> if vad.is_speech_detected():
-///     ...     print("Speech detected!")
+///     >>> model = Model.from_file("/path/to/vad_model.aicmodel")
+///     >>> config = ProcessorConfig.optimal(model)
+///     >>> vad = Vad(model, license_key, config)
+///     >>> vad_context = vad.get_context()
+///     >>> audio = np.zeros(config.block_size, dtype=np.float32)
+///     >>> vad.process(audio)
+///     >>> print(vad_context.is_speech_detected())
+#[gen_stub_pyclass]
+#[pyclass(module = "aic_sdk")]
+pub struct Vad {
+    pub(crate) vad: aic_sdk::Vad<'static>,
+}
+
+#[gen_stub_pymethods]
+#[pymethods]
+impl Vad {
+    /// Creates a voice activity detector.
+    ///
+    /// The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
+    /// raise ModelTypeUnsupportedError.
+    ///
+    /// If config is provided, the VAD is initialized immediately. Otherwise, call initialize()
+    /// before processing audio.
+    ///
+    /// Args:
+    ///     model: A loaded dedicated VAD model
+    ///     license_key: License key for the ai-coustics SDK
+    ///     config: Optional audio configuration
+    ///     otel_config: Optional per-instance OpenTelemetry configuration
+    #[new]
+    #[pyo3(signature = (model, license_key, config=None, otel_config=None))]
+    fn new(
+        model: &Bound<'_, Model>,
+        license_key: &str,
+        config: Option<&ProcessorConfig>,
+        otel_config: Option<&OtelConfig>,
+    ) -> PyResult<Self> {
+        // Identify as the Python wrapper before any SDK object is created. Must stay first: the
+        // `aic_sdk::Vad::new` call below sets the Rust wrapper id; the SDK keeps the first id it
+        // is given, so this one wins.
+        //
+        // SAFETY: This function has no safety requirements.
+        unsafe {
+            aic_sdk::set_sdk_id(3);
+        }
+
+        let mut vad = match otel_config {
+            Some(otel) => {
+                aic_sdk::Vad::with_otel_config(&model.borrow().inner, license_key, &otel.into())
+                    .map_err(to_py_err)?
+            }
+            None => aic_sdk::Vad::new(&model.borrow().inner, license_key).map_err(to_py_err)?,
+        };
+
+        if let Some(config) = config {
+            vad.initialize(&config.into()).map_err(to_py_err)?;
+        }
+
+        Ok(Self { vad })
+    }
+
+    /// Configures the VAD for a sample rate and block size.
+    ///
+    /// For the most frequent prediction updates, use ProcessorConfig.optimal(model).
+    ///
+    /// Args:
+    ///     config: Audio configuration
+    ///
+    /// Warning:
+    ///     This method allocates memory and is not real-time safe.
+    fn initialize(&mut self, config: &ProcessorConfig) -> PyResult<()> {
+        self.vad.initialize(&config.into()).map_err(to_py_err)
+    }
+
+    /// Returns a context for reading predictions and controlling the VAD.
+    fn get_context(&self) -> VadContext {
+        VadContext {
+            inner: self.vad.context(),
+        }
+    }
+
+    /// Terminates the VAD's telemetry session.
+    ///
+    /// The VAD cannot process more audio after this call. The session is also terminated
+    /// automatically when the VAD is destroyed.
+    ///
+    /// Warning:
+    ///     This method may block and is not real-time safe.
+    fn terminate_session(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.vad.terminate_session().map_err(to_py_err))
+    }
+}
+
+// Separate impl block for NumPy methods because NumPy types do not implement PyStubType.
+#[pymethods]
+impl Vad {
+    // Returns None rather than the audio block: the VAD never modifies its input, so handing
+    // back an array would tell the caller nothing they don't already have.
+    pub fn process(
+        &mut self,
+        audio: numpy::PyReadonlyArray1<'_, f32>,
+        py: Python<'_>,
+    ) -> PyResult<()> {
+        let array = audio.as_array();
+
+        // We release the GIL here so any other Python threads get a chance to run.
+        py.detach(|| {
+            // `Vad::process` only reads the samples, so a contiguous buffer is handed straight
+            // through, avoiding a copy. Only a genuinely strided view needs a normalizing copy.
+            if let Some(slice) = array.as_slice() {
+                self.vad.process(slice)
+            } else {
+                let owned = array.as_standard_layout();
+                self.vad
+                    .process(owned.as_slice().expect("standard layout is contiguous"))
+            }
+            .map_err(to_py_err)
+        })
+    }
+}
+
+/// Thread-safe context for a Vad.
+///
+/// Contexts created by the same Vad reference the same detector. They can be used from any
+/// thread while audio is being processed elsewhere.
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct VadContext {
@@ -97,43 +216,17 @@ pub struct VadContext {
 #[gen_stub_pymethods]
 #[pymethods]
 impl VadContext {
-    /// Returns the VAD's prediction.
+    /// Returns the post-processed VAD prediction.
     ///
-    /// Important:
-    ///     - The latency of the VAD prediction is equal to the backing model's processing
-    ///       latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
-    ///       input by that many samples, so align speech decisions to the input timeline using
-    ///       that delay.
-    ///     - If the backing model stops being processed, the VAD will not update its speech detection prediction.
-    ///
-    /// Returns:
-    ///     True if speech is detected, False otherwise.
+    /// The prediction lags its input by get_prediction_delay() samples. If the backing Vad stops
+    /// being processed, the prediction does not update.
     fn is_speech_detected(&self) -> bool {
         self.inner.is_speech_detected()
     }
 
-    /// Returns the raw prediction of the VAD, without any processing.
+    /// Returns the VAD model's raw speech probability without SDK post-processing.
     ///
-    /// In contrast to the output of is_speech_detected(), the output of this function
-    /// is the model's direct prediction without going through the SDK's VAD
-    /// post-processing (i.e. speech hold duration, sensitivity thresholding, etc.).
-    ///
-    /// This value may be used to build other abstractions on top of this data.
-    ///
-    /// Note:
-    ///     This value is only useful when using a VAD model. When using an energy-based VAD,
-    ///     the raw prediction is set to 1.0 or 0.0 depending on whether is_speech_detected()
-    ///     is true or false.
-    ///
-    /// Important:
-    ///     - The latency of the VAD prediction is equal to the backing model's processing
-    ///       latency, reported by ProcessorContext.get_output_delay(). The prediction lags its
-    ///       input by that many samples, so align speech decisions to the input timeline using
-    ///       that delay.
-    ///     - If the backing model stops being processed, the VAD will not update its prediction.
-    ///
-    /// Returns:
-    ///     The raw VAD probability.
+    /// The prediction lags its input by get_prediction_delay() samples.
     fn raw_vad_probability(&self) -> f32 {
         self.inner.raw_vad_probability()
     }
@@ -142,38 +235,19 @@ impl VadContext {
     ///
     /// Args:
     ///     parameter: Parameter to modify
-    ///     value: New parameter value. See parameter documentation for ranges
-    ///
-    /// Raises:
-    ///     ValueError: If the parameter value is out of range.
-    ///
-    /// Example:
-    ///     >>> vad.set_parameter(VadParameter.SpeechHoldDuration, 0.08)
-    ///     >>> vad.set_parameter(VadParameter.Sensitivity, 5.0)
+    ///     value: New parameter value
     fn set_parameter(&self, parameter: VadParameter, value: f32) -> PyResult<()> {
         self.inner
             .set_parameter(parameter.into(), value)
-            .map_err(to_py_err)?;
-        Ok(())
+            .map_err(to_py_err)
     }
 
     /// Retrieves the current value of a VAD parameter.
-    ///
-    /// Args:
-    ///     parameter: Parameter to query
-    ///
-    /// Returns:
-    ///     The current parameter value.
-    ///
-    /// Example:
-    ///     >>> sensitivity = vad.get_parameter(VadParameter.Sensitivity)
-    ///     >>> print(f"Current sensitivity: {sensitivity}")
     fn get_parameter(&self, parameter: VadParameter) -> PyResult<f32> {
-        let value = self.inner.parameter(parameter.into()).map_err(to_py_err)?;
-        Ok(value)
+        self.inner.parameter(parameter.into()).map_err(to_py_err)
     }
 
-    /// Deprecated: Use get_parameter instead
+    /// Deprecated: Use get_parameter instead.
     #[pyo3(name = "parameter")]
     fn parameter_deprecated(&self, parameter: VadParameter) -> PyResult<f32> {
         Python::attach(|py| {
@@ -188,5 +262,32 @@ impl VadContext {
             Ok::<(), PyErr>(())
         })?;
         self.get_parameter(parameter)
+    }
+
+    /// Returns the total VAD prediction delay in samples.
+    ///
+    /// This includes input reblocking, model processing, and buffering overhead for the current
+    /// configuration. Use it to align speech decisions with the input timeline.
+    ///
+    /// This delay is not applied to the audio: Vad.process() leaves its input untouched. The
+    /// value only describes how far behind its input the published prediction is, and it is
+    /// independent of ProcessorContext.get_audio_delay().
+    fn get_prediction_delay(&self) -> usize {
+        self.inner.prediction_delay()
+    }
+
+    /// Clears the VAD's internal state and published predictions.
+    ///
+    /// The VAD remains initialized. Immediately after reset(), is_speech_detected() is False and
+    /// raw_vad_probability() is 0.0.
+    fn reset(&self) -> PyResult<()> {
+        self.inner.reset().map_err(to_py_err)
+    }
+
+    /// Replaces the bearer token on the running VAD.
+    ///
+    /// Both the original key and new token must be JWTs.
+    fn update_bearer_token(&self, token: &str) -> PyResult<()> {
+        self.inner.update_bearer_token(token).map_err(to_py_err)
     }
 }

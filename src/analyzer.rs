@@ -118,6 +118,10 @@ pub fn analyzer_pair(
     model: &Bound<'_, Model>,
     license_key: &str,
 ) -> PyResult<(Collector, Analyzer)> {
+    // Identify as the Python wrapper before any SDK object is created. Must stay first: the
+    // `aic_sdk::analyzer_pair` call below sets the Rust wrapper id; the SDK keeps the first id it
+    // is given, so this one wins.
+    //
     // SAFETY: This function has no safety requirements.
     unsafe {
         aic_sdk::set_sdk_id(3);
@@ -135,10 +139,6 @@ pub fn analyzer_pair(
 /// Analyzer to analyze later.
 ///
 /// Created via analyzer_pair().
-///
-/// Note:
-///     All channels are mixed to mono for buffering. To buffer channels independently, create
-///     separate analyzer pairs.
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct Collector {
@@ -151,8 +151,8 @@ impl Collector {
     /// Configures the collector for specific audio settings.
     ///
     /// This function must be called before buffering any audio.
-    /// For the lowest delay use the sample rate and frame size returned by
-    /// Model.get_optimal_sample_rate() and Model.get_optimal_num_frames().
+    /// Using the sample rate and block size returned by Model.get_optimal_sample_rate()
+    /// and Model.get_optimal_block_size() avoids internal resampling and rebuffering.
     ///
     /// Args:
     ///     config: Audio buffering configuration
@@ -162,10 +162,6 @@ impl Collector {
     ///
     /// Warning:
     ///     Do not call from audio processing threads as this allocates memory.
-    ///
-    /// Note:
-    ///     All channels are mixed to mono for buffering. To buffer channels independently,
-    ///     create separate analyzer pairs.
     ///
     /// Example:
     ///     >>> config = aic.ProcessorConfig.optimal(model)
@@ -181,25 +177,21 @@ impl Collector {
 impl Collector {
     pub fn buffer<'py>(
         &mut self,
-        buffer: numpy::PyReadonlyArray2<'py, f32>,
+        buffer: numpy::PyReadonlyArray1<'py, f32>,
         py: Python<'py>,
     ) -> PyResult<()> {
         let array = buffer.as_array();
 
         // We release the GIL here so any other Python threads get a chance to run.
         py.detach(|| {
-            // Hand the buffer straight to the layout that matches its memory order, avoiding a
-            // copy. A (channels, frames) array stored C-contiguous is channel-contiguous
-            // (sequential); stored F-contiguous it is frame-contiguous (interleaved). Only a
-            // genuinely strided view needs a normalizing copy.
+            // Hand the buffer straight through when it's already contiguous, avoiding a copy.
+            // Only a genuinely strided view needs a normalizing copy.
             if let Some(slice) = array.as_slice() {
-                self.inner.buffer_sequential(slice)
-            } else if let Some(slice) = array.as_slice_memory_order() {
-                self.inner.buffer_interleaved(slice)
+                self.inner.buffer(slice)
             } else {
                 let owned = array.as_standard_layout();
                 self.inner
-                    .buffer_sequential(owned.as_slice().expect("standard layout is contiguous"))
+                    .buffer(owned.as_slice().expect("standard layout is contiguous"))
             }
             .map_err(to_py_err)
         })
@@ -256,6 +248,17 @@ impl Analyzer {
     fn analyze_buffered(&mut self, py: Python<'_>) -> PyResult<AnalysisResult> {
         let result = py.detach(|| self.inner.analyze_buffered().map_err(to_py_err))?;
         Ok(result.into())
+    }
+
+    /// Terminates the analyzer's telemetry session.
+    ///
+    /// The analyzer cannot analyze more audio after this call. The session is also terminated
+    /// automatically when the analyzer is destroyed.
+    ///
+    /// Warning:
+    ///     This method may block and is not real-time safe.
+    fn terminate_session(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.inner.terminate_session().map_err(to_py_err))
     }
 
     /// Replaces the bearer token on the analyzer.
