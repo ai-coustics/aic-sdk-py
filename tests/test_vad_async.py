@@ -11,7 +11,7 @@ import aic_sdk as aic
 async def test_vad_async_processes_audio(vad_model, license_key):
     vad = create_vad_async_or_skip(vad_model, license_key)
     config = aic.ProcessorConfig.optimal(vad_model)
-    await vad.initialize_async(config)
+    assert await vad.initialize_async(config) is None
     audio = np.arange(config.block_size, dtype=np.float32)
     original = audio.copy()
 
@@ -68,7 +68,7 @@ async def test_vad_async_terminate_session_prevents_further_processing(
     vad = create_vad_async_or_skip(vad_model, license_key)
     config = aic.ProcessorConfig.optimal(vad_model)
     await vad.initialize_async(config)
-    await vad.terminate_session_async()
+    assert await vad.terminate_session_async() is None
 
     with pytest.raises(aic.ProcessingNotAllowedError):
         await vad.process_async(np.zeros(config.block_size, dtype=np.float32))

@@ -22,7 +22,7 @@ async def test_initialize_async(model):
     processor = aic.ProcessorAsync(model, license_key)
 
     config = aic.ProcessorConfig(48000, 480, False)
-    await processor.initialize_async(config)
+    assert await processor.initialize_async(config) is None
 
     # Verify sync getters work
     assert model.get_optimal_sample_rate() == 16000
@@ -175,7 +175,7 @@ async def test_terminate_session_async_prevents_further_processing(model):
     license_key = os.environ["AIC_SDK_LICENSE"]
     config = aic.ProcessorConfig(48000, 480, False)
     processor = aic.ProcessorAsync(model, license_key, config)
-    await processor.terminate_session_async()
+    assert await processor.terminate_session_async() is None
 
     with pytest.raises(aic.ProcessingNotAllowedError):
         await processor.process_async(np.zeros(config.block_size, dtype=np.float32))

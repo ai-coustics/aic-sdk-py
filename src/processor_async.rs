@@ -120,7 +120,8 @@ impl ProcessorAsync {
         let inner = Arc::clone(&self.inner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let aic_config = aic_sdk::ProcessorConfig::from(&config);
-            inner.initialize(&aic_config).await.map_err(to_py_err)
+            inner.initialize(&aic_config).await.map_err(to_py_err)?;
+            Ok(Python::attach(|py| py.None()))
         })
     }
 
@@ -142,7 +143,8 @@ impl ProcessorAsync {
     fn terminate_session_async<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            inner.terminate_session().await.map_err(to_py_err)
+            inner.terminate_session().await.map_err(to_py_err)?;
+            Ok(Python::attach(|py| py.None()))
         })
     }
 }
