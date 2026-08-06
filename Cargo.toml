@@ -15,7 +15,7 @@ name = "aic_sdk"
 extension-module = ["pyo3/extension-module"]
 
 [dependencies]
-aic-sdk = { version = "0.22.0", git = "https://github.com/ai-coustics/aic-sdk-rs.git", rev = "496f5947fba6c0e56ee74696ad3f1576be2d73cb", features = ["async", "download-lib", "download-model"] }
+aic-sdk = { version = "0.22.0", features = ["async", "download-lib", "download-model"] }
 numpy = "0.27"
 pyo3 = { version = "0.27", features = ["generate-import-lib", "multiple-pymethods"] }
 pyo3-async-runtimes = { version = "0.27", features = ["tokio-runtime"] }
