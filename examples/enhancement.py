@@ -79,7 +79,7 @@ def main():
     proc_ctx.reset()
     print("  Processor state reset")
 
-    # End the telemetry session explicitly instead of waiting for the processor to be collected
+    # End the telemetry session explicitly instead of waiting for the processor to be garbage-collected
     print("\nTerminate telemetry session")
     processor.terminate_session()
     print("  Processor telemetry session terminated")
