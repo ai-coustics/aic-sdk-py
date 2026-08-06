@@ -4,8 +4,8 @@
 #     "aic-sdk",
 # ]
 # ///
-# To run with a local build instead: uv run --with "aic-sdk @ ." examples/basic.py
-"""Example usage of aic-sdk."""
+# To run with a local build instead: uv run --with "aic-sdk @ ." examples/enhancement.py
+"""Synchronous speech enhancement example using aic-sdk."""
 
 import os
 from pathlib import Path

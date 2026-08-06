@@ -4,8 +4,8 @@
 #     "aic-sdk",
 # ]
 # ///
-# To run with a local build instead: uv run --with "aic-sdk @ ." examples/basic_async.py
-"""Async example usage of aic-sdk."""
+# To run with a local build instead: uv run --with "aic-sdk @ ." examples/enhancement_async.py
+"""Asynchronous speech enhancement example using aic-sdk."""
 
 import asyncio
 import os

@@ -350,7 +350,7 @@ For a complete list of all available exception types and their descriptions, see
 
 ## Examples
 
-See the [`basic.py`](examples/basic.py) or [`basic_async.py`](examples/basic_async.py) file for a complete working example.
+See [`enhancement.py`](examples/enhancement.py) or [`enhancement_async.py`](examples/enhancement_async.py) for complete synchronous and asynchronous speech enhancement examples.
 
 For a complete file enhancement example with parallel processing, see [`enhance_files.py`](examples/enhance_files.py).
 

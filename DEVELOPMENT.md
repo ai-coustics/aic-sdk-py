@@ -12,8 +12,8 @@ uvx maturin develop
 The example scripts use the published `aic-sdk` package by default. To run them with the local build, use `--with` to override:
 
 ```bash
-uv run --with "aic-sdk @ ." examples/basic.py
-uv run --with "aic-sdk @ ." examples/basic_async.py
+uv run --with "aic-sdk @ ." examples/enhancement.py
+uv run --with "aic-sdk @ ." examples/enhancement_async.py
 ```
 
 ### File Enhancement Example
