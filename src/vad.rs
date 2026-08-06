@@ -10,9 +10,25 @@ use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_py
 #[pyclass(module = "aic_sdk", eq, eq_int)]
 #[derive(Clone, PartialEq)]
 pub enum VadParameter {
-    /// Controls how long speech remains detected after the audio no longer contains speech.
+    /// Controls how long the VAD continues to detect speech after the audio signal no longer
+    /// contains speech.
     ///
-    /// The duration is rounded to the closest model window length.
+    /// This affects the stability of speech detected -> not detected transitions.
+    ///
+    /// The VAD reports speech detected if the audio signal contained speech in at least 50% of the
+    /// blocks processed in the last `speech_hold_duration * 2` seconds.
+    ///
+    /// For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting
+    /// speech in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming
+    /// the VAD does not detect speech again during that period. If a few blocks of speech are
+    /// detected during that period, those blocks will be included in the 50% calculation, which
+    /// will extend the speech detection period until the 50% threshold is no longer met.
+    ///
+    /// Note:
+    ///     The VAD returns a value per processed audio block, so this duration is rounded to the
+    ///     closest model window length. For example, if the model has a processing window length of
+    ///     10 ms, the VAD will round up/down to the closest multiple of 10 ms. Because of this, this
+    ///     parameter may return a different value than the one it was last set to.
     ///
     /// Range: 0.0 to 300x model window length (seconds)
     ///
@@ -27,9 +43,16 @@ pub enum VadParameter {
     ///
     /// Default: model-specific
     Sensitivity,
-    /// Controls how long speech must be present before it is considered detected.
+    /// Controls how long speech needs to be present in the audio signal before the VAD considers it
+    /// speech.
     ///
-    /// The duration is rounded to the closest model window length.
+    /// This affects the stability of speech not detected -> detected transitions.
+    ///
+    /// Note:
+    ///     The VAD returns a value per processed audio block, so this duration is rounded to the
+    ///     closest model window length. For example, if the model has a processing window length of
+    ///     10 ms, the VAD will round up/down to the closest multiple of 10 ms. Because of this, this
+    ///     parameter may return a different value than the one it was last set to.
     ///
     /// Range: 0.0 to 1.0 (seconds)
     ///
