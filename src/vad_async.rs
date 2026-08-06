@@ -122,7 +122,7 @@ impl VadAsync {
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             inner.process(samples).await.map_err(to_py_err)?;
-            Ok(())
+            Ok(Python::attach(|py| py.None()))
         })
     }
 }
