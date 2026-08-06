@@ -22,14 +22,9 @@ import aic_sdk as aic
 
 def _load_audio_original(input_wav: str) -> tuple[np.ndarray, int]:
     """Load audio and downmix to mono float32, since the processor only supports mono audio."""
-    # Use soundfile to preserve original sample rate
-    audio, sample_rate = sf.read(input_wav, dtype="float32")
-
-    # audio is (frames,) for mono or (frames, channels) for multi-channel
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1).astype(np.float32)
-
-    return audio, sample_rate
+    # always_2d gives (frames, channels), including a singleton channel for mono files.
+    audio, sample_rate = sf.read(input_wav, dtype="float32", always_2d=True)
+    return audio.mean(axis=1), sample_rate
 
 
 async def process_chunk(
