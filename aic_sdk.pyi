@@ -47,7 +47,6 @@ __all__ = [
     "analyzer_pair",
     "get_compatible_model_version",
     "get_sdk_version",
-    "set_sdk_id",
 ]
 
 @typing.final
@@ -1514,5 +1513,3 @@ def get_sdk_version() -> builtins.str:
         >>> version = aic.get_sdk_version()
         >>> print(f"ai-coustics SDK version: {version}")
     """
-
-def set_sdk_id(id: builtins.int) -> None: ...

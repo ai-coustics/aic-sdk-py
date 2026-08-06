@@ -46,7 +46,7 @@ fn get_compatible_model_version() -> u32 {
     aic_sdk::get_compatible_model_version()
 }
 
-#[gen_stub_pyfunction(module = "aic_sdk")]
+// Internal integration hook: available at runtime but intentionally omitted from public stubs.
 #[pyfunction]
 fn set_sdk_id(id: u32) {
     // SAFETY:
