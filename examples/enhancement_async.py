@@ -27,7 +27,9 @@ async def main():
     print("\nDownloading and loading model...")
 
     # Download the model asynchronously (using pathlib.Path for the download directory)
-    model_path = await aic.Model.download_async("rook-s-48khz", Path("./models"))
+    model_path = await aic.Model.download_async(
+        "rook-s-48khz", Path.cwd() / "models"
+    )
     print(f"  Model downloaded to: {model_path}")
 
     # Load the model
