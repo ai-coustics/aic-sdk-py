@@ -44,7 +44,7 @@ define_exception!(
     AudioConfigMismatchError
 );
 define_exception!(
-    /// Processing is not allowed because the SDK key was not authorized or usage reporting failed.
+    /// Processing is not allowed because the SDK key was not authorized, usage reporting failed or the session was terminated.
     ProcessingNotAllowedError
 );
 define_exception!(
