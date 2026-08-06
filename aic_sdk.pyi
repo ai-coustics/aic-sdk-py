@@ -712,7 +712,7 @@ class ParameterOutOfRangeError(builtins.Exception):
 @typing.final
 class ProcessingNotAllowedError(builtins.Exception):
     r"""
-    Processing is not allowed because the SDK key was not authorized or usage reporting failed.
+    Processing is not allowed because the SDK key was not authorized, usage reporting failed or the session was terminated.
     """
     @property
     def message(self) -> builtins.str: ...
