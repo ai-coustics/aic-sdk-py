@@ -157,7 +157,6 @@ def test_vad_context_reset_clears_published_prediction(
     assert context.raw_vad_probability() == 0.0
 
 
-
 def test_vad_context_parameter_deprecated_warning(vad_model, license_key):
     vad, _ = create_initialized_vad(vad_model, license_key)
     with pytest.warns(DeprecationWarning, match="parameter\\(\\) is deprecated"):

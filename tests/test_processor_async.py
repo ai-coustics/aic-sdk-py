@@ -170,7 +170,6 @@ async def test_process_async_accepts_reversed_view(model):
     np.testing.assert_array_equal(result_view, result_contig)
 
 
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "license_key",

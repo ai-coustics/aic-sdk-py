@@ -90,7 +90,6 @@ def test_analyzer_reset_keeps_collector_initialized(analysis_model, license_key)
     assert_scores_in_range(result)
 
 
-
 def test_analyzer_pair_keeps_model_alive_after_model_drop(license_key):
     import gc
 

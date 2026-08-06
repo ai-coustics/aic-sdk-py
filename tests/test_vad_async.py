@@ -61,7 +61,6 @@ async def test_vad_async_process_before_initialize_raises_not_initialized_error(
         await vad.process_async(np.zeros(240, dtype=np.float32))
 
 
-
 @pytest.mark.asyncio
 async def test_vad_async_accepts_otel_config(vad_model, license_key):
     """An explicit OtelConfig overrides the environment default and stays functional."""

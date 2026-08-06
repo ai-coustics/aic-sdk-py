@@ -41,7 +41,6 @@ def test_process_accepts_reversed_view(processor):
     assert result.dtype == np.float32
 
 
-
 @pytest.mark.parametrize(
     "license_key",
     ["", "invalid-license-key"],
