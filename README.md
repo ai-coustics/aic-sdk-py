@@ -89,9 +89,7 @@ optimal_block_size = model.get_optimal_block_size(48000)
 ```python
 # Get optimal configuration for the model
 config = aic.ProcessorConfig.optimal(model, variable_block_size=False)
-print(
-    config
-)  # ProcessorConfig(sample_rate=48000, block_size=480, variable_block_size=False)
+print(config) # ProcessorConfig(sample_rate=48000, block_size=480, variable_block_size=False)
 
 # Or create from scratch
 config = aic.ProcessorConfig(
