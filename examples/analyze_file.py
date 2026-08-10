@@ -22,7 +22,7 @@ import soundfile as sf
 
 import aic_sdk as aic
 
-MODEL = "tyto-l-16khz"
+MODEL = "tyto-1.1-l-16khz"
 STEP_SECONDS = 5
 
 
@@ -61,7 +61,7 @@ def main():
     results = analyzer.analyze(samples, sample_rate, step_samples)
 
     print()
-    print(" time | risk  | reverb | loud  | intf  | media | noise | loss")
+    print(" time | risk  | reverb | loud  | intf  | noise | codec | loss")
     print("------+-------+--------+-------+-------+-------+-------+------")
     for index, result in enumerate(results):
         print(
@@ -70,8 +70,8 @@ def main():
             f"{result.speaker_reverb:>6.3f} | "
             f"{result.speaker_loudness:>5.3f} | "
             f"{result.interfering_speech:>5.3f} | "
-            f"{result.media_speech:>5.3f} | "
             f"{result.noise:>5.3f} | "
+            f"{result.codec_degradation:>5.3f} | "
             f"{result.packet_loss:>4.3f}"
         )
 

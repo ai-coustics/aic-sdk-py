@@ -8,8 +8,8 @@ _SCORE_ATTRS = (
     "speaker_reverb",
     "speaker_loudness",
     "interfering_speech",
-    "media_speech",
     "noise",
+    "codec_degradation",
     "packet_loss",
 )
 
@@ -96,7 +96,7 @@ def test_analyzer_pair_keeps_model_alive_after_model_drop(license_key):
     # Create the model locally so the returned pair holds the only remaining reference once we
     # drop ours. The collector/analyzer must keep the native model state alive; otherwise the
     # analyze_buffered() below would use freed memory.
-    model = aic.Model.from_file(aic.Model.download("tyto-l-16khz", "./models"))
+    model = aic.Model.from_file(aic.Model.download("tyto-1.1-l-16khz", "./models"))
     collector, analyzer = make_pair_or_skip(model, license_key)
     config = aic.ProcessorConfig.optimal(model)
 

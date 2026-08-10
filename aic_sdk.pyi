@@ -92,18 +92,18 @@ class AnalysisResult:
         Range: 0.0 to 1.0
         """
     @property
-    def media_speech(self) -> builtins.float:
+    def noise(self) -> builtins.float:
         r"""
-        Measure of interfering speech content from media devices,
-        e.g. from TVs, radios, phones or else.
+        Measure of ambient or environmental noise.
         Lower indicates less problematic audio.
 
         Range: 0.0 to 1.0
         """
     @property
-    def noise(self) -> builtins.float:
+    def codec_degradation(self) -> builtins.float:
         r"""
-        Measure of ambient or environmental noise.
+        Measure of artifacts introduced by lossy speech codecs,
+        e.g. from a low bitrate or a narrowband codec.
         Lower indicates less problematic audio.
 
         Range: 0.0 to 1.0

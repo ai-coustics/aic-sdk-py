@@ -260,7 +260,7 @@ The analysis API runs the *Tyto* analysis model to score audio quality, predicti
 of failure of downstream models (speech-to-text, VAD, turn-taking, speech-to-speech). Each
 `AnalysisResult` exposes seven scores in the `0.0`–`1.0` range (lower is less problematic, except
 `speaker_loudness`): `risk_score`, `speaker_reverb`, `speaker_loudness`, `interfering_speech`,
-`media_speech`, `noise`, and `packet_loss`.
+`noise`, `codec_degradation`, and `packet_loss`.
 
 #### Whole-file analysis
 
@@ -272,7 +272,7 @@ import numpy as np
 import aic_sdk as aic
 
 # Use an analysis model (Tyto), not an enhancement model.
-model = aic.Model.from_file(aic.Model.download("tyto-l-16khz", "./models"))
+model = aic.Model.from_file(aic.Model.download("tyto-1.1-l-16khz", "./models"))
 analyzer = aic.FileAnalyzer(model, license_key)
 
 # audio: 1D mono float32 NumPy array

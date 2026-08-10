@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 3.1.0 - 2026-08-10
+
+Update to core library version 0.23.0.
+
+### Breaking Changes
+
+#### New model file version
+
+This release requires model file version 7. Re-download your models, or the SDK will reject them
+with `ModelVersionUnsupportedError`.
+
+#### Tyto 1.0 has been replaced by Tyto 1.1
+
+The analysis model is now Tyto 1.1, `tyto-1.1-l-16khz`. Tyto 1.0 (`tyto-l-16khz`) can no longer be
+loaded by this SDK version.
+
+#### `AnalysisResult` fields changed
+
+`AnalysisResult` gained a field and lost one:
+
+- Added: `codec_degradation`, a measure of artifacts introduced by lossy speech codecs, e.g. from a
+  low bitrate or a narrowband codec.
+- Removed: `media_speech`.
+
+### Bug Fixes
+
+- `Analyzer.analyze_buffered()` no longer crashes when OpenTelemetry reporting is enabled.
+
 ## 3.0.0 - 2026-08-06
 
 Update to core library version 0.22.0.
