@@ -35,17 +35,17 @@ pub struct AnalysisResult {
     ///
     /// Range: 0.0 to 1.0
     pub interfering_speech: f32,
-    /// Measure of interfering speech content from media devices,
-    /// e.g. from TVs, radios, phones or else.
-    /// Lower indicates less problematic audio.
-    ///
-    /// Range: 0.0 to 1.0
-    pub media_speech: f32,
     /// Measure of ambient or environmental noise.
     /// Lower indicates less problematic audio.
     ///
     /// Range: 0.0 to 1.0
     pub noise: f32,
+    /// Measure of artifacts introduced by lossy speech codecs,
+    /// e.g. from a low bitrate or a narrowband codec.
+    /// Lower indicates less problematic audio.
+    ///
+    /// Range: 0.0 to 1.0
+    pub codec_degradation: f32,
     /// Measure of audio dropouts or discontinuities in the stream,
     /// e.g. from packet loss, frame erasure, jitter or CPU overload.
     /// Lower indicates less problematic audio.
@@ -60,13 +60,13 @@ impl AnalysisResult {
     fn __repr__(&self) -> String {
         format!(
             "AnalysisResult(risk_score={}, speaker_reverb={}, speaker_loudness={}, \
-             interfering_speech={}, media_speech={}, noise={}, packet_loss={})",
+             interfering_speech={}, noise={}, codec_degradation={}, packet_loss={})",
             self.risk_score,
             self.speaker_reverb,
             self.speaker_loudness,
             self.interfering_speech,
-            self.media_speech,
             self.noise,
+            self.codec_degradation,
             self.packet_loss,
         )
     }
@@ -79,8 +79,8 @@ impl From<aic_sdk::AnalysisResult> for AnalysisResult {
             speaker_reverb: value.speaker_reverb,
             speaker_loudness: value.speaker_loudness,
             interfering_speech: value.interfering_speech,
-            media_speech: value.media_speech,
             noise: value.noise,
+            codec_degradation: value.codec_degradation,
             packet_loss: value.packet_loss,
         }
     }

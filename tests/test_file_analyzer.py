@@ -10,8 +10,8 @@ _SCORE_ATTRS = (
     "speaker_reverb",
     "speaker_loudness",
     "interfering_speech",
-    "media_speech",
     "noise",
+    "codec_degradation",
     "packet_loss",
 )
 
