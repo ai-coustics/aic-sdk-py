@@ -20,14 +20,10 @@ fn main() -> pyo3_stub_gen::Result<()> {
     Ok(())
 }
 
-/// Replaces `anchor`, requiring it to appear exactly `expected` times.
+/// Replaces every occurrence of `anchor`, asserting that there are exactly `expected`.
 ///
-/// Every patch below is anchored on generated text: a method signature, or the tail of a
-/// docstring written in `src/*.rs`. A plain `str::replace` is a silent no-op when its anchor
-/// stops matching, so reworded docstring prose would drop a public method from `aic_sdk.pyi`
-/// while `cargo run -p stub-gen` still succeeded. Checking the count also keeps the anchors
-/// honest in the other direction: one that starts matching a second class would otherwise
-/// inject the same stub twice.
+/// Stub patches rely on generated signatures and docstrings. Checking the count makes changes
+/// to those anchors fail loudly instead of silently skipping or duplicating a patch.
 fn replace_checked(
     content: &str,
     anchor: &str,
