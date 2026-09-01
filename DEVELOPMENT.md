@@ -14,6 +14,7 @@ The example scripts use the published `aic-sdk` package by default. To run them 
 ```bash
 uv run --with "aic-sdk @ ." examples/enhancement.py
 uv run --with "aic-sdk @ ." examples/enhancement_async.py
+uv run --with "aic-sdk @ ." examples/vad.py
 ```
 
 ### File Enhancement Example

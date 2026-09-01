@@ -1,7 +1,10 @@
 # /// script
-# requires-python = ">=3.10"
-# dependencies = ["aic-sdk", "numpy"]
+# requires-python = ">=3.14"
+# dependencies = [
+#     "aic-sdk",
+# ]
 # ///
+# To run with a local build instead: uv run --with "aic-sdk @ ." examples/vad.py
 """Voice activity detection with a dedicated VAD model."""
 
 import os
