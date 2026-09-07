@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 3.2.0 - 2026-09-07
+
+Update to core library version 0.24.0.
+
+### New Features
+
+#### SDK-internal error reporting
+
+The SDK reports its own backend failures to ai-coustics error tracking. Covered are failed session
+activations, failed usage reports, and bearer token refreshes rejected by
+`ProcessorContext.update_bearer_token()`, `VadContext.update_bearer_token()` and `Analyzer.update_bearer_token()`.
+
+A report contains the error class and message, the SDK version and wrapper, the model ID, the
+operating system, the CPU architecture, and the account the license was issued to. It contains no
+audio, no license key and no bearer token.
+
+Disable reporting with `DO_NOT_TRACK=1`. The variable is read once per process.
+Licenses with an offline entitlement never report.
+
 ## 3.1.1 - 2026-09-07
 
 Update to core library version 0.23.1.
