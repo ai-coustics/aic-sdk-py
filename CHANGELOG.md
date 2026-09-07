@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 3.1.1 - 2026-09-07
+
+Update to core library version 0.23.1.
+
+### New Features
+
+#### Model downloads reuse the manifest
+
+`Model.download()` no longer fetches the artifact manifest on every call.
+A cached manifest is now stored next to the models `.manifest-cache.json` and serves every model until the validity window returned by the artifact server expires.
+
+Manifest requests now give up after 30 seconds. They previously had no timeout and could hang for
+as long as the operating system kept retrying the connection.
+
 ## 3.1.0 - 2026-08-10
 
 Update to core library version 0.23.0.
