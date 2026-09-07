@@ -5,7 +5,7 @@ members = ["stub-gen"]
 edition = "2024"
 name = "aic-sdk-py"
 rust-version = "1.88"
-version = "3.2.0"
+version = "3.1.1"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -47,7 +47,7 @@ dependencies = [
 
 [[package]]
 name = "aic-sdk-py"
-version = "3.2.0"
+version = "3.1.1"
 dependencies = [
  "aic-sdk",
  "numpy",
