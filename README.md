@@ -366,4 +366,7 @@ For a benchmarking example that tests how many concurrent processing sessions yo
 
 ## License
 
-This Python wrapper is distributed under the Apache 2.0 license. The core C SDK is distributed under the proprietary AIC-SDK license.
+This Python wrapper is distributed under the Apache 2.0 license (`LICENSE`). The core SDK binary and
+the models are proprietary and governed by the ai-coustics
+[Terms of Service](https://ai-coustics.com/legal/terms) and
+[Model License](https://ai-coustics.com/legal/model-license); see `LICENSE.AIC-SDK`.
