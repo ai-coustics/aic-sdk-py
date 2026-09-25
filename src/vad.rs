@@ -7,7 +7,7 @@ use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_py
 
 /// Configurable parameters for voice activity detection.
 #[gen_stub_pyclass_enum]
-#[pyclass(module = "aic_sdk", eq, eq_int)]
+#[pyclass(module = "aic_sdk", eq, eq_int, from_py_object)]
 #[derive(Clone, PartialEq)]
 pub enum VadParameter {
     /// Controls how long the VAD continues to detect speech after the audio signal no longer
