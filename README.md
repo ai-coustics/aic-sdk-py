@@ -254,6 +254,35 @@ audio delay on top of the VAD's prediction delay.
 `VadAsync` provides matching `initialize_async()`, `process_async()`, and
 `terminate_session_async()` methods.
 
+### Energy-based Voice Activity Detection
+
+An enhancement processor can detect speech in its enhanced signal before output mixing, without
+loading a separate VAD model. Create a context before processing and read it after each block:
+
+```python
+processor = aic.Processor(model, license_key, config)
+vad_ctx = processor.get_energy_vad_context()
+
+# The energy VAD uses 1.0-15.0; higher values detect quieter speech.
+vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
+
+enhanced = processor.process(audio_block)
+print(f"Speech detected: {vad_ctx.is_speech_detected()}")
+
+print(f"Prediction delay: {vad_ctx.get_prediction_delay()} samples")
+
+# Clear the prediction after a stream interruption.
+vad_ctx.reset()
+```
+
+Contexts from one processor share a detector and can be used from any thread. They remain usable
+after the processor is destroyed, but receive no more audio. Creating a context keeps inference
+active even when processing is bypassed or the enhancement level is zero. Its prediction delay
+matches `processor.get_context().get_audio_delay()`. `ProcessorAsync` offers the same context type.
+
+Use `Vad` with a dedicated VAD model when you want a speech probability (`raw_vad_probability()`)
+or detection that does not depend on an enhancement model.
+
 ### Audio Analysis
 
 The analysis API runs the *Tyto* analysis model to score audio quality, predicting the likelihood
@@ -353,6 +382,8 @@ See [`enhancement.py`](examples/enhancement.py) or [`enhancement_async.py`](exam
 For a complete file enhancement example with parallel processing, see [`enhance_files.py`](examples/enhance_files.py).
 
 For a voice-activity-detection example using a dedicated VAD model, see [`vad.py`](examples/vad.py).
+
+For energy-based VAD, see [`energy_vad.py`](examples/energy_vad.py).
 
 For an audio-analysis example that scores an audio file with the *Tyto* model, see [`analyze_file.py`](examples/analyze_file.py).
 

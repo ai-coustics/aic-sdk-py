@@ -76,3 +76,4 @@ jobs:
           "$python" examples/enhancement.py
           "$python" examples/enhancement_async.py
           "$python" examples/vad.py
+          "$python" examples/energy_vad.py

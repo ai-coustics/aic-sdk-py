@@ -225,8 +225,8 @@ impl Analyzer {
     ///
     /// Example:
     ///     >>> analyzer.reset()
-    fn reset(&self) -> PyResult<()> {
-        self.inner.reset().map_err(to_py_err)
+    fn reset(&self) {
+        self.inner.reset()
     }
 
     /// Analyzes the buffered signal.
@@ -257,8 +257,8 @@ impl Analyzer {
     ///
     /// Warning:
     ///     This method may block and is not real-time safe.
-    fn terminate_session(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.detach(|| self.inner.terminate_session().map_err(to_py_err))
+    fn terminate_session(&mut self, py: Python<'_>) {
+        py.detach(|| self.inner.terminate_session())
     }
 
     /// Replaces the bearer token on the analyzer.

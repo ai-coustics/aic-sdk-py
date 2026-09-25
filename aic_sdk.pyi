@@ -15,6 +15,7 @@ __all__ = [
     "AudioConfigMismatchError",
     "AudioConfigUnsupportedError",
     "Collector",
+    "EnergyVadContext",
     "FileAnalyzer",
     "FilePathInvalidError",
     "FileSystemError",
@@ -255,6 +256,97 @@ class Collector:
         Example:
             >>> audio = np.zeros(config.block_size, dtype=np.float32)
             >>> collector.buffer(audio)
+        """
+
+@typing.final
+class EnergyVadContext:
+    r"""
+    Context for an enhancement processor's energy-based voice activity detector.
+
+    Create one with Processor.get_energy_vad_context() or
+    ProcessorAsync.get_energy_vad_context().
+
+    Detection uses the enhanced signal before output mixing, without a separate VAD model.
+    Creating a context keeps inference active even when processing is bypassed or the enhancement
+    level is zero. Inference remains active until the processor is destroyed, even if all its
+    energy VAD contexts are destroyed.
+
+    Contexts from one processor share a detector and can be used from any thread.
+
+    Important:
+        The context remains usable after the processor is destroyed, but receives no new audio
+        predictions. Destroying a context does not destroy the processor or disable detection.
+
+    Example:
+        >>> processor = aic.Processor(model, license_key, config)
+        >>> vad_ctx = processor.get_energy_vad_context()
+        >>> vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
+        >>> enhanced = processor.process(audio)
+        >>> print(vad_ctx.is_speech_detected())
+    """
+    def is_speech_detected(self) -> builtins.bool:
+        r"""
+        Returns the current speech prediction.
+
+        This is False before processing and after reset(). It updates as the processor processes
+        audio and lags the input by get_prediction_delay() samples.
+        """
+    def set_parameter(self, parameter: VadParameter, value: builtins.float) -> None:
+        r"""
+        Sets an energy VAD parameter.
+
+        Parameters can be changed from any thread during processing.
+
+        Args:
+            parameter: Parameter to modify
+            value: New value. Sensitivity ranges from 1.0 to 15.0.
+
+        Raises:
+            ParameterOutOfRangeError: If the parameter value is out of range.
+
+        Example:
+            >>> vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
+            >>> vad_ctx.set_parameter(aic.VadParameter.SpeechHoldDuration, 0.08)
+        """
+    def get_parameter(self, parameter: VadParameter) -> builtins.float:
+        r"""
+        Returns an energy VAD parameter's current value.
+
+        Args:
+            parameter: Parameter to query
+
+        Example:
+            >>> sensitivity = vad_ctx.get_parameter(aic.VadParameter.Sensitivity)
+        """
+    def get_prediction_delay(self) -> builtins.int:
+        r"""
+        Returns the prediction delay in samples for the current audio configuration.
+
+        The delay includes input reblocking, STFT, and model processing. It matches the
+        processor's ProcessorContext.get_audio_delay(). SpeechHoldDuration and
+        MinimumSpeechDuration also affect decision timing but are not included.
+
+        Before initialization, this uses the model's optimal block size and native sample rate.
+        After initialization, it includes input buffering for the configured block size and is
+        expressed in samples at the configured sample rate. Nonoptimal or variable block sizes can
+        add buffering delay, which is included in the result.
+
+        Example:
+            >>> print(f"Prediction delay: {vad_ctx.get_prediction_delay()} samples")
+        """
+    def reset(self) -> None:
+        r"""
+        Clears the energy VAD's state and prediction.
+
+        Use after an interruption or seek to discard predictions from earlier audio. Parameters
+        are retained, and the processor is not reset. ProcessorContext.reset() also resets the
+        energy VAD.
+
+        Thread Safety:
+            The underlying SDK reset is real-time safe.
+
+        Example:
+            >>> vad_ctx.reset()
         """
 
 @typing.final
@@ -812,6 +904,26 @@ class Processor:
         Example:
             >>> processor_context = processor.get_context()
         """
+    def get_energy_vad_context(self) -> EnergyVadContext:
+        r"""
+        Creates a context for energy-based speech detection.
+
+        The detector uses the enhanced signal before output mixing and updates when process()
+        consumes audio. All contexts from this processor share one detector.
+
+        Creating a context keeps inference active even when processing is bypassed or the
+        enhancement level is zero. It remains active for the processor's lifetime, even if every
+        energy VAD context is destroyed.
+
+        Returns:
+            An EnergyVadContext.
+
+        Warning:
+            This allocates memory; do not call from audio processing threads.
+
+        Example:
+            >>> vad_ctx = processor.get_energy_vad_context()
+        """
     def terminate_session(self) -> None:
         r"""
         Terminates the processor's telemetry session.
@@ -914,6 +1026,15 @@ class ProcessorAsync:
 
         Example:
             >>> processor_context = processor.get_context()
+        """
+    def get_energy_vad_context(self) -> EnergyVadContext:
+        r"""
+        Creates a context for energy-based speech detection.
+
+        See Processor.get_energy_vad_context() for details.
+
+        Example:
+            >>> vad_ctx = processor.get_energy_vad_context()
         """
     def terminate_session_async(self) -> typing.Awaitable[None]:
         r"""
@@ -1023,7 +1144,7 @@ class ProcessorContext:
         Call this when the audio stream is interrupted or when seeking
         to prevent artifacts from previous audio content.
 
-        The processor stays initialized to the configured settings.
+        The processor's configuration is unchanged. Any associated energy VAD is also reset.
 
         Thread Safety:
             Real-time safe. Can be called from audio processing threads.
@@ -1178,7 +1299,8 @@ class Vad:
         Creates a voice activity detector.
 
         The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
-        raise ModelTypeUnsupportedError.
+        raise ModelTypeUnsupportedError. For an enhancement model, use
+        Processor.get_energy_vad_context().
 
         If config is provided, the VAD is initialized immediately. Otherwise, call initialize()
         before processing audio.
@@ -1252,7 +1374,8 @@ class VadAsync:
         Creates an async voice activity detector.
 
         The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
-        raise ModelTypeUnsupportedError.
+        raise ModelTypeUnsupportedError. For an enhancement model, use
+        ProcessorAsync.get_energy_vad_context().
 
         Args:
             model: A loaded dedicated VAD model
@@ -1432,12 +1555,14 @@ class VadParameter(enum.Enum):
     """
     Sensitivity = ...
     r"""
-    Probability threshold used to decide whether speech is detected.
+    Threshold for detecting speech.
 
-    Dedicated VAD models output a speech probability for each processed audio block. A value
-    above this threshold triggers a speech-detected decision.
+    Vad and VadAsync compare a speech probability with this threshold. EnergyVadContext
+    compares enhanced-signal energy with `10 ** -sensitivity`; higher values detect quieter
+    speech.
 
-    Range: 0.0 to 1.0
+    Range:
+        0.0 to 1.0 for dedicated VAD models; 1.0 to 15.0 for energy VAD.
 
     Default: model-specific
     """
