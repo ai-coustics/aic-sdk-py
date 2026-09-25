@@ -44,6 +44,12 @@ quieter speech. Dedicated VAD models use a `0.0`-`1.0` probability threshold.
 
 See [`energy_vad.py`](examples/energy_vad.py) for a complete example.
 
+#### musllinux wheels
+
+Linux wheels are now published for musl as well as glibc, for `x86_64` and `aarch64`. Alpine and
+other musl distributions install the SDK with `pip install aic-sdk` instead of building it from
+the sdist.
+
 ### Bug Fixes
 
 - `experimental.audio.output_clipping_samples` now counts clipping in the final mixed output.

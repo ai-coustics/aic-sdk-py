@@ -13,6 +13,8 @@ For comprehensive documentation, visit [docs.ai-coustics.com](https://docs.ai-co
 pip install aic-sdk
 ```
 
+Wheels are published for Linux (glibc and musl), macOS, and Windows, on `x86_64` and `aarch64`.
+
 ## Quick Start
 
 ```python

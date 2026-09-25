@@ -8,24 +8,32 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        interpreter: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        include:
+        # Cross each platform/libc combination with every Python version.
+        platform:
           - os: ubuntu-latest
+            libc: gnu
             targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
             test-arch: x86_64
             use-zig: true
+          - os: ubuntu-latest
+            libc: musl
+            targets: x86_64-unknown-linux-musl aarch64-unknown-linux-musl
+            test-arch: x86_64
+            use-zig: true
           - os: macos-latest
+            libc: ''
             targets: x86_64-apple-darwin aarch64-apple-darwin
             test-arch: arm64
             use-zig: false
           - os: windows-latest
+            libc: ''
             targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             test-arch: amd64
             use-zig: false
+        interpreter: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v6
@@ -39,7 +47,7 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
           toolchain: stable
-          targets: ${{ matrix.targets }}
+          targets: ${{ matrix.platform.targets }}
 
       - name: Install Python
         shell: bash
@@ -48,9 +56,9 @@ jobs:
       - name: Build wheels
         shell: bash
         run: |
-          for target in ${{ matrix.targets }}; do
+          for target in ${{ matrix.platform.targets }}; do
             echo "Building for $target"
-            if [ "${{ matrix.use-zig }}" = "true" ]; then
+            if [ "${{ matrix.platform.use-zig }}" = "true" ]; then
               uvx --from maturin[zig] maturin build --zig --release --target $target --out dist --interpreter ${{ matrix.interpreter }}
             else
               uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreter }}
@@ -58,6 +66,7 @@ jobs:
           done
 
       - name: Test wheels
+        if: matrix.platform.libc != 'musl'
         shell: bash
         env:
           AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
@@ -65,7 +74,7 @@ jobs:
           version=${{ matrix.interpreter }}
           echo "Testing Python $version"
           uv venv --python $version .venv-$version
-          VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
+          VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.platform.test-arch }}*.whl
 
           if [ -x ".venv-$version/bin/python" ]; then
             python=".venv-$version/bin/python"
@@ -77,3 +86,27 @@ jobs:
           "$python" examples/enhancement_async.py
           "$python" examples/vad.py
           "$python" examples/energy_vad.py
+
+      # Test musl wheels in Alpine; keep builds and JavaScript actions on Ubuntu.
+      # As with glibc, only the native x86_64 wheel is tested.
+      - name: Test wheels (musl, in Alpine)
+        if: matrix.platform.libc == 'musl'
+        shell: bash
+        env:
+          AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+        run: |
+          version=${{ matrix.interpreter }}
+          echo "Testing Python $version"
+          wheel=$(ls dist/*cp${version//.}*${{ matrix.platform.test-arch }}*.whl)
+          echo "Installing $wheel"
+
+          docker run --rm -v "$PWD:/work" -w /work \
+            -e AIC_SDK_LICENSE \
+            "python:$version-alpine" sh -c "
+              set -e
+              pip install --quiet '$wheel'
+              python examples/enhancement.py
+              python examples/enhancement_async.py
+              python examples/vad.py
+              python examples/energy_vad.py
+            "
