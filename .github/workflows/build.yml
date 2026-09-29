@@ -89,6 +89,9 @@ jobs:
 
       # Test musl wheels in Alpine; keep builds and JavaScript actions on Ubuntu.
       # As with glibc, only the native x86_64 wheel is tested.
+      # The third-party image only gets the license without network access:
+      # the wheel is installed and the models are downloaded beforehand
+      # in a separate container that doesn't get the license.
       - name: Test wheels (musl, in Alpine)
         if: matrix.platform.libc == 'musl'
         shell: bash
@@ -99,14 +102,23 @@ jobs:
           echo "Testing Python $version"
           wheel=$(ls dist/*cp${version//.}*${{ matrix.platform.test-arch }}*.whl)
           echo "Installing $wheel"
+          image="python:$version-alpine"
 
-          docker run --rm -v "$PWD:/work" -w /work \
+          docker run --rm -v "$PWD:/work" -w /work "$image" sh -c "
+            set -e
+            python -m venv .venv-musl
+            .venv-musl/bin/pip install --quiet '$wheel'
+            for model in rook-s-48khz vad-2.1-xxs-16khz quail-vf-2.2-s-16khz; do
+              .venv-musl/bin/python -c \"import sys, aic_sdk; aic_sdk.Model.download(sys.argv[1], 'models')\" \$model
+            done
+          "
+
+          docker run --rm --network none -v "$PWD:/work:ro" -w /work \
             -e AIC_SDK_LICENSE \
-            "python:$version-alpine" sh -c "
+            "$image" sh -c "
               set -e
-              pip install --quiet '$wheel'
-              python examples/enhancement.py
-              python examples/enhancement_async.py
-              python examples/vad.py
-              python examples/energy_vad.py
+              .venv-musl/bin/python examples/enhancement.py
+              .venv-musl/bin/python examples/enhancement_async.py
+              .venv-musl/bin/python examples/vad.py
+              .venv-musl/bin/python examples/energy_vad.py
             "
