@@ -54,8 +54,9 @@ uv run --env-file .env pytest
 2. Update version in `pyproject.toml` and run `uv lock` to update `uv.lock` file.
 3. Update version also in `Cargo.toml` and run `cargo build` to update the `Cargo.lock` file.
 4. Create new stubs: `make stubs`.
-5. Create a PR and merge it into `main`.
-6. Create and push a version tag from `main`:
+5. Update `CHANGELOG.md`
+6. Create a PR and merge it into `main`.
+7. Create and push a version tag from `main`:
 
 ```bash
 git checkout main
