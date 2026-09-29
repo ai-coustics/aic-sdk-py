@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
-## Unreleased
+## 3.3.0 - 2026-09-29
 
 Update to core library version 0.25.0.
 
