@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## Unreleased
+
+Update to core library version 0.25.0.
+
+### Changed
+
+The following methods now use infallible native APIs. Their Python signatures and return values
+are unchanged, but they no longer raise SDK errors:
+
+- `ProcessorContext.reset()`, `VadContext.reset()` and `Analyzer.reset()`
+- `ProcessorContext.get_parameter()` and `VadContext.get_parameter()`
+- `Processor.terminate_session()`, `Vad.terminate_session()` and `Analyzer.terminate_session()`,
+  as well as `ProcessorAsync.terminate_session_async()` and `VadAsync.terminate_session_async()`
+
+### New Features
+
+#### Energy-based voice activity detection
+
+`Processor.get_energy_vad_context()` and `ProcessorAsync.get_energy_vad_context()` return an
+`EnergyVadContext` that detects speech in the enhanced signal before output mixing. It uses the
+processor's enhancement model, with no separate VAD model.
+
+```python
+processor = aic.Processor(model, license_key, config)
+vad_ctx = processor.get_energy_vad_context()
+vad_ctx.set_parameter(aic.VadParameter.Sensitivity, 6.0)
+
+enhanced = processor.process(audio_block)
+print(vad_ctx.is_speech_detected())
+```
+
+The context supports parameter control, delay queries, and reset. It can be used from any thread
+and remains usable after the processor is destroyed, though it receives no more audio. Creating one
+keeps inference active when the processor is bypassed or its enhancement level is zero.
+
+For this context, `VadParameter.Sensitivity` ranges from `1.0` to `15.0`; higher values detect
+quieter speech. Dedicated VAD models use a `0.0`-`1.0` probability threshold.
+
+See [`energy_vad.py`](examples/energy_vad.py) for a complete example.
+
+#### musllinux wheels
+
+Linux wheels are now published for musl as well as glibc, for `x86_64` and `aarch64`. Alpine and
+other musl distributions install the SDK with `pip install aic-sdk` instead of building it from
+the sdist.
+
+### Bug Fixes
+
+- `experimental.audio.output_clipping_samples` now counts clipping in the final mixed output.
+
 ## 3.2.0 - 2026-09-07
 
 Update to core library version 0.24.0.

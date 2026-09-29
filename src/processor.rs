@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_pymethods};
 
+use crate::energy_vad::EnergyVadContext;
 use crate::model::Model;
 use crate::otel_config::OtelConfig;
 use crate::to_py_err;
@@ -183,15 +184,15 @@ impl ProcessorContext {
     /// Call this when the audio stream is interrupted or when seeking
     /// to prevent artifacts from previous audio content.
     ///
-    /// The processor stays initialized to the configured settings.
+    /// The processor's configuration is unchanged. Any associated energy VAD is also reset.
     ///
     /// Thread Safety:
     ///     Real-time safe. Can be called from audio processing threads.
     ///
     /// Example:
     ///     >>> processor_context.reset()
-    fn reset(&self) -> PyResult<()> {
-        self.inner.reset().map_err(to_py_err)
+    fn reset(&self) {
+        self.inner.reset()
     }
 
     /// Modifies a processor parameter.
@@ -258,7 +259,7 @@ impl ProcessorContext {
             })?;
             return Ok(1.0); // former default value of voice gain
         }
-        self.inner.parameter(parameter.into()).map_err(to_py_err)
+        Ok(self.inner.parameter(parameter.into()))
     }
 
     /// Deprecated: Use get_parameter instead
@@ -457,6 +458,29 @@ impl Processor {
         }
     }
 
+    /// Creates a context for energy-based speech detection.
+    ///
+    /// The detector uses the enhanced signal before output mixing and updates when process()
+    /// consumes audio. All contexts from this processor share one detector.
+    ///
+    /// Creating a context keeps inference active even when processing is bypassed or the
+    /// enhancement level is zero. It remains active for the processor's lifetime, even if every
+    /// energy VAD context is destroyed.
+    ///
+    /// Returns:
+    ///     An EnergyVadContext.
+    ///
+    /// Warning:
+    ///     This allocates memory; do not call from audio processing threads.
+    ///
+    /// Example:
+    ///     >>> vad_ctx = processor.get_energy_vad_context()
+    pub fn get_energy_vad_context(&mut self) -> EnergyVadContext {
+        EnergyVadContext {
+            inner: self.processor.energy_vad_context(),
+        }
+    }
+
     /// Terminates the processor's telemetry session.
     ///
     /// The processor cannot process more audio after this call. The session is also
@@ -464,8 +488,8 @@ impl Processor {
     ///
     /// Warning:
     ///     This method may block and is not real-time safe.
-    fn terminate_session(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.detach(|| self.processor.terminate_session().map_err(to_py_err))
+    fn terminate_session(&mut self, py: Python<'_>) {
+        py.detach(|| self.processor.terminate_session())
     }
 }
 

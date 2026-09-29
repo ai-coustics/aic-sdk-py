@@ -23,7 +23,8 @@ impl VadAsync {
     /// Creates an async voice activity detector.
     ///
     /// The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
-    /// raise ModelTypeUnsupportedError.
+    /// raise ModelTypeUnsupportedError. For an enhancement model, use
+    /// ProcessorAsync.get_energy_vad_context().
     ///
     /// Args:
     ///     model: A loaded dedicated VAD model
@@ -97,7 +98,7 @@ impl VadAsync {
     fn terminate_session_async<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            inner.terminate_session().await.map_err(to_py_err)?;
+            inner.terminate_session().await;
             Ok(Python::attach(|py| py.None()))
         })
     }

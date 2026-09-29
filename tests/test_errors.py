@@ -159,15 +159,11 @@ def test_process_before_initialize_raises_model_not_initialized_error(
     assert exc_info.value.message
 
 
-def test_reset_before_initialize_may_raise_model_not_initialized_error(
-    model, license_key
-):
+def test_reset_before_initialize_does_not_raise(model, license_key):
+    """reset() cannot fail, not even before the processor has been initialized."""
     processor = create_processor_or_skip(model, license_key)
     ctx = processor.get_context()
-    try:
-        ctx.reset()
-    except aic.NotInitializedError:
-        pass
+    assert ctx.reset() is None
 
 
 def test_2d_block_raises_type_error(model, license_key):

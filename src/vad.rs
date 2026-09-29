@@ -34,12 +34,14 @@ pub enum VadParameter {
     ///
     /// Default: model-specific
     SpeechHoldDuration,
-    /// Probability threshold used to decide whether speech is detected.
+    /// Threshold for detecting speech.
     ///
-    /// Dedicated VAD models output a speech probability for each processed audio block. A value
-    /// above this threshold triggers a speech-detected decision.
+    /// Vad and VadAsync compare a speech probability with this threshold. EnergyVadContext
+    /// compares enhanced-signal energy with `10 ** -sensitivity`; higher values detect quieter
+    /// speech.
     ///
-    /// Range: 0.0 to 1.0
+    /// Range:
+    ///     0.0 to 1.0 for dedicated VAD models; 1.0 to 15.0 for energy VAD.
     ///
     /// Default: model-specific
     Sensitivity,
@@ -101,7 +103,8 @@ impl Vad {
     /// Creates a voice activity detector.
     ///
     /// The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
-    /// raise ModelTypeUnsupportedError.
+    /// raise ModelTypeUnsupportedError. For an enhancement model, use
+    /// Processor.get_energy_vad_context().
     ///
     /// If config is provided, the VAD is initialized immediately. Otherwise, call initialize()
     /// before processing audio.
@@ -170,8 +173,8 @@ impl Vad {
     ///
     /// Warning:
     ///     This method may block and is not real-time safe.
-    fn terminate_session(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.detach(|| self.vad.terminate_session().map_err(to_py_err))
+    fn terminate_session(&mut self, py: Python<'_>) {
+        py.detach(|| self.vad.terminate_session())
     }
 }
 
@@ -243,8 +246,8 @@ impl VadContext {
     }
 
     /// Retrieves the current value of a VAD parameter.
-    fn get_parameter(&self, parameter: VadParameter) -> PyResult<f32> {
-        self.inner.parameter(parameter.into()).map_err(to_py_err)
+    fn get_parameter(&self, parameter: VadParameter) -> f32 {
+        self.inner.parameter(parameter.into())
     }
 
     /// Deprecated: Use get_parameter instead.
@@ -261,7 +264,7 @@ impl VadContext {
             )?;
             Ok::<(), PyErr>(())
         })?;
-        self.get_parameter(parameter)
+        Ok(self.get_parameter(parameter))
     }
 
     /// Returns the total VAD prediction delay in samples.
@@ -280,8 +283,8 @@ impl VadContext {
     ///
     /// The VAD remains initialized. Immediately after reset(), is_speech_detected() is False and
     /// raw_vad_probability() is 0.0.
-    fn reset(&self) -> PyResult<()> {
-        self.inner.reset().map_err(to_py_err)
+    fn reset(&self) {
+        self.inner.reset()
     }
 
     /// Replaces the bearer token on the running VAD.

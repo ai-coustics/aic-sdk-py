@@ -7,6 +7,7 @@ use pyo3_stub_gen::derive::gen_stub_pyfunction;
 use tokio::runtime::Runtime;
 
 mod analyzer;
+mod energy_vad;
 mod error;
 mod file_analyzer;
 mod model;
@@ -149,6 +150,7 @@ fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<processor::ProcessorParameter>()?;
     m.add_class::<processor::Processor>()?;
     m.add_class::<processor_async::ProcessorAsync>()?;
+    m.add_class::<energy_vad::EnergyVadContext>()?;
     m.add_class::<vad::VadParameter>()?;
     m.add_class::<vad::VadContext>()?;
     m.add_class::<vad::Vad>()?;

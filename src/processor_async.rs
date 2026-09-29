@@ -1,4 +1,5 @@
 use crate::{
+    energy_vad::EnergyVadContext,
     model::Model,
     otel_config::OtelConfig,
     processor::{ProcessorConfig, ProcessorContext},
@@ -137,13 +138,25 @@ impl ProcessorAsync {
         Ok(ProcessorContext { inner: ctx })
     }
 
+    /// Creates a context for energy-based speech detection.
+    ///
+    /// See Processor.get_energy_vad_context() for details.
+    ///
+    /// Example:
+    ///     >>> vad_ctx = processor.get_energy_vad_context()
+    fn get_energy_vad_context(&self) -> EnergyVadContext {
+        let inner =
+            pyo3_async_runtimes::tokio::get_runtime().block_on(self.inner.energy_vad_context());
+        EnergyVadContext { inner }
+    }
+
     /// Terminates the processor's telemetry session asynchronously.
     ///
     /// The processor cannot process more audio after this call.
     fn terminate_session_async<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            inner.terminate_session().await.map_err(to_py_err)?;
+            inner.terminate_session().await;
             Ok(Python::attach(|py| py.None()))
         })
     }

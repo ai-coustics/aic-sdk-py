@@ -8,24 +8,32 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        interpreter: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        include:
+        # Cross each platform/libc combination with every Python version.
+        platform:
           - os: ubuntu-latest
+            libc: gnu
             targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
             test-arch: x86_64
             use-zig: true
+          - os: ubuntu-latest
+            libc: musl
+            targets: x86_64-unknown-linux-musl aarch64-unknown-linux-musl
+            test-arch: x86_64
+            use-zig: true
           - os: macos-latest
+            libc: ''
             targets: x86_64-apple-darwin aarch64-apple-darwin
             test-arch: arm64
             use-zig: false
           - os: windows-latest
+            libc: ''
             targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             test-arch: amd64
             use-zig: false
+        interpreter: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v6
@@ -39,7 +47,7 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
           toolchain: stable
-          targets: ${{ matrix.targets }}
+          targets: ${{ matrix.platform.targets }}
 
       - name: Install Python
         shell: bash
@@ -48,9 +56,9 @@ jobs:
       - name: Build wheels
         shell: bash
         run: |
-          for target in ${{ matrix.targets }}; do
+          for target in ${{ matrix.platform.targets }}; do
             echo "Building for $target"
-            if [ "${{ matrix.use-zig }}" = "true" ]; then
+            if [ "${{ matrix.platform.use-zig }}" = "true" ]; then
               uvx --from maturin[zig] maturin build --zig --release --target $target --out dist --interpreter ${{ matrix.interpreter }}
             else
               uvx maturin build --release --target $target --out dist --interpreter ${{ matrix.interpreter }}
@@ -58,6 +66,7 @@ jobs:
           done
 
       - name: Test wheels
+        if: matrix.platform.libc != 'musl'
         shell: bash
         env:
           AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
@@ -65,7 +74,7 @@ jobs:
           version=${{ matrix.interpreter }}
           echo "Testing Python $version"
           uv venv --python $version .venv-$version
-          VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.test-arch }}*.whl
+          VIRTUAL_ENV=.venv-$version uv pip install dist/*cp${version//.}*${{ matrix.platform.test-arch }}*.whl
 
           if [ -x ".venv-$version/bin/python" ]; then
             python=".venv-$version/bin/python"
@@ -76,3 +85,40 @@ jobs:
           "$python" examples/enhancement.py
           "$python" examples/enhancement_async.py
           "$python" examples/vad.py
+          "$python" examples/energy_vad.py
+
+      # musl wheels are built on Ubuntu, but tested in Alpine.
+      # As with glibc, only the native x86_64 wheel is tested.
+      # The third-party image only gets the license without network access:
+      # the wheel is installed and the models are downloaded beforehand
+      # in a separate container that doesn't get the license.
+      - name: Test wheels (musl, in Alpine)
+        if: matrix.platform.libc == 'musl'
+        shell: bash
+        env:
+          AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+        run: |
+          version=${{ matrix.interpreter }}
+          echo "Testing Python $version"
+          wheel=$(ls dist/*cp${version//.}*${{ matrix.platform.test-arch }}*.whl)
+          echo "Installing $wheel"
+          image="python:$version-alpine"
+
+          docker run --rm -v "$PWD:/work" -w /work "$image" sh -c "
+            set -e
+            python -m venv .venv-musl
+            .venv-musl/bin/pip install --quiet '$wheel'
+            for model in rook-s-48khz vad-2.1-xxs-16khz quail-vf-2.2-s-16khz; do
+              .venv-musl/bin/python -c \"import sys, aic_sdk; aic_sdk.Model.download(sys.argv[1], 'models')\" \$model
+            done
+          "
+
+          docker run --rm --network none -v "$PWD:/work:ro" -w /work \
+            -e AIC_SDK_LICENSE \
+            "$image" sh -c "
+              set -e
+              .venv-musl/bin/python examples/enhancement.py
+              .venv-musl/bin/python examples/enhancement_async.py
+              .venv-musl/bin/python examples/vad.py
+              .venv-musl/bin/python examples/energy_vad.py
+            "

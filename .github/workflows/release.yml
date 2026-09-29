@@ -10,21 +10,29 @@ permissions:
 
 jobs:
   build:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build ${{ matrix.libc && format('{0} ', matrix.libc) || '' }}wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
+            libc: gnu
             targets: x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: true
+          - os: ubuntu-latest
+            libc: musl
+            targets: x86_64-unknown-linux-musl aarch64-unknown-linux-musl
+            interpreters: '3.10 3.11 3.12 3.13 3.14'
+            use-zig: true
           - os: macos-latest
+            libc: ''
             targets: x86_64-apple-darwin aarch64-apple-darwin
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: false
           - os: windows-latest
+            libc: ''
             targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             interpreters: '3.10 3.11 3.12 3.13 3.14'
             use-zig: false
@@ -61,7 +69,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
+          # Artifact names must be unique across the glibc and musl jobs.
+          name: wheels-${{ matrix.os }}${{ matrix.libc && format('-{0}', matrix.libc) || '' }}
           path: dist
 
   sdist:
