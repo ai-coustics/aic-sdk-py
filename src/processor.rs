@@ -8,7 +8,7 @@ use crate::to_py_err;
 
 /// Configurable parameters for audio enhancement.
 #[gen_stub_pyclass_enum]
-#[pyclass(module = "aic_sdk", eq, eq_int)]
+#[pyclass(module = "aic_sdk", eq, eq_int, from_py_object)]
 #[derive(Clone, PartialEq)]
 pub enum ProcessorParameter {
     /// Controls whether audio processing is bypassed while preserving algorithmic delay.
@@ -67,7 +67,7 @@ impl From<ProcessorParameter> for aic_sdk::ProcessorParameter {
 /// Use ProcessorConfig.optimal() as a starting point, then adjust fields
 /// to match your audio stream.
 #[gen_stub_pyclass]
-#[pyclass(module = "aic_sdk", get_all, set_all)]
+#[pyclass(module = "aic_sdk", get_all, set_all, from_py_object)]
 #[derive(Clone)]
 pub struct ProcessorConfig {
     /// Sample rate in Hz (8000 - 192000)

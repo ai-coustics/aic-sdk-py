@@ -10,7 +10,7 @@ use crate::to_py_err;
 /// Scores are in the range 0.0 to 1.0. For all fields except speaker_loudness, lower values
 /// indicate less problematic audio.
 #[gen_stub_pyclass]
-#[pyclass(module = "aic_sdk", get_all)]
+#[pyclass(module = "aic_sdk", get_all, from_py_object)]
 #[derive(Clone)]
 pub struct AnalysisResult {
     /// Headline audio score.
