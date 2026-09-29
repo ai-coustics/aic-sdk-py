@@ -87,7 +87,7 @@ jobs:
           "$python" examples/vad.py
           "$python" examples/energy_vad.py
 
-      # Test musl wheels in Alpine; keep builds and JavaScript actions on Ubuntu.
+      # musl wheels are built on Ubuntu, but tested in Alpine.
       # As with glibc, only the native x86_64 wheel is tested.
       # The third-party image only gets the license without network access:
       # the wheel is installed and the models are downloaded beforehand
