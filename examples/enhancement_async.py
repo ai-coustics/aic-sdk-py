@@ -62,13 +62,14 @@ async def main():
     print("\nAfter processing:")
     print(f"  First 5: {audio_processed[:5]}")
 
-    # Concurrent processing example
-    print("\nProcessing 4 mono blocks concurrently...")
+    # Concurrent processing example: one processor per stream
+    print("\nProcessing 4 mono streams concurrently...")
+    streams = [aic.ProcessorAsync(model, license_key, config) for _ in range(4)]
     blocks = [np.random.randn(config.block_size).astype(np.float32) for _ in range(4)]
     results = await asyncio.gather(
-        *[processor.process_async(block) for block in blocks]
+        *[stream.process_async(block) for stream, block in zip(streams, blocks)]
     )
-    print(f"  Processed {len(results)} blocks concurrently")
+    print(f"  Processed {len(results)} streams concurrently")
     print(f"  Each result shape: {results[0].shape}")
 
     # Test parameter adjustment

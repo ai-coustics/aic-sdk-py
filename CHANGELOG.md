@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## Unreleased
+
+### Changed
+
+`ProcessorAsync` and `VadAsync` now run their processing through the event loop's executor
+(`loop.run_in_executor`) instead of the SDK's own Rayon thread pool and Tokio runtime. Results are
+delivered straight to the event loop, so they no longer wait on a background thread to acquire the
+GIL. Under load from other Python code on the event loop, this greatly reduces latency spikes and
+missed real-time deadlines.
+
+- By default, calls run on the running loop's default executor. Pass `executor=` to use your own
+  `concurrent.futures.Executor`:
+
+  ```python
+  pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+  processor = aic.ProcessorAsync(model, license_key, config, executor=pool)
+  ```
+
+- The `AIC_NUM_THREADS` environment variable no longer has any effect. Size the executor instead.
+- `process_async()`, `initialize_async()` and `terminate_session_async()` must be called from a
+  running event loop; outside one they raise `RuntimeError`.
+
 ## 3.3.0 - 2026-09-29
 
 Update to core library version 0.25.0.

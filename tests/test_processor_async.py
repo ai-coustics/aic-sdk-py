@@ -1,5 +1,7 @@
 import asyncio
+import concurrent.futures
 import os
+import threading
 
 import numpy as np
 import pytest
@@ -180,3 +182,91 @@ async def test_processor_async_requires_valid_license_key(model, license_key):
         aic.ProcessorAsync(model, license_key)
 
     assert "License key format is invalid or corrupted" in str(exc_info.value)
+
+
+class _CountingExecutor(concurrent.futures.ThreadPoolExecutor):
+    """ThreadPoolExecutor that records how many calls were submitted and on which threads."""
+
+    def __init__(self):
+        super().__init__(max_workers=2, thread_name_prefix="counting")
+        self.submitted = 0
+        self.threads = set()
+
+    def submit(self, fn, /, *args, **kwargs):
+        self.submitted += 1
+
+        def run():
+            self.threads.add(threading.current_thread().name)
+            return fn(*args, **kwargs)
+
+        return super().submit(run)
+
+
+@pytest.mark.asyncio
+async def test_custom_executor_runs_every_call(model):
+    """With executor=..., initialize, process and terminate all run on that executor."""
+    license_key = os.environ["AIC_SDK_LICENSE"]
+    with _CountingExecutor() as executor:
+        processor = aic.ProcessorAsync(model, license_key, executor=executor)
+        config = aic.ProcessorConfig.optimal(model)
+        await processor.initialize_async(config)
+        result = await processor.process_async(
+            np.zeros(config.block_size, dtype=np.float32)
+        )
+        await processor.terminate_session_async()
+
+    assert result.shape == (config.block_size,)
+    assert executor.submitted == 3
+    assert all(name.startswith("counting") for name in executor.threads)
+
+
+@pytest.mark.asyncio
+async def test_process_async_uses_default_executor(model):
+    """Without executor=..., calls go to the running loop's default executor."""
+    license_key = os.environ["AIC_SDK_LICENSE"]
+    config = aic.ProcessorConfig.optimal(model)
+    processor = aic.ProcessorAsync(model, license_key, config)
+
+    with _CountingExecutor() as executor:
+        asyncio.get_running_loop().set_default_executor(executor)
+        await processor.process_async(np.zeros(config.block_size, dtype=np.float32))
+
+    assert executor.submitted == 1
+
+
+@pytest.mark.asyncio
+async def test_process_async_propagates_errors(model):
+    """Errors raised on the executor thread surface from the awaited call."""
+    license_key = os.environ["AIC_SDK_LICENSE"]
+    processor = aic.ProcessorAsync(model, license_key)
+
+    with pytest.raises(aic.NotInitializedError):
+        await processor.process_async(np.zeros(480, dtype=np.float32))
+
+
+@pytest.mark.asyncio
+async def test_process_async_copies_input(model):
+    """The block is copied when process_async is called, so the caller may reuse it."""
+    license_key = os.environ["AIC_SDK_LICENSE"]
+    config = aic.ProcessorConfig.optimal(model)
+    audio = np.full(config.block_size, 0.1, dtype=np.float32)
+
+    processor = aic.ProcessorAsync(model, license_key, config)
+    pending = processor.process_async(audio)
+    audio[:] = 0.0
+    result = await pending
+
+    reference = aic.Processor(model, license_key, config).process(
+        np.full(config.block_size, 0.1, dtype=np.float32)
+    )
+    np.testing.assert_array_equal(result, reference)
+
+
+def test_process_async_requires_running_loop(model):
+    """Calling process_async outside an event loop raises instead of hanging."""
+    license_key = os.environ["AIC_SDK_LICENSE"]
+    config = aic.ProcessorConfig.optimal(model)
+    processor = aic.ProcessorAsync(model, license_key, config)
+
+    with pytest.raises(RuntimeError, match="no running event loop"):
+        processor.process_async(np.zeros(config.block_size, dtype=np.float32))

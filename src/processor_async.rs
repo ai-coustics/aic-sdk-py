@@ -1,5 +1,6 @@
 use crate::{
     energy_vad::EnergyVadContext,
+    executor::{lock, run_in_executor},
     model::Model,
     otel_config::OtelConfig,
     processor::{ProcessorConfig, ProcessorContext},
@@ -7,13 +8,17 @@ use crate::{
 };
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-/// Async wrapper for Processor that offloads work to background threads.
+/// Async wrapper for Processor that offloads work to an executor.
 ///
 /// This class provides the same functionality as Processor but with async methods
-/// that don't block the event loop. Processing thread count is controlled by the
-/// `AIC_NUM_THREADS` environment variable.
+/// that don't block the event loop. Processing runs through `loop.run_in_executor`,
+/// on the executor passed to the constructor or, by default, on the running event
+/// loop's default executor. The GIL is released while processing.
+///
+/// Concurrent calls on the same instance are serialized but may run in any order.
+/// Use one processor per audio stream.
 ///
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
@@ -25,7 +30,8 @@ use std::sync::Arc;
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct ProcessorAsync {
-    inner: Arc<aic_sdk::ProcessorAsync>,
+    inner: Arc<Mutex<aic_sdk::Processor<'static>>>,
+    executor: Option<Py<PyAny>>,
 }
 
 #[gen_stub_pymethods]
@@ -45,6 +51,9 @@ impl ProcessorAsync {
     ///         (generate your key at <https://developers.ai-coustics.com/>)
     ///     config: Optional audio processing configuration. If provided, the processor
     ///         will be initialized immediately with this configuration.
+    ///     otel_config: Optional per-instance OpenTelemetry configuration
+    ///     executor: Optional concurrent.futures.Executor that runs the processing calls.
+    ///         Defaults to the running event loop's default executor.
     ///
     /// Raises:
     ///     RuntimeError: If processor creation fails.
@@ -58,43 +67,51 @@ impl ProcessorAsync {
     ///     >>> # Or create and initialize in one step
     ///     >>> config = ProcessorConfig.optimal(model)
     ///     >>> processor = ProcessorAsync(model, license_key, config)
+    ///
+    ///     >>> # Run processing on your own thread pool
+    ///     >>> pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    ///     >>> processor = ProcessorAsync(model, license_key, config, executor=pool)
     #[new]
-    #[pyo3(signature = (model, license_key, config=None, otel_config=None))]
+    #[pyo3(signature = (model, license_key, config=None, otel_config=None, executor=None))]
     fn new(
         model: &Bound<'_, Model>,
         license_key: &str,
         config: Option<&ProcessorConfig>,
         otel_config: Option<&OtelConfig>,
+        #[gen_stub(override_type(
+            type_repr = "concurrent.futures.Executor | None",
+            imports = ("concurrent.futures")
+        ))]
+        executor: Option<Py<PyAny>>,
     ) -> PyResult<Self> {
         // Identify as the Python wrapper before any SDK object is created. Must stay first: the
-        // `aic_sdk::ProcessorAsync::new` call below sets the Rust wrapper id; the SDK keeps the
-        // first id it is given, so this one wins.
+        // `aic_sdk::Processor::new` call below sets the Rust wrapper id; the SDK keeps the first
+        // id it is given, so this one wins.
         //
         // SAFETY: This function has no safety requirements.
         unsafe {
             aic_sdk::set_sdk_id(3);
         }
 
-        let processor = match otel_config {
-            Some(otel) => aic_sdk::ProcessorAsync::with_otel_config(
+        let mut processor = match otel_config {
+            Some(otel) => aic_sdk::Processor::with_otel_config(
                 &model.borrow().inner,
                 license_key,
                 &otel.into(),
             )
             .map_err(to_py_err)?,
-            None => aic_sdk::ProcessorAsync::new(&model.borrow().inner, license_key)
-                .map_err(to_py_err)?,
+            None => {
+                aic_sdk::Processor::new(&model.borrow().inner, license_key).map_err(to_py_err)?
+            }
         };
 
         if let Some(config) = config {
-            let aic_config = aic_sdk::ProcessorConfig::from(config);
-            pyo3_async_runtimes::tokio::get_runtime()
-                .block_on(processor.initialize(&aic_config))
-                .map_err(to_py_err)?;
+            processor.initialize(&config.into()).map_err(to_py_err)?;
         }
 
         Ok(ProcessorAsync {
-            inner: Arc::new(processor),
+            inner: Arc::new(Mutex::new(processor)),
+            executor,
         })
     }
 
@@ -119,10 +136,11 @@ impl ProcessorAsync {
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let aic_config = aic_sdk::ProcessorConfig::from(&config);
-            inner.initialize(&aic_config).await.map_err(to_py_err)?;
-            Ok(Python::attach(|py| py.None()))
+        run_in_executor(py, self.executor.as_ref(), move |py| {
+            let config = aic_sdk::ProcessorConfig::from(&config);
+            py.detach(|| lock(&inner).initialize(&config))
+                .map_err(to_py_err)?;
+            Ok(py.None())
         })
     }
 
@@ -133,8 +151,8 @@ impl ProcessorAsync {
     ///
     /// Example:
     ///     >>> processor_context = processor.get_context()
-    fn get_context(&self) -> PyResult<ProcessorContext> {
-        let ctx = pyo3_async_runtimes::tokio::get_runtime().block_on(self.inner.context());
+    fn get_context(&self, py: Python<'_>) -> PyResult<ProcessorContext> {
+        let ctx = py.detach(|| lock(&self.inner).context());
         Ok(ProcessorContext { inner: ctx })
     }
 
@@ -144,9 +162,8 @@ impl ProcessorAsync {
     ///
     /// Example:
     ///     >>> vad_ctx = processor.get_energy_vad_context()
-    fn get_energy_vad_context(&self) -> EnergyVadContext {
-        let inner =
-            pyo3_async_runtimes::tokio::get_runtime().block_on(self.inner.energy_vad_context());
+    fn get_energy_vad_context(&self, py: Python<'_>) -> EnergyVadContext {
+        let inner = py.detach(|| lock(&self.inner).energy_vad_context());
         EnergyVadContext { inner }
     }
 
@@ -155,9 +172,9 @@ impl ProcessorAsync {
     /// The processor cannot process more audio after this call.
     fn terminate_session_async<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let inner = Arc::clone(&self.inner);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            inner.terminate_session().await;
-            Ok(Python::attach(|py| py.None()))
+        run_in_executor(py, self.executor.as_ref(), move |py| {
+            py.detach(|| lock(&inner).terminate_session());
+            Ok(py.None())
         })
     }
 }
@@ -173,24 +190,21 @@ impl ProcessorAsync {
     ) -> PyResult<Bound<'py, pyo3::types::PyAny>> {
         let inner = Arc::clone(&self.inner);
 
-        // process consumes an owned Vec for the 'static async task, so take the owned
-        // array's backing buffer directly instead of copying it again.
-        let vec = audio
+        // Copy the block now, on the event loop thread, so the caller may reuse its array as
+        // soon as the call returns.
+        let mut vec = audio
             .as_array()
             .as_standard_layout()
             .into_owned()
             .into_raw_vec_and_offset()
             .0;
 
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let processed = inner.process(vec).await.map_err(to_py_err)?;
+        run_in_executor(py, self.executor.as_ref(), move |py| {
+            py.detach(|| lock(&inner).process(&mut vec))
+                .map_err(to_py_err)?;
 
-            let result_obj = Python::attach(|py| {
-                use numpy::IntoPyArray;
-                Ok::<pyo3::Py<numpy::PyArray1<f32>>, PyErr>(processed.into_pyarray(py).unbind())
-            })?;
-
-            Ok(result_obj)
+            use numpy::IntoPyArray;
+            Ok(vec.into_pyarray(py).into_any().unbind())
         })
     }
 }

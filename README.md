@@ -199,9 +199,14 @@ async def process_audio():
     audio = np.zeros(config.block_size, dtype=np.float32)
     result = await processor.process_async(audio)
 
-    # Process multiple blocks concurrently
+    # Process several streams concurrently, one processor per stream
+    processors = [
+        aic.ProcessorAsync(model, "your-license-key", config) for _ in range(4)
+    ]
     blocks = [np.random.randn(config.block_size).astype(np.float32) for _ in range(4)]
-    results = await asyncio.gather(*[processor.process_async(block) for block in blocks])
+    results = await asyncio.gather(
+        *[p.process_async(b) for p, b in zip(processors, blocks)]
+    )
 
 
 asyncio.run(process_audio())
@@ -340,10 +345,20 @@ analyzer.terminate_session()
 - **`Processor` (sync)**: Simple scripts, command-line tools, batch processing
 - **`ProcessorAsync` (async)**: Web servers, real-time applications, concurrent stream processing
 
-`ProcessorAsync` runs CPU-bound work on a dedicated [Rayon](https://docs.rs/rayon)
-thread pool. By default the pool is sized to the number of logical cores reported
-by the OS. Set the `AIC_NUM_THREADS` environment variable to override the worker
-count, for example `AIC_NUM_THREADS=2` caps concurrent processing at two threads.
+`ProcessorAsync` and `VadAsync` run CPU-bound work through `loop.run_in_executor`
+and release the GIL while processing. By default they use the running event loop's
+default executor. To control how many blocks are processed concurrently, pass your
+own executor:
+
+```python
+import concurrent.futures
+
+pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+processor = aic.ProcessorAsync(model, license_key, config, executor=pool)
+```
+
+Use one processor per audio stream. Concurrent calls on the same processor are
+serialized, but their order is not guaranteed.
 
 ### Error Handling
 

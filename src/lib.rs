@@ -9,6 +9,7 @@ use tokio::runtime::Runtime;
 mod analyzer;
 mod energy_vad;
 mod error;
+mod executor;
 mod file_analyzer;
 mod model;
 mod otel_config;

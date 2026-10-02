@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 
 import numpy as np
 import pytest
@@ -82,3 +83,26 @@ def test_vad_async_rejects_enhancement_model(model, license_key):
 def test_vad_async_requires_valid_license_key(vad_model, license_key):
     with pytest.raises(aic.LicenseFormatInvalidError):
         aic.VadAsync(vad_model, license_key)
+
+
+@pytest.mark.asyncio
+async def test_vad_async_custom_executor(vad_model, license_key):
+    """With executor=..., initialize and process run on that executor."""
+    submitted = []
+
+    class RecordingExecutor(concurrent.futures.ThreadPoolExecutor):
+        def submit(self, fn, /, *args, **kwargs):
+            submitted.append(fn)
+            return super().submit(fn, *args, **kwargs)
+
+    config = aic.ProcessorConfig.optimal(vad_model)
+    with RecordingExecutor(max_workers=1) as executor:
+        try:
+            vad = aic.VadAsync(vad_model, license_key, executor=executor)
+        except (aic.LicenseVersionUnsupportedError, aic.LicenseExpiredError):
+            pytest.skip("License incompatible with this SDK version")
+        await vad.initialize_async(config)
+        audio = np.zeros(config.block_size, dtype=np.float32)
+        assert await vad.process_async(audio) is None
+
+    assert len(submitted) == 2
