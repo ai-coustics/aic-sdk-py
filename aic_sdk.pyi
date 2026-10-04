@@ -942,7 +942,8 @@ class ProcessorAsync:
 
     This class provides the same functionality as Processor but with async methods
     that don't block the event loop. Processing thread count is controlled by the
-    `AIC_NUM_THREADS` environment variable.
+    `AIC_NUM_THREADS` environment variable. `terminate_session_async()` runs on its own
+    thread, so a terminate that blocks never takes a processing thread.
 
     Example:
         >>> model = Model.from_file("/path/to/model.aicmodel")
@@ -1359,6 +1360,8 @@ class VadAsync:
     Async voice activity detector backed by a dedicated VAD model.
 
     Processing runs on the SDK's background thread pool and does not block the event loop.
+    `terminate_session_async()` runs on its own thread, so a terminate that blocks never takes a
+    processing thread.
 
     When enhancement and VAD run together, feed the VAD the original input audio, not the
     enhanced output of ProcessorAsync.process_async().

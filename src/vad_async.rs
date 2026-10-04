@@ -1,5 +1,6 @@
 use crate::{
-    model::Model, otel_config::OtelConfig, processor::ProcessorConfig, to_py_err, vad::VadContext,
+    async_vad::AsyncVad, model::Model, otel_config::OtelConfig, processor::ProcessorConfig,
+    to_py_err, vad::VadContext,
 };
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
@@ -8,13 +9,15 @@ use std::sync::Arc;
 /// Async voice activity detector backed by a dedicated VAD model.
 ///
 /// Processing runs on the SDK's background thread pool and does not block the event loop.
+/// `terminate_session_async()` runs on its own thread, so a terminate that blocks never takes a
+/// processing thread.
 ///
 /// When enhancement and VAD run together, feed the VAD the original input audio, not the
 /// enhanced output of ProcessorAsync.process_async().
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct VadAsync {
-    inner: Arc<aic_sdk::VadAsync>,
+    inner: Arc<AsyncVad>,
 }
 
 #[gen_stub_pymethods]
@@ -40,7 +43,7 @@ impl VadAsync {
         otel_config: Option<&OtelConfig>,
     ) -> PyResult<Self> {
         // Identify as the Python wrapper before any SDK object is created. Must stay first: the
-        // `aic_sdk::VadAsync::new` call below sets the Rust wrapper id; the SDK keeps the first id
+        // `aic_sdk::Vad::new` call below sets the Rust wrapper id; the SDK keeps the first id
         // it is given, so this one wins.
         //
         // SAFETY: This function has no safety requirements.
@@ -49,15 +52,11 @@ impl VadAsync {
         }
 
         let vad = match otel_config {
-            Some(otel) => aic_sdk::VadAsync::with_otel_config(
-                &model.borrow().inner,
-                license_key,
-                &otel.into(),
-            )
-            .map_err(to_py_err)?,
-            None => {
-                aic_sdk::VadAsync::new(&model.borrow().inner, license_key).map_err(to_py_err)?
+            Some(otel) => {
+                AsyncVad::with_otel_config(&model.borrow().inner, license_key, &otel.into())
+                    .map_err(to_py_err)?
             }
+            None => AsyncVad::new(&model.borrow().inner, license_key).map_err(to_py_err)?,
         };
 
         if let Some(config) = config {

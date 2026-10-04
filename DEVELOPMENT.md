@@ -48,11 +48,23 @@ Set up your license key and aic lib path in `.env`:
 uv run --env-file .env pytest
 ```
 
+## Async layer
+
+`ProcessorAsync` and `VadAsync` run on `src/async_processor.rs` and `src/async_vad.rs`, which are
+vendored from the `aic-sdk` crate's `processor_async.rs` and `vad_async.rs`. Behaviour is the
+crate's except `terminate_session`, which runs on its own thread instead of the processing pool;
+names, visibility, doc comments and the unused `with_config` differ mechanically. When `aic-sdk` is
+bumped, compare both files with the crate's `src/processor_async.rs` and `src/vad_async.rs` and run
+`tests/test_terminate_pool.py` (it needs `AIC_SDK_LICENSE`). Once the crate's terminate no longer runs
+on the shared pool, delete the two files and use `aic_sdk::ProcessorAsync` and `aic_sdk::VadAsync`
+again.
+
 ## Release Process
 
 1. Create a new branch
 2. Update version in `pyproject.toml` and run `uv lock` to update `uv.lock` file.
-3. Update version also in `Cargo.toml` and run `cargo build` to update the `Cargo.lock` file.
+3. Update version also in `Cargo.toml` and run `cargo build` to update the `Cargo.lock` file. If
+   this release raises `aic-sdk`, follow "Async layer" above.
 4. Create new stubs: `make stubs`.
 5. Update `CHANGELOG.md`
 6. Create a PR and merge it into `main`.

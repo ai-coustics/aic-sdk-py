@@ -149,6 +149,10 @@ lifecycle event, call `processor.terminate_session()`, `vad.terminate_session()`
 `analyzer.terminate_session()`. Async processors and VADs expose `terminate_session_async()`.
 After explicit termination, that object cannot process or analyze more audio.
 
+Releasing a `ProcessorAsync` or `VadAsync` without terminating it first ends the session inside the
+release, on whichever thread drops the last reference, and a Python thread holds the GIL while it
+does. In async code, await `terminate_session_async()` before releasing the object.
+
 ### Processor Context
 
 The processor context provides thread-safe access to processor parameters and state. You can create

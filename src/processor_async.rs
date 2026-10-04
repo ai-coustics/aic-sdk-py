@@ -1,4 +1,5 @@
 use crate::{
+    async_processor::AsyncProcessor,
     energy_vad::EnergyVadContext,
     model::Model,
     otel_config::OtelConfig,
@@ -13,7 +14,8 @@ use std::sync::Arc;
 ///
 /// This class provides the same functionality as Processor but with async methods
 /// that don't block the event loop. Processing thread count is controlled by the
-/// `AIC_NUM_THREADS` environment variable.
+/// `AIC_NUM_THREADS` environment variable. `terminate_session_async()` runs on its own
+/// thread, so a terminate that blocks never takes a processing thread.
 ///
 /// Example:
 ///     >>> model = Model.from_file("/path/to/model.aicmodel")
@@ -25,7 +27,7 @@ use std::sync::Arc;
 #[gen_stub_pyclass]
 #[pyclass(module = "aic_sdk")]
 pub struct ProcessorAsync {
-    inner: Arc<aic_sdk::ProcessorAsync>,
+    inner: Arc<AsyncProcessor>,
 }
 
 #[gen_stub_pymethods]
@@ -67,7 +69,7 @@ impl ProcessorAsync {
         otel_config: Option<&OtelConfig>,
     ) -> PyResult<Self> {
         // Identify as the Python wrapper before any SDK object is created. Must stay first: the
-        // `aic_sdk::ProcessorAsync::new` call below sets the Rust wrapper id; the SDK keeps the
+        // `aic_sdk::Processor::new` call below sets the Rust wrapper id; the SDK keeps the
         // first id it is given, so this one wins.
         //
         // SAFETY: This function has no safety requirements.
@@ -76,14 +78,11 @@ impl ProcessorAsync {
         }
 
         let processor = match otel_config {
-            Some(otel) => aic_sdk::ProcessorAsync::with_otel_config(
-                &model.borrow().inner,
-                license_key,
-                &otel.into(),
-            )
-            .map_err(to_py_err)?,
-            None => aic_sdk::ProcessorAsync::new(&model.borrow().inner, license_key)
-                .map_err(to_py_err)?,
+            Some(otel) => {
+                AsyncProcessor::with_otel_config(&model.borrow().inner, license_key, &otel.into())
+                    .map_err(to_py_err)?
+            }
+            None => AsyncProcessor::new(&model.borrow().inner, license_key).map_err(to_py_err)?,
         };
 
         if let Some(config) = config {

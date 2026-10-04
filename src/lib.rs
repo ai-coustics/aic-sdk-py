@@ -7,6 +7,8 @@ use pyo3_stub_gen::derive::gen_stub_pyfunction;
 use tokio::runtime::Runtime;
 
 mod analyzer;
+mod async_processor;
+mod async_vad;
 mod energy_vad;
 mod error;
 mod file_analyzer;

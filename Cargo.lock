@@ -39,9 +39,6 @@ checksum = "4446192700ac5571a9afa4bb337c5d4c761dcf2e81639d5474b7f992216c9f3f"
 dependencies = [
  "aic-model-downloader",
  "aic-sdk-sys",
- "async-lock",
- "futures-channel",
- "rayon",
  "thiserror",
 ]
 
@@ -50,10 +47,13 @@ name = "aic-sdk-py"
 version = "3.3.0"
 dependencies = [
  "aic-sdk",
+ "async-lock",
+ "futures-channel",
  "numpy",
  "pyo3",
  "pyo3-async-runtimes",
  "pyo3-stub-gen",
+ "rayon",
  "tokio",
 ]
 
