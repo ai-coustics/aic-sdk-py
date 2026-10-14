@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 3.3.1 - 2026-10-14
+
+Update to core library version 0.25.1.
+
+### Improvements
+
+- Improved the robustness of `AnalysisResult.interfering_speech` in Tyto 1.1.
+
+### Bug Fixes
+
+- Fixed a click and brief drop in audio volume with Quail Voice Focus models when speech is first detected after processing starts or the processor is reset.
+- Quail Voice Focus models now apply the requested enhancement level (`ProcessorParameter.EnhancementLevel`) even before speech is first detected. Previously, all nonzero enhancement levels produced the same audio during this initial period.
+- Fixed `Processor.terminate_session()`, `Vad.terminate_session()` and `Analyzer.terminate_session()`,
+  as well as `ProcessorAsync.terminate_session_async()` and `VadAsync.terminate_session_async()`,
+  blocking until sessions created after the call ended. Terminating the last session now waits only for the final usage reports of sessions that were already terminated.
+
 ## 3.3.0 - 2026-09-29
 
 Update to core library version 0.25.0.
