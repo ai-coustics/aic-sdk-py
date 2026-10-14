@@ -33,7 +33,7 @@ jobs:
             targets: x86_64-pc-windows-msvc aarch64-pc-windows-msvc
             test-arch: amd64
             use-zig: false
-        interpreter: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        interpreter: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
 
     steps:
       - uses: actions/checkout@v6
