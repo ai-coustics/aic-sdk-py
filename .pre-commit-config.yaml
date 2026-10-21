@@ -14,11 +14,12 @@ repos:
       - id: remove-crlf
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.8
+    rev: v0.17.1
     hooks:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
+        types_or: [python, pyi]
 
   - repo: https://github.com/ComPWA/taplo-pre-commit
     rev: v0.9.3
