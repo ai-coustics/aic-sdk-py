@@ -102,6 +102,26 @@ fn shutdown_runtime(py: Python<'_>) {
 #[pymodule]
 #[pyo3(name = "aic_sdk")]
 fn aic_sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let implementation = m.py().import("sys")?.getattr("implementation")?;
+    let kind = match implementation
+        .getattr("name")?
+        .extract::<String>()?
+        .as_str()
+    {
+        "cpython" => Some(1),
+        "pypy" => Some(2),
+        _ => None,
+    };
+    if let Some(kind) = kind {
+        let version = implementation.getattr("version")?;
+        let major = version.getattr("major")?.extract::<u32>()?;
+        let minor = version.getattr("minor")?.extract::<u32>()?;
+        if (1..=99).contains(&major) && minor <= 99 {
+            // Tagged numeric metadata is ignored by native SDKs that predate runtime attribution.
+            unsafe { aic_sdk::set_sdk_id(0x8000_0000 | (kind << 16) | (major << 8) | minor) };
+        }
+    }
+
     let num_runtime_threads = std::env::var("AIC_NUM_RUNTIME_THREADS")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())

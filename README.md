@@ -400,3 +400,17 @@ For a benchmarking example that tests how many concurrent processing sessions yo
 ## License
 
 This Python wrapper is distributed under the Apache 2.0 license. The core C SDK is distributed under the proprietary AIC-SDK license.
+
+### HTTP runtime attribution
+
+This binding sends only an allowlisted runtime name and major/minor version through
+an internal numeric SDK channel. It omits patch versions and release/build strings.
+The core adds the SDK build, coarse platform, architecture, and assigned wrapper
+identity to HTTP User-Agent headers. Runtime metadata does not claim a wrapper ID,
+so integrations can still register their ID before constructing SDK objects.
+
+Release this change with rebuilt native artifacts and Rust crates containing the
+HTTP attribution changes from SYS-804. Update the SDK dependency requirement and
+Cargo lockfile to that release before publishing; the current lockfile still uses
+0.25.1. Older native cores safely ignore runtime metadata and remain ABI-compatible,
+but do not gain the new headers. No new public API is required.
