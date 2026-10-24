@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 3.3.2 - 2026-10-24
+
+### Security
+
+- Model downloads now use `rustls-webpki` 0.103.16 and `webpki-roots` 1.0.10.
+  These versions reject the compromised eMudhra intermediate keys and remove the affected bundled root.
+  This addresses [RUSTSEC-2026-0382](https://rustsec.org/advisories/RUSTSEC-2026-0382.html)
+  and [RUSTSEC-2026-0381](https://rustsec.org/advisories/RUSTSEC-2026-0381.html).
+  The dependency updates were merged in #75; this release makes them available in published Python wheels.
+
+The native SDK remains at version 0.25.1. This release does not change its internal certificate handling.
+
 ## 3.3.1 - 2026-10-14
 
 Update to core library version 0.25.1.
