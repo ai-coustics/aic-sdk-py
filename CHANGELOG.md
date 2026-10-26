@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to semantic versioning for the Python package. The native SDK binaries are versioned independently.
 
+## 3.3.2 - 2026-10-26
+
+Update to core library version 0.25.2.
+
+### Security
+
+- Updated the `aic-sdk` crate to 0.25.2 and TLS certificate dependencies to address the recently publicly disclosed [eMudhra intermediate CA certificate vulnerability](https://blog.google/security/protecting-chrome-and-android-users-from-compromised-emudhra-intermediate-ca-certificates/).
+
 ## 3.3.1 - 2026-10-14
 
 Update to core library version 0.25.1.
