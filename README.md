@@ -26,7 +26,7 @@ import os
 license_key = os.environ["AIC_SDK_LICENSE"]
 
 # Download and load a model (or download manually at https://artifacts.ai-coustics.io/)
-model_path = aic.Model.download("quail-vf-2.2-l-16khz", "./models")
+model_path = aic.Model.download("quail-vf-2.3-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 
 # Get optimal configuration
@@ -63,13 +63,13 @@ model = aic.Model.from_file("path/to/model.aicmodel")
 
 #### Download from CDN (Sync)
 ```python
-model_path = aic.Model.download("quail-vf-2.2-l-16khz", "./models")
+model_path = aic.Model.download("quail-vf-2.3-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 ```
 
 #### Download from CDN (Async)
 ```python
-model_path = await aic.Model.download_async("quail-vf-2.2-l-16khz", "./models")
+model_path = await aic.Model.download_async("quail-vf-2.3-l-16khz", "./models")
 model = aic.Model.from_file(model_path)
 ```
 
@@ -183,7 +183,7 @@ import aic_sdk as aic
 
 async def process_audio():
     # Download and load model (or download manually at https://artifacts.ai-coustics.io/)
-    model_path = await aic.Model.download_async("quail-vf-2.2-l-16khz", "./models")
+    model_path = await aic.Model.download_async("quail-vf-2.3-l-16khz", "./models")
     model = aic.Model.from_file(model_path)
 
     # Get optimal config
@@ -210,10 +210,10 @@ asyncio.run(process_audio())
 ### Voice Activity Detection (VAD)
 
 VAD uses a separate `Vad` instance and a dedicated VAD model. Enhancement models are accepted by
-`Processor`, while VAD models such as `vad-2.1-xxs-16khz` are accepted by `Vad`.
+`Processor`, while VAD models such as `vad-ms-2.1-xxs-16khz` are accepted by `Vad`.
 
 ```python
-vad_model_path = aic.Model.download("vad-2.1-xxs-16khz", "./models")
+vad_model_path = aic.Model.download("vad-ms-2.1-xxs-16khz", "./models")
 vad_model = aic.Model.from_file(vad_model_path)
 vad_config = aic.ProcessorConfig.optimal(vad_model)
 vad = aic.Vad(vad_model, license_key, vad_config)
@@ -303,7 +303,7 @@ import numpy as np
 import aic_sdk as aic
 
 # Use an analysis model (Tyto), not an enhancement model.
-model = aic.Model.from_file(aic.Model.download("tyto-1.1-l-16khz", "./models"))
+model = aic.Model.from_file(aic.Model.download("tyto-1.2-l-16khz", "./models"))
 analyzer = aic.FileAnalyzer(model, license_key)
 
 # audio: 1D mono float32 NumPy array

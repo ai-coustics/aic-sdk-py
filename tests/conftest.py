@@ -12,14 +12,14 @@ _LICENSE_KEY = os.environ.get("AIC_SDK_LICENSE")
 
 @pytest.fixture
 def model():
-    model_id = "quail-vf-2.2-s-16khz"
+    model_id = "quail-vf-2.3-s-16khz"
     model_path = aic.Model.download(model_id, "./models")
     return aic.Model.from_file(model_path)
 
 
 @pytest.fixture
 def vad_model():
-    model_id = "vad-2.1-xxs-16khz"
+    model_id = "vad-ms-2.1-xxs-16khz"
     model_path = aic.Model.download(model_id, "./models")
     return aic.Model.from_file(model_path)
 
@@ -27,7 +27,7 @@ def vad_model():
 @pytest.fixture
 def analysis_model():
     # The analyzer requires an analysis model (Tyto), not an enhancement model.
-    model_id = "tyto-1.1-l-16khz"
+    model_id = "tyto-1.2-l-16khz"
     model_path = aic.Model.download(model_id, "./models")
     return aic.Model.from_file(model_path)
 

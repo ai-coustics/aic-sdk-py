@@ -102,7 +102,7 @@ pub struct Vad {
 impl Vad {
     /// Creates a voice activity detector.
     ///
-    /// The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
+    /// The model must be a dedicated VAD model, such as vad-ms-2.1-xxs-16khz. Enhancement models
     /// raise ModelTypeUnsupportedError. For an enhancement model, use
     /// Processor.get_energy_vad_context().
     ///
