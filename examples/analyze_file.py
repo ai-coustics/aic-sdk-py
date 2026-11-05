@@ -22,7 +22,7 @@ import soundfile as sf
 
 import aic_sdk as aic
 
-MODEL = "tyto-1.1-l-16khz"
+MODEL = "tyto-1.2-l-16khz"
 STEP_SECONDS = 5
 
 

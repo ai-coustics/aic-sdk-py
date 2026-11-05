@@ -113,7 +113,7 @@ def test_real_sdk_vad_detection_runs(vad_model, license_key):
 
 
 def test_real_sdk_model_processing(model, license_key):
-    model_id = "rook-s-48khz"
+    model_id = "rook-ms-s-48khz"
     model_path = aic.Model.download(model_id, "./models")
     model = aic.Model.from_file(model_path)
     khz_pattern = re.compile(r"-(\d+)khz\b")

@@ -538,7 +538,7 @@ class Model:
             This is a blocking operation that performs network I/O.
 
         Args:
-            model_id: The model identifier (e.g., `"quail-l-16khz"`).
+            model_id: The model identifier (e.g., `"quail-ms-l-16khz"`).
             download_dir: Directory where the model file will be stored.
 
         Returns:
@@ -549,10 +549,10 @@ class Model:
 
         Example:
             >>> # Find model IDs at <https://artifacts.ai-coustics.io>
-            >>> path = Model.download("rook-l-16khz", "/tmp/models")
+            >>> path = Model.download("rook-ms-l-16khz", "/tmp/models")
             >>>
             >>> # Or using pathlib.Path
-            >>> path = Model.download("rook-l-16khz", Path(tempfile.gettempdir()) / "models"))
+            >>> path = Model.download("rook-ms-l-16khz", Path(tempfile.gettempdir()) / "models"))
             >>>
             >>> model = Model.from_file(path)
         """
@@ -578,7 +578,7 @@ class Model:
         Available models can be browsed at [artifacts.ai-coustics.io](https://artifacts.ai-coustics.io/).
 
         Args:
-            model_id: The model identifier (e.g., `"quail-l-16khz"`).
+            model_id: The model identifier (e.g., `"quail-ms-l-16khz"`).
             download_dir: Directory where the model file will be stored.
 
         Returns:
@@ -589,10 +589,10 @@ class Model:
 
         Example:
             >>> # Find model IDs at <https://artifacts.ai-coustics.io>
-            >>> path = await Model.download_async("rook-l-16khz", "/tmp/models")
+            >>> path = await Model.download_async("rook-ms-l-16khz", "/tmp/models")
             >>>
             >>> # Or using pathlib.Path
-            >>> path = await Model.download_async("rook-l-16khz", Path(tempfile.gettempdir()) / "models"))
+            >>> path = await Model.download_async("rook-ms-l-16khz", Path(tempfile.gettempdir()) / "models"))
             >>>
             >>> model = Model.from_file(path)
         """
@@ -1298,7 +1298,7 @@ class Vad:
         r"""
         Creates a voice activity detector.
 
-        The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
+        The model must be a dedicated VAD model, such as vad-ms-2.1-xxs-16khz. Enhancement models
         raise ModelTypeUnsupportedError. For an enhancement model, use
         Processor.get_energy_vad_context().
 
@@ -1373,7 +1373,7 @@ class VadAsync:
         r"""
         Creates an async voice activity detector.
 
-        The model must be a dedicated VAD model, such as vad-2.1-xxs-16khz. Enhancement models
+        The model must be a dedicated VAD model, such as vad-ms-2.1-xxs-16khz. Enhancement models
         raise ModelTypeUnsupportedError. For an enhancement model, use
         ProcessorAsync.get_energy_vad_context().
 

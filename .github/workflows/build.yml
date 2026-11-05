@@ -108,7 +108,7 @@ jobs:
             set -e
             python -m venv .venv-musl
             .venv-musl/bin/pip install --quiet '$wheel'
-            for model in rook-s-48khz vad-2.1-xxs-16khz quail-vf-2.2-s-16khz; do
+            for model in rook-ms-s-48khz vad-ms-2.1-xxs-16khz quail-vf-2.3-s-16khz; do
               .venv-musl/bin/python -c \"import sys, aic_sdk; aic_sdk.Model.download(sys.argv[1], 'models')\" \$model
             done
           "

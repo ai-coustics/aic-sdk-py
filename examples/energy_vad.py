@@ -17,7 +17,7 @@ import aic_sdk as aic
 
 def main():
     license_key = os.environ["AIC_SDK_LICENSE"]
-    model_path = aic.Model.download("quail-vf-2.2-s-16khz", Path.cwd() / "models")
+    model_path = aic.Model.download("quail-vf-2.3-s-16khz", Path.cwd() / "models")
     model = aic.Model.from_file(model_path)
     config = aic.ProcessorConfig.optimal(model)
     processor = aic.Processor(model, license_key, config)
