@@ -6,7 +6,7 @@ on:
       - "*.*.*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -97,6 +97,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, sdist]
     environment: publish
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:
