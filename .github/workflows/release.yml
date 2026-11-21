@@ -47,10 +47,10 @@ jobs:
           enable-cache: true
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
-        with:
-          toolchain: stable
-          targets: ${{ matrix.targets }}
+        shell: bash
+        run: |
+          rustup toolchain install
+          rustup target add ${{ matrix.targets }}
 
       - name: Install Python interpreters
         shell: bash

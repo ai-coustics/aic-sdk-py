@@ -23,9 +23,7 @@ jobs:
           enable-cache: true
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
-        with:
-          toolchain: stable
+        run: rustup toolchain install
 
       - name: Install dependencies and build
         run: |
